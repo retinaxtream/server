@@ -1,7 +1,7 @@
 import express from 'express';
 import morgan from 'morgan';
 import userroute from './routes/userRoutes.js';
-
+import cors from 'cors';
 
 const app = express();
 app.use(express.json());
@@ -13,7 +13,13 @@ app.use((req,res,next)=>{
     next();
 })
 
-
+app.use(cors({
+    origin: ['http://localhost:3000','https://storage.cloud.google.com/zephyrgllide/zhangzui-Pf23Y30hD68-unsplash.jpg'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options'],
+    credentials: true
+  }));
+   
 app.use('/api/v1/user',userroute) 
 
 // app.get('/api/v1/user', (req, res) => {
@@ -23,7 +29,7 @@ app.use('/api/v1/user',userroute)
 //             message: 'Hello from the retina server',
 //             app: "Retina"
 //         });
-// })
+// })    
 
 const port = 8000
 app.listen(port, () => {
