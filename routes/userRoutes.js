@@ -4,16 +4,13 @@ import multer from 'multer';
 
 const multerStorage = multer.memoryStorage();
 const upload = multer({ storage: multerStorage });
-
 const router = express.Router();
+
+
 
 router
     .route('/')        
     .get(userController.userWelcome);
-
-// Import the 'upload' middleware
-// import { upload } from '../controllers/userController.js';
-
 router
     .route('/upload/images')
     .post(upload.array('images'), userController.uploadImage);
