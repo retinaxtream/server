@@ -1,68 +1,118 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import  validator  from "validator";
+import crypto from 'crypto';
 
-
-const userSchema = mongoose.Schema(
-    {
-      mobile: { type: String, unique: true, sparse: true },
-      email: { type: String, unique: true, sparse: true },
-      password: { type: String, required: true },
-      tokenVersion: {
-        type: Number,
-        default: 0,
+const userSchema = new mongoose.Schema({
+  businessName: {
+    type: String,
+    required: [true, 'Please tell us your name!']
+  },
+  email: {
+    type: String,
+    required: [true, 'Please provide your email'],
+    unique: true,
+    lowercase: true,
+    validate: [validator.isEmail, 'Please provide a valid email']
+  },
+  photo: {
+    type: String,
+    default: 'default.jpg'
+  },
+  role: {
+    type: String,
+    enum: ['user', 'guide', 'lead-guide', 'admin'],
+    default: 'user'
+  },
+  password: {
+    type: String,
+    required: [true, 'Please provide a password'],
+    minlength: 8,
+    select: false
+  },
+  passwordConfirm: {
+    type: String,
+    required: [true, 'Please confirm your password'],
+    validate: {
+      // This only works on CREATE and SAVE!!!
+      validator: function (el) {
+        return el === this.password;
       },
-      otp: { type: String },
-      createdotpAt: { type: Date },
-      expiresotpAt: { type: Date },
-      validating: { type: Boolean },
-      banks: { type: Array },
-      budget: { type: budgetSchema },
-      budgetvariable: { type: budgetSchemav },
-      totalfixedexpense: { type: Number },
-      totalvariablexpense: { type: Number },
-      refreshToken: { type: String },
-      token: { type: tokenSchema },
-      historyId: { type: String },
-      messageId: { type: Array },
-      income: { type: Number },
-      totalExpense: { type: budgetTotal },
-      budgetObject: { type: Object },
-      setbudgets : {type : setbudget},
-      totalFinalPostionIncome : {type: tfpIncome},
-      totalFinalPostionExpenses : {type: tfpExpenses},
-      totalFinalPostionAssets : {type: tfpAssets},
-      totalFinalPostionLabilities :{type:tfpLabailites},
-      totalFinalPostionGoals: {type:tfpGoals},
-      totalFinalPostionTotal :{type:tfpTotal},
-      bankError :{type: Bankerror},
-      bankProgressStart:{type:Date},
-      bankProgressEnd:{type:Date},
-      achivegoals:{type: Object}
-    },
-    {
-      timestamps: true,
+      message: 'Passwords are not the same!'
     }
-  );
+  },
+  passwordChangedAt: Date,
+  passwordResetToken: String,
+  passwordResetExpires: Date,
+  active: {
+    type: Boolean,
+    default: true,
+    select: false
+  }
+});
 
-  
+userSchema.pre('save', async function (next) {
+  // Only run this function if password was actually modified
+  if (!this.isModified('password')) return next();
 
-  userSchema.methods.matchPassword = async function (enterPassword) {
-    return await bcrypt.compare(enterPassword, this.password);
-  };
-  
-  
-  userSchema.pre("save", async function (next) {
-    if (!this.isModified("password")) {
-      return next();
-    }
-    try {
-      const salt = await bcrypt.genSalt(10);
-      this.password = await bcrypt.hash(this.password, salt);
-      return next();
-    } catch (error) {
-      return next(error);
-    }
-  });
-  
-  const User = mongoose.model("user", userSchema);
-  export default User;
+  // Hash the password with cost of 12
+  this.password = await bcrypt.hash(this.password, 12);
+
+  // Delete passwordConfirm field
+  this.passwordConfirm = undefined;
+  next();
+});
+
+userSchema.pre('save', function (next) {
+  if (!this.isModified('password') || this.isNew) return next();
+
+  this.passwordChangedAt = Date.now() - 1000;
+  next();
+});
+
+userSchema.pre(/^find/, function (next) {
+  // this points to the current query
+  this.find({ active: { $ne: false } });
+  next();
+});
+
+userSchema.methods.correctPassword = async function (
+  candidatePassword,
+  userPassword
+) {
+  return await bcrypt.compare(candidatePassword, userPassword);
+};
+
+userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
+  if (this.passwordChangedAt) {
+    const changedTimestamp = parseInt(
+      this.passwordChangedAt.getTime() / 1000,
+      10
+    );
+
+    return JWTTimestamp < changedTimestamp;
+  }
+
+  // False means NOT changed
+  return false;
+};
+
+userSchema.methods.createPasswordResetToken = function () {
+  const resetToken = crypto.randomBytes(32).toString('hex');
+
+  this.passwordResetToken = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+
+  // console.log({ resetToken }, this.passwordResetToken);
+
+  this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+
+  return resetToken;
+};
+
+
+const User = mongoose.model('User', userSchema);
+
+export default User;
