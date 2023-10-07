@@ -1,17 +1,24 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-dotenv.config();
+dotenv.config({path:'./config.env'});
 
-const pass = process.env.PASSWORD_MONGO
 
-const connectDatabase = async () => {
-  try {
-    mongoose.set("strictQuery", true);
-    await mongoose.connect(`mongodb+srv://retinadevx:OL5jbWMTZzKQUR9z@cluster0.j7ukb7y.mongodb.net/`, {});
-    console.log("Db Connected");
-  } catch (error) {
-    console.log(error.message);
-  }
-};
- 
-export default connectDatabase; 
+
+const DB = process.env.DATABASE.replace('<PASSWORD>', process.env.DATABASE_PASSWORD)
+  .replace('<DATABASE>', process.env.DATABASE_NAME); // Replace 'database' with your desired database name
+
+
+  const connectDatabase = async () => {
+    try {
+      mongoose.set("strictQuery", true);
+      await mongoose.connect(DB, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      });
+      console.log("Connected to MongoDB");
+    } catch (error) {
+      console.error("MongoDB connection error:", error.message);
+    }
+  };
+  
+export default connectDatabase;
