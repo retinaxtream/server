@@ -9,11 +9,12 @@ const router = express.Router();
 
 
 router.post('/signup',authController.signup);
-
+router.post('/login',authController.login);
+ 
 router
     .route('/')
     .get(userController.userWelcome);
-    
+
 router
     .route('/upload/images')
     .post(upload.array('images'), userController.uploadImage);
