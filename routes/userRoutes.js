@@ -8,13 +8,16 @@ const upload = multer({ storage: multerStorage });
 const router = express.Router();
 
 
-router.post('/signup',authController.signup);
-router.post('/login',authController.login);
- 
+router.post('/signup', authController.signup);
+router.post('/login', authController.login);
+
+
 router
     .route('/')
     .get(userController.userWelcome);
 
+router
+     .get('/protect', userController.jwtcheck);
 router
     .route('/upload/images')
     .post(upload.array('images'), userController.uploadImage);
