@@ -73,6 +73,36 @@ export const userWelcome = CatchAsync(async(req, res) => {
 });
 
 
+export const jwtcheck =  CatchAsync(async (req, res) => {
+    // logger.info("from protect router");
+    console.log(req.headers);
+    const cookieString = req.headers.cookie;
+    // logger.info(cookieString);
+
+    if (cookieString) {
+      const cookies = cookieString.split("; ");
+      console.log('$$');
+      console.log(cookies);
+      const cookieObj = cookies.reduce((prev, current) => {
+        const [name, value] = current.split("=");
+        prev[name] = value;
+        return prev;
+      }, {});
+      // console.log(cookieObj);
+      const jwtToken = cookieObj.jwt || cookieObj.jwtToken;
+       console.log(jwtToken);
+      res.status(200).json({
+        status: "sucess",
+        jwtToken,
+      });
+    } else {
+      res.status(401).json({
+        status: "error",
+        message: "Cookie not found",
+      });
+    }
+  });
+
 
 ///We have to change this function with catchAsync later
 export async function uploadImage(req, res) {

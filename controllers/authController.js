@@ -70,3 +70,47 @@ export const login = CatchAsync(async (req, res, next) => {
     // createSendToken(user, 200, res);
   });
   
+
+export  const protect = CatchAsync(async (req, res, next) => {
+    let token;
+  
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    } else if (req.cookies.jwt) {
+      token = req.cookies.jwt;
+    } else if (req.query.token) {
+      token = req.query.token;
+    }
+  
+    try {
+      if (!token) {
+        logger.info('No token found');
+        res.status(401);
+        throw new Error('Not Authorized, no token');
+      }
+  
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  
+      req.user = await User.findById(decoded.id).select('-password');
+  
+  
+      const user = await User.findById(decoded.id).select('-password');
+      if (req.user.tokenVersion !== decoded.tokenVersion) {
+        logger.info('Invalid token version');
+        res.clearCookie("jwt", { path: "/" });
+        res.status(401);
+        throw new Error('Not Authorized, Invalid token version');
+      }
+      if (!req.user.validating && !req.body.otp) {
+        logger.info('OTP validation pending');
+        res.status(401);
+        throw new Error('Not Authorized, OTP validation pending');
+      }
+  
+      next();
+    } catch (error) {
+      logger.error(error);
+      res.status(401);
+      throw new Error('Not Authorized, token failed');
+    }
+  });
