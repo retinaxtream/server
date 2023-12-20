@@ -202,63 +202,7 @@ export const getClients = CatchAsync(async (req, res, next) => {
  
 
 
-// export const clientSorted = CatchAsync(async (req, res, next) => {
-//   const aggregatedClients = await Client.aggregate([
-//     {
-//       $match: { userId: req.user._id },
-//     },
-//     {
-//       $group: {
-//         _id: {
-//           day: { $dayOfMonth: { $toDate: "$Date" } },
-//           month: { $month: { $toDate: "$Date" } },
-//           year: { $year: { $toDate: "$Date" } },
-//           hour: { $hour: { $toDate: "$Date" } },
-//           minute: { $minute: { $toDate: "$Date" } },
-//           second: { $second: { $toDate: "$Date" } }
-//         },
-//         clients: { $push: "$$ROOT" }
-//       }
-//     },
-//     {
-//       $group: {
-//         _id: null,
-//         mainArray: { $push: "$clients" }
-//       }
-//     },
-//     {
-//       $project: {
-//         _id: 0,
-//         mainArray: 1
-//       }
-//     }
-//   ]);
 
-//   let result = aggregatedClients.length > 0 ? aggregatedClients[0].mainArray : [];
-
-//   // Sort the mainArray based on the first element's date in descending order
-//   result = result.sort((a, b) => {
-//     // Check if both a and b are arrays and have elements
-//     if (Array.isArray(a) && Array.isArray(b) && a.length > 0 && b.length > 0) {
-//       // Check if the first element in each array has the Date property and is not null or undefined
-//       const dateA = a[0][0]?.Date ? new Date(a[0][0].Date) : null;
-//       const dateB = b[0][0]?.Date ? new Date(b[0][0].Date) : null;
-
-//       // Check if both dateA and dateB are not null before comparison
-//       if (dateA && dateB) {
-//         return dateB - dateA;
-//       }
-//     }
-//     return 0; // If either a or b is empty or does not have the Date property, consider them equal
-//   });
-
-//   res.status(200).json({
-//     status: 'success',
-//     data: {
-//       clients: result,
-//     },
-//   });
-// });
 
 export const clientSorted = CatchAsync(async (req, res, next) => {
   const aggregatedClients = await Client.aggregate([
@@ -289,7 +233,18 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
     }
   ]);
 
-  const result = aggregatedClients.length > 0 ? aggregatedClients[0].mainArray : [];
+  let result = aggregatedClients.length > 0 ? aggregatedClients[0].mainArray : [];
+  result = result.sort((a, b) => {
+    if (Array.isArray(a) && Array.isArray(b) && a.length > 0 && b.length > 0) {
+      const dateA = a[0][0]?.Date ? new Date(a[0][0].Date) : null;
+      const dateB = b[0][0]?.Date ? new Date(b[0][0].Date) : null;
+
+      if (dateA && dateB) {
+        return dateB - dateA;
+      }
+    }
+    return 0;
+  });
 
   res.status(200).json({
     status: 'success',
