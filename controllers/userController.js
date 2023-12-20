@@ -1,7 +1,7 @@
 import path from 'path';
 // import multer from 'multer';
 import {CatchAsync} from '../Utils/CatchAsync.js'
-
+import  Client from '../models/ClientModel.js';
 import { Storage } from '@google-cloud/storage';
 import sharp from 'sharp';
 const currentModuleUrl = new URL(import.meta.url);
@@ -148,6 +148,153 @@ export async function uploadImage(req, res) {
   }     
 }        
 
+
+export const createClient = CatchAsync(async (req, res, next) => {
+  console.log('ID FROM CREATE CLIENT');
+  console.log(req.user._id);
+  let newClient;
+  if (req.body) {
+    if(req.body.Event_Category === 'Wedding' || req.body.Event_Category ==='Engagement' || req.body.Event_Category ==='Couple Shoot'){
+      newClient = await Client.create({
+        userId:req.user._id,
+        ClientName:req.body.Client_Name,
+        Email:req.body.Email,
+        Phone:req.body.Phone,       
+        Date:req.body.Date,
+        EventCategory:req.body.Event_Category,
+        EventName:req.body.Event_Name, 
+        Groom:req.body.Groom,
+        Bride:req.body.Bride,
+        Venue:req.body.Venue,
+        Source:req.body.Source
+      })
+    }else{
+      newClient = await Client.create({
+        userId:req.user._id,
+        ClientName:req.body.Client_Name,
+        Email:req.body.Email,
+        Phone:req.body.Phone,       
+        Date:req.body.Date,
+        EventCategory:req.body.Event_Category,
+        EventName:req.body.Event_Name, 
+        Venue:req.body.Venue,
+        Source:req.body.Source   
+      })
+    }
+    console.log(newClient);
+    res.status(200).json({
+      status:"success"
+    })
+  }
+}); 
  
 
  
+export const getClients = CatchAsync(async (req, res, next) => {
+  const clients = await Client.find({ userId: req.user._id });
+  res.status(200).json({     
+    status: 'success',     
+    data: {
+      clients,
+    },
+  });
+});
+ 
+
+
+// export const clientSorted = CatchAsync(async (req, res, next) => {
+//   const aggregatedClients = await Client.aggregate([
+//     {
+//       $match: { userId: req.user._id },
+//     },
+//     {
+//       $group: {
+//         _id: {
+//           day: { $dayOfMonth: { $toDate: "$Date" } },
+//           month: { $month: { $toDate: "$Date" } },
+//           year: { $year: { $toDate: "$Date" } },
+//           hour: { $hour: { $toDate: "$Date" } },
+//           minute: { $minute: { $toDate: "$Date" } },
+//           second: { $second: { $toDate: "$Date" } }
+//         },
+//         clients: { $push: "$$ROOT" }
+//       }
+//     },
+//     {
+//       $group: {
+//         _id: null,
+//         mainArray: { $push: "$clients" }
+//       }
+//     },
+//     {
+//       $project: {
+//         _id: 0,
+//         mainArray: 1
+//       }
+//     }
+//   ]);
+
+//   let result = aggregatedClients.length > 0 ? aggregatedClients[0].mainArray : [];
+
+//   // Sort the mainArray based on the first element's date in descending order
+//   result = result.sort((a, b) => {
+//     // Check if both a and b are arrays and have elements
+//     if (Array.isArray(a) && Array.isArray(b) && a.length > 0 && b.length > 0) {
+//       // Check if the first element in each array has the Date property and is not null or undefined
+//       const dateA = a[0][0]?.Date ? new Date(a[0][0].Date) : null;
+//       const dateB = b[0][0]?.Date ? new Date(b[0][0].Date) : null;
+
+//       // Check if both dateA and dateB are not null before comparison
+//       if (dateA && dateB) {
+//         return dateB - dateA;
+//       }
+//     }
+//     return 0; // If either a or b is empty or does not have the Date property, consider them equal
+//   });
+
+//   res.status(200).json({
+//     status: 'success',
+//     data: {
+//       clients: result,
+//     },
+//   });
+// });
+
+export const clientSorted = CatchAsync(async (req, res, next) => {
+  const aggregatedClients = await Client.aggregate([
+    {
+      $match: { userId: req.user._id },
+    },
+    {
+      $group: {
+        _id: {
+          day: { $dayOfMonth: { $toDate: "$Date" } },
+          month: { $month: { $toDate: "$Date" } },
+          year: { $year: { $toDate: "$Date" } }
+        },
+        clients: { $push: "$$ROOT" }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        mainArray: { $push: "$clients" }
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        mainArray: 1
+      }
+    }
+  ]);
+
+  const result = aggregatedClients.length > 0 ? aggregatedClients[0].mainArray : [];
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      clients: result,
+    },
+  });
+});
