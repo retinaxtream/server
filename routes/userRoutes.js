@@ -12,17 +12,18 @@ const router = express.Router();
 
 router.post('/signup', authController.signup);
 router.post('/login', authController.login);
+router.post('/validatingLink', userController.validateLink);
 router.post('/create/client', auth.protect, userController.createClient);
 router.get('/create/client', auth.protect, userController.getClients);
 router.get('/client/sorted', auth.protect, userController.clientSorted);
 
-   
+
 router
     .route('/')
     .get(userController.userWelcome);
 
 router
-     .get('/protect', userController.jwtcheck);
+    .get('/protect', userController.jwtcheck);
 router
     .route('/upload/images')
     .post(upload.array('images'), userController.uploadImage);

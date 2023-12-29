@@ -3,6 +3,7 @@ import path from 'path';
 import { CatchAsync } from '../Utils/CatchAsync.js'
 import Client from '../models/ClientModel.js';
 import { Storage } from '@google-cloud/storage';
+import User from '../models/Usermodel.js';
 import sharp from 'sharp';
 const currentModuleUrl = new URL(import.meta.url);
 const currentModuleDir = path.dirname(currentModuleUrl.pathname);
@@ -153,8 +154,14 @@ export const createClient = CatchAsync(async (req, res, next) => {
   console.log('ID FROM CREATE CLIENT');
   console.log(req.user._id);
   let newClient;
+  let magicLink;
+
   if (req.body) {
-    if (req.body.Event_Category === 'Wedding' || req.body.Event_Category === 'Engagement' || req.body.Event_Category === 'Couple Shoot') {
+    if (
+      req.body.Event_Category === 'Wedding' ||
+      req.body.Event_Category === 'Engagement' ||
+      req.body.Event_Category === 'Couple Shoot'
+    ) {
       newClient = await Client.create({
         userId: req.user._id,
         ClientName: req.body.Client_Name,
@@ -166,8 +173,10 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Groom: req.body.Groom,
         Bride: req.body.Bride,
         Venue: req.body.Venue,
-        Source: req.body.Source
-      })
+        Source: req.body.Source,
+      });
+
+      magicLink = `http://localhost:3000/${req.user.businessName}/${req.body.Event_Name}/${newClient._id}`;
     } else {
       newClient = await Client.create({
         userId: req.user._id,
@@ -178,13 +187,19 @@ export const createClient = CatchAsync(async (req, res, next) => {
         EventCategory: req.body.Event_Category,
         EventName: req.body.Event_Name,
         Venue: req.body.Venue,
-        Source: req.body.Source
-      })
+        Source: req.body.Source,
+      });
+
+      magicLink = `http://localhost:3000/${req.user.businessName}/${req.body.Event_Name}/${newClient._id}`;
     }
+
+    await Client.findByIdAndUpdate(newClient._id, { $set: { magicLink } }, { new: true });
+
     console.log(newClient);
+
     res.status(200).json({
-      status: "success"
-    })
+      status: 'success',
+    });
   }
 });
 
@@ -199,8 +214,6 @@ export const getClients = CatchAsync(async (req, res, next) => {
     },
   });
 });
-
-
 
 
 export const clientSorted = CatchAsync(async (req, res, next) => {
@@ -233,13 +246,65 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
   ]);
 
   let result = aggregatedClients.length > 0 ? aggregatedClients[0].mainArray : [];
-const clientsArray = result;
-const sortedDates = clientsArray.map(clientGroup => clientGroup[0].Date).sort((a, b) => new Date(b) - new Date(a));
-const sortedClientsArray = sortedDates.map(date => clientsArray.find(clientGroup => clientGroup[0].Date === date));
+  const clientsArray = result;
+  const sortedDates = clientsArray.map(clientGroup => clientGroup[0].Date).sort((a, b) => new Date(a) - new Date(b));
+  const sortedClientsArray = sortedDates.map(date => clientsArray.find(clientGroup => clientGroup[0].Date === date));
   res.status(200).json({
     status: 'success',
     data: {
-      clients: sortedClientsArray, 
+      clients: sortedClientsArray,
+    },
+  });
+});
+
+
+// export const validateLink = CatchAsync(async (req, res, next) => {
+//   const clients = await Client.find({ userId: req.body.id, EventName: req.body.EventName });
+//   const user = await User.findOne({ _id: req.user._id, businessName: req.body.businessName });
+//   let linkStatus;
+
+//   if (clients.length > 0 && user) {
+//     linkStatus = 'Allow Access';
+//     console.log('Allow Access');
+//   } else {
+//     linkStatus = 'Deny Access';
+//     console.log('Deny Access');
+//   }
+
+//   res.status(200).json({
+//     status: 'success',
+//     data: {
+//       linkStatus,
+//     },
+//   });
+// });
+
+
+export const validateLink = CatchAsync(async (req, res, next) => {
+  const clients = await Client.find({ _id: req.body.id });
+
+  console.log(clients);
+
+  if (clients.length === 0) {
+    // Handle case where no matching client is found
+    return res.status(404).json({
+      status: 'fail',
+      message: 'Client not found',
+    });
+  }
+  const user = await User.findOne({ _id: clients[0].userId });
+  let linkStatus;
+
+  if (clients[0].EventName === req.body.EventName && user.businessName === req.body.businessName) {
+    linkStatus = 'Allow Access';
+  } else {
+    linkStatus = 'Deny Access';
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      linkStatus,
     },
   });
 });
