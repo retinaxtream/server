@@ -1,10 +1,11 @@
 import mongoose from "mongoose";
 import validator from "validator";
+import { v4 as uuidv4 } from 'uuid';
 
 const clientSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Assuming your user model is named 'User'
+    ref: 'User',
     required: true,
   },
   EventCategory: {
@@ -53,8 +54,14 @@ const clientSchema = new mongoose.Schema({
       message: 'Please provide a valid Indian mobile number with the format +919XXXXXXXXX.'
     }
   },
+  magicLink: {
+    type: String,
+    unique: true,
+    default: uuidv4, // Set to a new UUID by default
+  },
 });    
 
 const Client = mongoose.model('Client', clientSchema);
 
 export default Client;
+ 
