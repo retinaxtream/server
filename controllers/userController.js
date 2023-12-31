@@ -305,6 +305,8 @@ export const validateLink = CatchAsync(async (req, res, next) => {
     status: 'success',
     data: {
       linkStatus,
-    },
+      client: clients[0]
+    },   
   });
 });
+ 
