@@ -16,7 +16,7 @@ const storage = new Storage({
   keyFilename: keyFilename,
 });
 
-const bucketName = 'zephyrgllide';
+const bucketName = 'hapzea';
 
 
 // userRouter.post(
@@ -65,6 +65,27 @@ const bucketName = 'zephyrgllide';
 // );
 
 
+async function createFolder(bucketName, folderName) {
+  try {
+    console.log('@@@@@@@ Atleast calling @@@@@@@');
+    const bucket = storage.bucket(bucketName);
+
+    // Ensure the folder name has a trailing slash
+    const folderObjectName = folderName.endsWith('/') ? folderName : `${folderName}/`;
+
+    // Create an empty object with the folder name
+    const folderObject = bucket.file(folderObjectName);
+
+    // Upload an empty buffer to create the object
+    await folderObject.save(Buffer.from(''));
+
+    console.log(`Folder "${folderName}" created successfully.`);
+  } catch (error) {
+    console.error('Error creating folder:', error);
+  }
+}
+
+
 export const userWelcome = CatchAsync(async (req, res) => {
   res.status(200).json({
     status: "success",
@@ -105,7 +126,6 @@ export const jwtcheck = CatchAsync(async (req, res) => {
 });
 
 
-///We have to change this function with catchAsync later
 export async function uploadImage(req, res) {
   try {
 
@@ -175,7 +195,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Venue: req.body.Venue,
         Source: req.body.Source,
       });
-
+      await createFolder('hapzea', `${newClient._id}/`);
       magicLink = `http://localhost:3000/${req.user.businessName}/${req.body.Event_Name}/${newClient._id}`;
     } else {
       newClient = await Client.create({
@@ -189,10 +209,10 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Venue: req.body.Venue,
         Source: req.body.Source,
       });
-
+      await createFolder('hapzea', `${newClient._id}/`);
       magicLink = `http://localhost:3000/${req.user.businessName}/${req.body.Event_Name}/${newClient._id}`;
     }
-
+    
     await Client.findByIdAndUpdate(newClient._id, { $set: { magicLink } }, { new: true });
 
     console.log(newClient);
@@ -256,28 +276,6 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
     },
   });
 });
-
-
-// export const validateLink = CatchAsync(async (req, res, next) => {
-//   const clients = await Client.find({ userId: req.body.id, EventName: req.body.EventName });
-//   const user = await User.findOne({ _id: req.user._id, businessName: req.body.businessName });
-//   let linkStatus;
-
-//   if (clients.length > 0 && user) {
-//     linkStatus = 'Allow Access';
-//     console.log('Allow Access');
-//   } else {
-//     linkStatus = 'Deny Access';
-//     console.log('Deny Access');
-//   }
-
-//   res.status(200).json({
-//     status: 'success',
-//     data: {
-//       linkStatus,
-//     },
-//   });
-// });
 
 
 export const validateLink = CatchAsync(async (req, res, next) => {
