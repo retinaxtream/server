@@ -65,26 +65,6 @@ const bucketName = 'hapzea';
 // );
 
 
-async function createFolder(bucketName, folderName) {
-  try {
-    console.log('@@@@@@@ Atleast calling @@@@@@@');
-    const bucket = storage.bucket(bucketName);
-
-    // Ensure the folder name has a trailing slash
-    const folderObjectName = folderName.endsWith('/') ? folderName : `${folderName}/`;
-
-    // Create an empty object with the folder name
-    const folderObject = bucket.file(folderObjectName);
-
-    // Upload an empty buffer to create the object
-    await folderObject.save(Buffer.from(''));
-
-    console.log(`Folder "${folderName}" created successfully.`);
-  } catch (error) {
-    console.error('Error creating folder:', error);
-  }
-}
-
 
 export const userWelcome = CatchAsync(async (req, res) => {
   res.status(200).json({
@@ -289,7 +269,7 @@ export const validateLink = CatchAsync(async (req, res, next) => {
       status: 'fail',
       message: 'Client not found',
     });
-  }
+  } 
   const user = await User.findOne({ _id: clients[0].userId });
   let linkStatus;
 
@@ -308,3 +288,231 @@ export const validateLink = CatchAsync(async (req, res, next) => {
   });
 });
  
+
+
+//Get Files
+async function listFilesInOne(bucketName, idFolderName) {
+  try {
+    const tankFolderPath = `${idFolderName}/Album/`; 
+    const [files] = await storage.bucket(bucketName).getFiles({ prefix: tankFolderPath });
+
+    console.log('Files in "one" subdirectory:');
+    files.forEach(file => {
+      const relativePath = file.name.replace(tankFolderPath, '');
+      console.log(relativePath);
+    });
+    return files;
+  } catch (error) {
+    console.error('Error listing files:', error);
+    throw error;
+  }
+}
+
+//Get the files from Tank
+async function listSubdirectoriesInTank(bucketName, idFolderName) {
+  try {
+    const tankFolderPath = `${idFolderName}/Album/`;
+    const [files] = await storage.bucket(bucketName).getFiles({ prefix: tankFolderPath });
+
+    const subdirectoriesSet = new Set();
+    console.log('files'); 
+    console.log(files);
+    console.log(tankFolderPath);
+
+    files.forEach(file => {
+      const relativePath = file.name.replace(tankFolderPath, '');
+      const parts = relativePath.split('/');
+      if (parts.length > 1) {
+        subdirectoriesSet.add(parts[0]);
+      }
+    });
+
+    const subdirectoriesList = Array.from(subdirectoriesSet);
+    console.log('Subdirectories in Tank:', subdirectoriesList);
+    return subdirectoriesList;
+  } catch (error) {
+    console.error('Error listing subdirectories:', error);
+    throw error;
+  }
+}
+async function listSubdirectoriesInAlbum(bucketName, idFolderName) {
+  try {
+    const tankFolderPath = `${idFolderName}/Album/`;
+    const [files] = await storage.bucket(bucketName).getFiles({ prefix: tankFolderPath });
+
+    const subdirectoriesSet = new Set();
+    console.log('files'); 
+    console.log(files);
+    console.log(tankFolderPath);
+
+    files.forEach(file => {
+      const relativePath = file.name.replace(tankFolderPath, '');
+      const parts = relativePath.split('/');
+      if (parts.length > 1) {
+        subdirectoriesSet.add(parts[0]);
+      }
+    });
+
+    const subdirectoriesList = Array.from(subdirectoriesSet);
+    console.log('Subdirectories in Tank:', subdirectoriesList);
+    return subdirectoriesList;
+  } catch (error) {
+    console.error('Error listing subdirectories:', error);
+    throw error;
+  }
+}
+async function listSubdirectoriesInSelect(bucketName, idFolderName) {
+  try {
+    const tankFolderPath = `${idFolderName}/PhotoSelection/`;
+    const [files] = await storage.bucket(bucketName).getFiles({ prefix: tankFolderPath });
+
+    const subdirectoriesSet = new Set();
+    console.log('files'); 
+    console.log(files);
+    console.log(tankFolderPath);
+
+    files.forEach(file => {
+      const relativePath = file.name.replace(tankFolderPath, '');
+      const parts = relativePath.split('/');
+      if (parts.length > 1) {
+        subdirectoriesSet.add(parts[0]);
+      }
+    });
+
+    const subdirectoriesList = Array.from(subdirectoriesSet);
+    console.log('Subdirectories in Tank:', subdirectoriesList);
+    return subdirectoriesList;
+  } catch (error) {
+    console.error('Error listing subdirectories:', error);
+    throw error;
+  }
+}
+
+
+async function createFolder(bucketName, folderName) {
+  try {
+    console.log('@@@@@@@ Atleast calling @@@@@@@');
+    const bucket = storage.bucket(bucketName);
+
+    // Ensure the folder name has a trailing slash
+    const folderObjectName = folderName.endsWith('/') ? folderName : `${folderName}/`;
+
+    // Create an empty object with the folder name
+    const folderObject = bucket.file(folderObjectName);
+
+    // Upload an empty buffer to create the object
+    await folderObject.save(Buffer.from(''));
+
+    console.log(`Folder "${folderName}" created successfully.`);
+  } catch (error) {
+    console.error('Error creating folder:', error);
+  }
+}
+
+
+
+// async function createFolderBucket(bucketName, userId, newFolderName) {
+//   try {
+//     const bucket = storage.bucket(bucketName);
+
+//     // const userFolderName = userId.endsWith('/') ? userId : `${userId}/Album/`;
+//     const userFolderName = `${userId}/Album/`;
+
+//     const userFolderObject = bucket.file(userFolderName);
+//     const [userFolderExists] = await userFolderObject.exists();
+
+//     if (!userFolderExists) {
+//       console.error(`User-specific folder "${userFolderName}" does not exist.`);
+//       return;
+//     }
+
+//     const albumFolderName = `${userFolderName}/`;
+//     const newFolderObject = bucket.file(`${albumFolderName}${newFolderName}/`);
+//     await newFolderObject.save(Buffer.from(''));
+
+//     console.log(`Folder "${newFolderName}" created successfully inside 'Album' folder.`);
+//   } catch (error) {
+//     console.error('Error creating folder:', error);
+//   }
+// }
+
+
+async function createFolderBucket(bucketName, userId, newFolderName) {
+  try {
+    const bucket = storage.bucket(bucketName);
+
+    const userFolderName = userId.endsWith('/') ? userId.slice(0, -1) : userId;
+
+    const userFolderObject = bucket.file(`${userFolderName}/Album/`);
+    const [userFolderExists] = await userFolderObject.exists();
+
+    if (!userFolderExists) {
+      console.error(`User-specific folder "${userFolderName}/Album/" does not exist.`);
+      return;
+    }
+
+    const newFolderObject = bucket.file(`${userFolderName}/Album/${newFolderName}/`);
+    await newFolderObject.save(Buffer.from(''));
+
+    console.log(`Folder "${newFolderName}" created successfully inside 'Album' folder.`);
+  } catch (error) {  
+    console.error('Error creating folder:', error);
+  }
+}
+
+
+export const getFiles = CatchAsync(async (req, res, next) => {
+  const userId = req.query._id;  
+  if (!userId) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'User ID is required in the query parameters.'
+    });
+  }
+ 
+  const AlbumDta = await listSubdirectoriesInAlbum('hapzea', userId);
+  const photoselect = await listSubdirectoriesInSelect('hapzea', userId);
+  // const maindtaOne = await createFolder('hapzea', 'Two');
+  // const maindta = await createFolderBucket('hapzea',userId, 'Two');
+  res.status(200).json({
+    status: 'success',
+    data: { Album:AlbumDta,
+    Selection:photoselect
+    }
+  }); 
+});
+
+ 
+
+
+
+// New method to get a client by _id
+export const getClientById = CatchAsync(async (req, res, next) => {
+  const clientId = req.params.id;
+
+  if (!clientId) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Client ID is required in the URL parameters.'
+    });
+  }
+
+  // Use the client ID to fetch the client from the database
+  const client = await Client.findById(clientId);
+
+  console.log(client);
+
+  if (!client) {
+    return res.status(404).json({
+      status: 'fail',
+      message: 'Client not found.'
+    });
+  } 
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      client,
+    },
+  });
+});

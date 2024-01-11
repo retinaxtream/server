@@ -9,13 +9,17 @@ const multerStorage = multer.memoryStorage();
 const upload = multer({ storage: multerStorage });
 const router = express.Router();
 
-
 router.post('/signup', authController.signup);
 router.post('/login', authController.login);
 router.post('/validatingLink', userController.validateLink);
 router.post('/create/client', auth.protect, userController.createClient);
 router.get('/create/client', auth.protect, userController.getClients);
 router.get('/client/sorted', auth.protect, userController.clientSorted);
+
+router.get('/client/:id', auth.protect, userController.getClientById);
+
+
+router.get('/getfiles', auth.protect, userController.getFiles);
 
 
 router
