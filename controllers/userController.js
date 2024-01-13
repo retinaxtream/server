@@ -232,7 +232,7 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
       }
     },
     {
-      $group: {
+      $group: { 
         _id: null,
         mainArray: { $push: "$clients" }
       }
@@ -293,7 +293,7 @@ export const validateLink = CatchAsync(async (req, res, next) => {
 //Get Files
 async function listFilesInOne(bucketName, idFolderName) {
   try {
-    const tankFolderPath = `${idFolderName}/Album/`; 
+    const tankFolderPath = `${idFolderName}/Album/one`; 
     const [files] = await storage.bucket(bucketName).getFiles({ prefix: tankFolderPath });
 
     console.log('Files in "one" subdirectory:');
@@ -354,7 +354,7 @@ async function listSubdirectoriesInAlbum(bucketName, idFolderName) {
     });
 
     const subdirectoriesList = Array.from(subdirectoriesSet);
-    console.log('Subdirectories in Tank:', subdirectoriesList);
+    console.log('Subdirectories in Album:', subdirectoriesList);
     return subdirectoriesList;
   } catch (error) {
     console.error('Error listing subdirectories:', error);
@@ -368,8 +368,8 @@ async function listSubdirectoriesInSelect(bucketName, idFolderName) {
 
     const subdirectoriesSet = new Set();
     console.log('files'); 
-    console.log(files);
-    console.log(tankFolderPath);
+    // console.log(files);
+    // console.log(tankFolderPath);
 
     files.forEach(file => {
       const relativePath = file.name.replace(tankFolderPath, '');
@@ -380,13 +380,209 @@ async function listSubdirectoriesInSelect(bucketName, idFolderName) {
     });
 
     const subdirectoriesList = Array.from(subdirectoriesSet);
-    console.log('Subdirectories in Tank:', subdirectoriesList);
+    console.log('Subdirectories in PhotoSelection:', subdirectoriesList);
     return subdirectoriesList;
   } catch (error) {
     console.error('Error listing subdirectories:', error);
     throw error;
   }
 }
+async function listFoldersInSubdirectoriesAlbum(bucketName, idFolderName) {
+  try {
+    const albumFolderPath = `${idFolderName}/Album/`;
+    const [files] = await storage.bucket(bucketName).getFiles({ prefix: albumFolderPath });
+
+    const subdirectoriesSet = new Set();
+
+    files.forEach(file => {
+      const relativePath = file.name.replace(albumFolderPath, '');
+      const parts = relativePath.split('/');
+      if (parts.length > 1) {
+        subdirectoriesSet.add(parts[0]);
+      }
+    });
+
+    const subdirectoriesList = Array.from(subdirectoriesSet);
+    console.log('Subdirectories in Album:', subdirectoriesList);
+
+    // Fetch folders inside each subdirectory
+    const allFolders = await Promise.all(
+      subdirectoriesList.map(async subdirectory => {
+        const subdirectoryPath = `${albumFolderPath}${subdirectory}/`;
+        const [subdirectoryFiles] = await storage.bucket(bucketName).getFiles({ prefix: subdirectoryPath });
+        
+        const foldersInSubdirectory = new Set();
+        subdirectoryFiles.forEach(file => {
+          const relativePath = file.name.replace(subdirectoryPath, '');
+          const folderName = relativePath.split('/')[0];
+          if (folderName) {
+            foldersInSubdirectory.add(folderName);
+          }
+        });
+        
+        return Array.from(foldersInSubdirectory);
+      })
+    );
+
+    const allFoldersList = allFolders.flat();
+    console.log('All folders inside subdirectories:', allFoldersList);
+
+    return allFoldersList;
+  } catch (error) {
+    console.error('Error listing folders:', error);
+    throw error;
+  }
+}
+async function listFoldersInSubdirectoriesPhoto(bucketName, idFolderName) {
+  try {
+    const albumFolderPath = `${idFolderName}/PhotoSelection/`;
+    const [files] = await storage.bucket(bucketName).getFiles({ prefix: albumFolderPath });
+
+    const subdirectoriesSet = new Set();
+
+    files.forEach(file => {
+      const relativePath = file.name.replace(albumFolderPath, '');
+      const parts = relativePath.split('/');
+      if (parts.length > 1) {
+        subdirectoriesSet.add(parts[0]);
+      }
+    });
+
+    const subdirectoriesList = Array.from(subdirectoriesSet);
+    console.log('Subdirectories in Album:', subdirectoriesList);
+
+    // Fetch folders inside each subdirectory
+    const allFolders = await Promise.all(
+      subdirectoriesList.map(async subdirectory => {
+        const subdirectoryPath = `${albumFolderPath}${subdirectory}/`;
+        const [subdirectoryFiles] = await storage.bucket(bucketName).getFiles({ prefix: subdirectoryPath });
+        
+        const foldersInSubdirectory = new Set();
+        subdirectoryFiles.forEach(file => {
+          const relativePath = file.name.replace(subdirectoryPath, '');
+          const folderName = relativePath.split('/')[0];
+          if (folderName) {
+            foldersInSubdirectory.add(folderName);
+          }
+        });
+        
+        return Array.from(foldersInSubdirectory);
+      })
+    );
+
+    const allFoldersList = allFolders.flat();
+    console.log('All folders inside subdirectories:', allFoldersList);
+
+    return allFoldersList;
+  } catch (error) {
+    console.error('Error listing folders:', error);
+    throw error;
+  }
+}
+async function organizeFoldersInAlbum(bucketName, idFolderName) {
+  try {
+    const albumFolderPath = `${idFolderName}/Album/`;
+    const [files] = await storage.bucket(bucketName).getFiles({ prefix: albumFolderPath });
+
+    const subdirectoriesSet = new Set();
+
+    files.forEach(file => {
+      const relativePath = file.name.replace(albumFolderPath, '');
+      const parts = relativePath.split('/');
+      if (parts.length > 1) {
+        subdirectoriesSet.add(parts[0]);
+      }
+    });
+
+    const subdirectoriesList = Array.from(subdirectoriesSet);
+    console.log('Subdirectories in Album:', subdirectoriesList);
+
+    // Organize folders in each subdirectory
+    const foldersInSubdirectories = {};
+
+    await Promise.all(
+      subdirectoriesList.map(async subdirectory => {
+        const subdirectoryPath = `${albumFolderPath}${subdirectory}/`;
+        const [subdirectoryFiles] = await storage.bucket(bucketName).getFiles({ prefix: subdirectoryPath });
+
+        const foldersInSubdirectory = new Set();
+        subdirectoryFiles.forEach(file => {
+          const relativePath = file.name.replace(subdirectoryPath, '');
+          const folderName = relativePath.split('/')[0];
+          if (folderName) {
+            foldersInSubdirectory.add(folderName);
+          }
+        });
+
+        foldersInSubdirectories[subdirectory] = Array.from(foldersInSubdirectory);
+      })
+    );
+
+    const resultObject = {
+      subdirectoriesList: subdirectoriesList,
+      foldersInSubdirectories: foldersInSubdirectories,
+    };
+
+    console.log('Organized Folders Album:', resultObject);
+    return resultObject;
+  } catch (error) {
+    console.error('Error organizing folders:', error);
+    throw error;
+  }
+}
+async function organizeFoldersInPhoto(bucketName, idFolderName) {
+  try {
+    const albumFolderPath = `${idFolderName}/PhotoSelection/`;
+    const [files] = await storage.bucket(bucketName).getFiles({ prefix: albumFolderPath });
+
+    const subdirectoriesSet = new Set();
+
+    files.forEach(file => {
+      const relativePath = file.name.replace(albumFolderPath, '');
+      const parts = relativePath.split('/');
+      if (parts.length > 1) {
+        subdirectoriesSet.add(parts[0]);
+      }
+    });
+
+    const subdirectoriesList = Array.from(subdirectoriesSet);
+    // console.log('Subdirectories in PhotoSelection:', subdirectoriesList);
+
+    // Organize folders in each subdirectory
+    const foldersInSubdirectories = {};
+
+    await Promise.all(
+      subdirectoriesList.map(async subdirectory => {
+        const subdirectoryPath = `${albumFolderPath}${subdirectory}/`;
+        const [subdirectoryFiles] = await storage.bucket(bucketName).getFiles({ prefix: subdirectoryPath });
+
+        const foldersInSubdirectory = new Set();
+        subdirectoryFiles.forEach(file => {
+          const relativePath = file.name.replace(subdirectoryPath, '');
+          const folderName = relativePath.split('/')[0];
+          if (folderName) {
+            foldersInSubdirectory.add(folderName);
+          }
+        });
+
+        foldersInSubdirectories[subdirectory] = Array.from(foldersInSubdirectory);
+      })
+    );
+
+    const resultObject = {
+      subdirectoriesList: subdirectoriesList,
+      foldersInSubdirectories: foldersInSubdirectories,
+    };
+
+    console.log('Organized Folders PhotoSelection:', resultObject);
+    return resultObject;
+  } catch (error) {
+    console.error('Error organizing folders:', error);
+    throw error;
+  }
+}
+
+
 
 
 async function createFolder(bucketName, folderName) {
@@ -454,7 +650,7 @@ async function createFolderBucket(bucketName, userId, newFolderName) {
     const newFolderObject = bucket.file(`${userFolderName}/Album/${newFolderName}/`);
     await newFolderObject.save(Buffer.from(''));
 
-    console.log(`Folder "${newFolderName}" created successfully inside 'Album' folder.`);
+    // console.log(`Folder "${newFolderName}" created successfully inside 'Album' folder.`);
   } catch (error) {  
     console.error('Error creating folder:', error);
   }
@@ -470,45 +666,44 @@ export const getFiles = CatchAsync(async (req, res, next) => {
     });
   }
  
-  const AlbumDta = await listSubdirectoriesInAlbum('hapzea', userId);
-  const photoselect = await listSubdirectoriesInSelect('hapzea', userId);
+  // const AlbumDta = await listSubdirectoriesInAlbum('hapzea', userId);
+  // const photoselect = await listSubdirectoriesInSelect('hapzea', userId);
+  // const Subdirectories = await listFoldersInSubdirectoriesAlbum('hapzea', userId);
+  const AlbumsSubs = await organizeFoldersInAlbum('hapzea', userId);
+  const PhotoSubs = await organizeFoldersInPhoto('hapzea', userId);
+  // const ListSubDire = await listFilesInOne('hapzea', userId);
   // const maindtaOne = await createFolder('hapzea', 'Two');
   // const maindta = await createFolderBucket('hapzea',userId, 'Two');
   res.status(200).json({
     status: 'success',
-    data: { Album:AlbumDta,
-    Selection:photoselect
+    data: { 
+    //   Album:AlbumDta,
+    // Selection:photoselect,
+    album:AlbumsSubs,
+    photo:PhotoSubs
     }
   }); 
 });
 
  
-
-
-
 // New method to get a client by _id
 export const getClientById = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
-
   if (!clientId) {
     return res.status(400).json({
       status: 'error',
       message: 'Client ID is required in the URL parameters.'
     });
   }
-
   // Use the client ID to fetch the client from the database
   const client = await Client.findById(clientId);
-
-  console.log(client);
-
+  // console.log(client);
   if (!client) {
     return res.status(404).json({
       status: 'fail',
       message: 'Client not found.'
     });
   } 
-
   res.status(200).json({
     status: 'success',
     data: {
