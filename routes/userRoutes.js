@@ -15,11 +15,9 @@ router.post('/validatingLink', userController.validateLink);
 router.post('/create/client', auth.protect, userController.createClient);
 router.get('/create/client', auth.protect, userController.getClients);
 router.get('/client/sorted', auth.protect, userController.clientSorted);
-
 router.get('/client/:id', auth.protect, userController.getClientById);
-
-
 router.get('/getfiles', auth.protect, userController.getFiles);
+router.post('/createfolder', auth.protect, userController.createFolder_Bucket);
 
 
 router
