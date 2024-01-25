@@ -155,11 +155,11 @@ export async function uploadImage(req, res) {
 export const createClient = CatchAsync(async (req, res, next) => {
   console.log('ID FROM CREATE CLIENT');
   console.log(req.user._id);
-  let newClient; 
+  let newClient;
   let magicLink;
 
-  if (req.body) {    
-    if ( 
+  if (req.body) {
+    if (
       req.body.Event_Category === 'Wedding' ||
       req.body.Event_Category === 'Engagement' ||
       req.body.Event_Category === 'Couple Shoot'
@@ -194,7 +194,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
       await createFolder('hapzea', `${newClient._id}/`);
       magicLink = `http://localhost:3000/${req.user.businessName}/${req.body.Event_Name}/${newClient._id}`;
     }
-    
+
     await Client.findByIdAndUpdate(newClient._id, { $set: { magicLink } }, { new: true });
 
     console.log(newClient);
@@ -234,7 +234,7 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
       }
     },
     {
-      $group: { 
+      $group: {
         _id: null,
         mainArray: { $push: "$clients" }
       }
@@ -271,7 +271,7 @@ export const validateLink = CatchAsync(async (req, res, next) => {
       status: 'fail',
       message: 'Client not found',
     });
-  } 
+  }
   const user = await User.findOne({ _id: clients[0].userId });
   let linkStatus;
 
@@ -286,16 +286,16 @@ export const validateLink = CatchAsync(async (req, res, next) => {
     data: {
       linkStatus,
       client: clients[0]
-    },   
+    },
   });
 });
- 
+
 
 
 // ###########################################################################
 async function listFilesInOne(bucketName, idFolderName) {
   try {
-    const tankFolderPath = `${idFolderName}/Album/one`; 
+    const tankFolderPath = `${idFolderName}/Album/one`;
     const [files] = await storage.bucket(bucketName).getFiles({ prefix: tankFolderPath });
 
     console.log('Files in "one" subdirectory:');
@@ -469,7 +469,6 @@ async function getFoldersInPhoto(bucketName, idFolderName) {
 // ###########################################################################
 async function createFolder(bucketName, userId) {
   try {
-    console.log('@@@@@@@ At least calling @@@@@@@');
     const bucket = storage.bucket(bucketName);
 
     // Ensure the folder name has a trailing slash
@@ -479,11 +478,22 @@ async function createFolder(bucketName, userId) {
     await createSubfolder(bucket, userFolderName, 'Album');
     await createSubfolder(bucket, userFolderName, 'PhotoSelection');
 
+    // Create subfolders inside 'Album'
+    const albumFolderPath = `${userFolderName}Album/`;
+    await createSubfolder(bucket, albumFolderPath, 'Full Photos');
+    await createSubfolder(bucket, albumFolderPath, 'Starred Photos');
+
+    // Create subfolders inside 'PhotoSelection' 
+    const photoSelectionFolderPath = `${userFolderName}PhotoSelection/`;
+    await createSubfolder(bucket, photoSelectionFolderPath, 'Full Photos');
+    await createSubfolder(bucket, photoSelectionFolderPath, 'Starred Photos');
+
     console.log(`Default folders created inside "${userId}" folder.`);
   } catch (error) {
     console.error('Error creating folders:', error);
   }
 }
+
 async function createSubfolder(bucket, parentFolderName, subfolderName) {
   const folderObjectName = `${parentFolderName}${subfolderName}/`;
   const folderObject = bucket.file(folderObjectName);
@@ -513,43 +523,43 @@ async function createFolderIn(bucketName, userId, newFolderName,media) {
     await newFolderObject.save(Buffer.from(''));
 
     // console.log(`Folder "${newFolderName}" created successfully inside 'Album' folder.`);
-  } catch (error) {  
-    console.error('Error creating folder:', error);
-  }
-}
-
-async function createSubFolderIn(bucketName, userId, newFolderName, media, subfolder) {
-  try {
-    const bucket = storage.bucket(bucketName);
-
-    const userFolderName = userId.endsWith('/') ? userId.slice(0, -1) : userId;
-
-    let folderPath = `${userFolderName}/${media}/`;
-
-    if (subfolder) {
-      folderPath += `${newFolderName}/`;
-      const subfolderObject = bucket.file(folderPath);
-      const [subfolderExists] = await subfolderObject.exists();
-
-      if (!subfolderExists) {
-        console.error(`Subfolder "${folderPath}" does not exist.`);
-        return;
-      }
-    }
-
-    const newFolderObject = bucket.file(`${folderPath}${subfolder}/`);
-    await newFolderObject.save(Buffer.from(''));
-
-    console.log(`Folder "${subfolder}" created successfully inside '${folderPath}'.`);
   } catch (error) {
     console.error('Error creating folder:', error);
   }
 }
-  
+
+// async function createSubFolderIn(bucketName, userId, newFolderName, media, subfolder) {
+//   try {
+//     const bucket = storage.bucket(bucketName);
+
+//     const userFolderName = userId.endsWith('/') ? userId.slice(0, -1) : userId;
+
+//     let folderPath = `${userFolderName}/${media}/`;
+
+//     if (subfolder) {
+//       folderPath += `${newFolderName}/`;
+//       const subfolderObject = bucket.file(folderPath);
+//       const [subfolderExists] = await subfolderObject.exists();
+
+//       if (!subfolderExists) {
+//         console.error(`Subfolder "${folderPath}" does not exist.`);
+//         return;
+//       }
+//     }
+
+//     const newFolderObject = bucket.file(`${folderPath}${subfolder}/`);
+//     await newFolderObject.save(Buffer.from(''));
+
+//     console.log(`Folder "${subfolder}" created successfully inside '${folderPath}'.`);
+//   } catch (error) {
+//     console.error('Error creating folder:', error);
+//   }
+// }
 
 // ###########################################################################
 export const getFiles = CatchAsync(async (req, res, next) => {
-  const userId = req.query._id;  
+  const userId = req.query._id;
+  
   if (!userId) {
     return res.status(400).json({
       status: 'error',
@@ -558,18 +568,18 @@ export const getFiles = CatchAsync(async (req, res, next) => {
   }
   const AlbumsSubs = await getFoldersInAlbum('hapzea', userId);
   const PhotoSubs = await getFoldersInPhoto('hapzea', userId);
-  res.status(200).json({ 
+  res.status(200).json({
     status: 'success',
-    data: { 
-    album:AlbumsSubs,
-    photo:PhotoSubs
-    }
-  }); 
+    data: {
+      album: AlbumsSubs,
+      photo: PhotoSubs
+    } 
+  });
 });
 
 
 // ###########################################################################
-async function fetchAllPhotos(bucketName, userId, albumName, folderName, subfolderName) {
+async function fetchAllPhotos(bucketName, userId, albumName, folderName) {
   try {
     console.log('called fetchAllPhotos');
     const bucket = storage.bucket(bucketName);
@@ -582,9 +592,9 @@ async function fetchAllPhotos(bucketName, userId, albumName, folderName, subfold
     if (folderName) {
       prefix += `${folderName}/`;
     }
-    if (subfolderName) {
-      prefix += `${subfolderName}/`;
-    }
+    // if (subfolderName) {
+    //   prefix += `${subfolderName}/`;
+    // }
 
     // List all files with the specified prefix
     const [files] = await bucket.getFiles({
@@ -613,82 +623,78 @@ async function fetchAllPhotos(bucketName, userId, albumName, folderName, subfold
 
 // ###########################################################################
 export const createFolder_Bucket = CatchAsync(async (req, res, next) => {
-  const userId = req.query._id;  
-  const folderName = req.body.nameFolder
-  const media =req.body.media
-  const subfolder = req.body.subfolder || null;
+  const main_folder = req.body.main_folder
+  const folderName =req.body.folder_name
+  // const sub_folder = req.params.sub_folder
+  const userId = req.query._id;
   if (!userId) {
     return res.status(400).json({
       status: 'error',
       message: 'User ID is required in the query parameters.'
     });
   }
-
-  await fetchAllPhotos('hapzea', '65969868b6b7ac9812002117', 'Album', 'Three', 'Trial');
-  if(subfolder !== null){
-     await createSubFolderIn('hapzea', userId,folderName,media,subfolder);
-    //  await fetchAllPhotos('hapzea', '65969868b6b7ac9812002117', 'Album', 'Three', 'Trial');
-  }else{
-     await createFolderIn('hapzea', userId,folderName,media);
-  }
+ 
+  // await fetchAllPhotos('hapzea',userId, main_folder );
+  await createFolderIn('hapzea',userId,folderName, main_folder );
+  // if (subfolder !== null) {
+  //   await createSubFolderIn('hapzea', userId, folderName, media, subfolder);
+  // } else {
+  //   await createFolderIn('hapzea', userId, folderName, media);
+  // }
   res.status(200).json({
-    status: 'success', 
-    // data: { 
-    // album:AlbumsSubs,
-    // photo:PhotoSubs  
-    // }
-  }); 
+    status: 'success',
+  });
 });
 
 
 // ###########################################################################
 async function uploadPhotos(bucketName, userId, albumName, folderName, subfolderName, photoPaths) {
   try {
-      console.log('called uploadPhotos');
-      const bucket = storage.bucket(bucketName);
+    console.log('called uploadPhotos');
+    const bucket = storage.bucket(bucketName);
 
-      // Construct the destination path based on userID, album, folder, and subfolder
-      let destinationPath = `${userId}/`;
-      if (albumName) {
-          destinationPath += `${albumName}/`;
-      }
-      if (folderName) {
-          destinationPath += `${folderName}/`;
-      }
-      if (subfolderName) {
-          destinationPath += `${subfolderName}/`;
-      }
+    // Construct the destination path based on userID, album, folder, and subfolder
+    let destinationPath = `${userId}/`;
+    if (albumName) {
+      destinationPath += `${albumName}/`;
+    }
+    if (folderName) {
+      destinationPath += `${folderName}/`;
+    }
+    if (subfolderName) {
+      destinationPath += `${subfolderName}/`;
+    }
 
-      // Upload each photo to the specified subfolder
-      for (const photoPath of photoPaths) {
-          const photoName = path.basename(photoPath); // Extract the photo name using path module
-          const file = bucket.file(`${destinationPath}${photoName}`);
+    // Upload each photo to the specified subfolder
+    for (const photoPath of photoPaths) {
+      const photoName = path.basename(photoPath); // Extract the photo name using path module
+      const file = bucket.file(`${destinationPath}${photoName}`);
 
-          // Create a write stream to upload the file
-          const stream = file.createWriteStream({
-              metadata: {
-                  contentType: 'image/jpeg', // Change this based on your file type
-              },
-          });
+      // Create a write stream to upload the file
+      const stream = file.createWriteStream({
+        metadata: {
+          contentType: 'image/jpeg', // Change this based on your file type
+        },
+      });
 
-          // Handle stream events (success, error)
-          stream.on('error', (err) => {
-              console.error(`Error uploading photo ${photoName}:`, err);
-          });
+      // Handle stream events (success, error)
+      stream.on('error', (err) => {
+        console.error(`Error uploading photo ${photoName}:`, err);
+      });
 
-          stream.on('finish', () => {
-              console.log(`Photo ${photoName} uploaded to '${destinationPath}'.`);
-              // You can perform further processing or store the uploaded file information as needed
-          });
+      stream.on('finish', () => {
+        console.log(`Photo ${photoName} uploaded to '${destinationPath}'.`);
+        // You can perform further processing or store the uploaded file information as needed
+      });
 
-          // Pipe the file into the write stream
-          const readStream = fs.createReadStream(photoPath);
-          readStream.pipe(stream);
-      }
+      // Pipe the file into the write stream
+      const readStream = fs.createReadStream(photoPath);
+      readStream.pipe(stream);
+    }
 
-      console.log('All photos uploaded successfully.');
+    console.log('All photos uploaded successfully.');
   } catch (error) {
-      console.error('Error uploading photos:', error);
+    console.error('Error uploading photos:', error);
   }
 }
 
@@ -700,7 +706,7 @@ export const getClientById = CatchAsync(async (req, res, next) => {
       status: 'error',
       message: 'Client ID is required in the URL parameters.'
     });
-  } 
+  }
   // Use the client ID to fetch the client from the database
   const client = await Client.findById(clientId);
   // console.log(client);
@@ -709,7 +715,7 @@ export const getClientById = CatchAsync(async (req, res, next) => {
       status: 'fail',
       message: 'Client not found.'
     });
-  } 
+  }
   res.status(200).json({
     status: 'success',
     data: {
@@ -718,10 +724,13 @@ export const getClientById = CatchAsync(async (req, res, next) => {
   });
 });
 
-export const fetch_Photos= CatchAsync(async (req, res, next) => {
- const fetchedFiles = await fetchAllPhotos('hapzea', '65969868b6b7ac9812002117', 'Album', 'Three', 'Trial');
-console.log('frrrrrrrrrrrrrom');
- console.log(fetchedFiles);
+export const fetch_Photos = CatchAsync(async (req, res, next) => {
+  const main_folder = req.body.main_folder
+  const sub_folder = req.params.sub_folder
+  const id = req.body.userId
+  const fetchedFiles = await fetchAllPhotos('hapzea', id, main_folder, sub_folder);
+  console.log('frrrrrrrrrrrrrom');
+  console.log(fetchedFiles);
   res.status(200).json({
     status: 'success',
     data: {
@@ -729,7 +738,7 @@ console.log('frrrrrrrrrrrrrom');
     },
   });
 });
-
+ 
 
 export const upload = CatchAsync(async (req, res, next) => {
   const photoPaths = req.files.map(file => file.path);
