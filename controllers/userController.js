@@ -579,6 +579,8 @@ export const getFiles = CatchAsync(async (req, res, next) => {
 
 
 // ###########################################################################
+
+
 async function fetchAllPhotos(bucketName, userId, albumName, folderName) {
   try {
     console.log('called fetchAllPhotos');
@@ -592,26 +594,23 @@ async function fetchAllPhotos(bucketName, userId, albumName, folderName) {
     if (folderName) {
       prefix += `${folderName}/`;
     }
-    // if (subfolderName) {
-    //   prefix += `${subfolderName}/`;
-    // }
 
     // List all files with the specified prefix
     const [files] = await bucket.getFiles({
       prefix: prefix,
     });
 
-    // Extract file names
-    const fileNames = files.map(file => file.name);
-
-    // Log or process the fetched files
-    fileNames.forEach(fileName => {
+    // Extract file names and transform them into URLs
+    const urls = files.map(file => {
+      const fileName = file.name;
       console.log('File:', fileName);
-      // You can perform further processing or store the file names as needed
+      return `https://storage.cloud.google.com/${bucketName}/${fileName}`;
     });
 
-    // Return the list of file names
-    return fileNames;
+
+    const filteredFileNames = urls.slice(1);
+    // Return the list of URLs
+    return filteredFileNames;
 
   } catch (error) {
     console.error('Error fetching photos:', error);
@@ -619,6 +618,8 @@ async function fetchAllPhotos(bucketName, userId, albumName, folderName) {
     return [];
   }
 }
+
+
 
 
 // ###########################################################################
@@ -648,7 +649,7 @@ export const createFolder_Bucket = CatchAsync(async (req, res, next) => {
 
 
 // ###########################################################################
-async function uploadPhotos(bucketName, userId, albumName, folderName, subfolderName, photoPaths) {
+async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoPaths) {
   try {
     console.log('called uploadPhotos');
     const bucket = storage.bucket(bucketName);
@@ -657,9 +658,6 @@ async function uploadPhotos(bucketName, userId, albumName, folderName, subfolder
     let destinationPath = `${userId}/`;
     if (albumName) {
       destinationPath += `${albumName}/`;
-    }
-    if (folderName) {
-      destinationPath += `${folderName}/`;
     }
     if (subfolderName) {
       destinationPath += `${subfolderName}/`;
@@ -725,12 +723,17 @@ export const getClientById = CatchAsync(async (req, res, next) => {
 });
 
 export const fetch_Photos = CatchAsync(async (req, res, next) => {
-  const main_folder = req.body.main_folder
-  const sub_folder = req.params.sub_folder
-  const id = req.body.userId
+  console.log('fetch photos called from server');
+  
+  // Extract parameters from the query string
+  const main_folder = req.query.main_folder;
+  const sub_folder = req.query.sub_folder;
+  const id = req.query.id;  // Assuming you want to extract it from the query string
+
+  // Use the extracted parameters in your fetchAllPhotos function
   const fetchedFiles = await fetchAllPhotos('hapzea', id, main_folder, sub_folder);
-  console.log('frrrrrrrrrrrrrom');
-  console.log(fetchedFiles);
+
+  // Send the response
   res.status(200).json({
     status: 'success',
     data: {
@@ -738,16 +741,21 @@ export const fetch_Photos = CatchAsync(async (req, res, next) => {
     },
   });
 });
+
+
+
  
 
 export const upload = CatchAsync(async (req, res, next) => {
   const photoPaths = req.files.map(file => file.path);
   console.log(photoPaths);
-
+  const main_folder = req.query.main_folder;
+  const sub_folder = req.query.sub_folder;
+  const id = req.query.id; 
   // Use your uploadPhotos function to handle the photo upload
-  await uploadPhotos('hapzea', '65969868b6b7ac9812002117', 'Album', 'Three', 'Trial', photoPaths);
+  await uploadPhotos('hapzea', id, main_folder, sub_folder,photoPaths);
 
-  console.log('frrafsefsdf');
+  console.log('frrafsefsdf'); 
   res.status(200).json({
     status: 'success',
   });
