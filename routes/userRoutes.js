@@ -10,7 +10,7 @@ const multerStorage = multer.memoryStorage();
 const router = express.Router();
 
 
-const storage = multer.diskStorage({
+const storage = multer.diskStorage({ 
   destination: function (req, file, cb) {
       cb(null, 'uploads/'); // Specify a subdirectory within your project
   },
@@ -20,8 +20,8 @@ const storage = multer.diskStorage({
 }); 
 
 
-const upload = multer({ storage: storage });
-
+const upload = multer({ storage: storage }); 
+  
 router.post('/signup', authController.signup);
 router.post('/login', authController.login);
 router.post('/validatingLink', userController.validateLink);
