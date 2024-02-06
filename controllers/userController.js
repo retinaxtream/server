@@ -5,6 +5,7 @@ import Client from '../models/ClientModel.js';
 import { Storage } from '@google-cloud/storage';
 import User from '../models/Usermodel.js';
 import fs from 'fs';
+
 import sharp from 'sharp';
 const currentModuleUrl = new URL(import.meta.url);
 const currentModuleDir = path.dirname(currentModuleUrl.pathname);
@@ -73,8 +74,8 @@ export const userWelcome = CatchAsync(async (req, res) => {
     message: 'Hello from the retina server',
     app: "Retina"
   });
-});
-
+}); 
+ 
 // ###########################################################################
 export const jwtcheck = CatchAsync(async (req, res) => {
   // logger.info("from protect router");
@@ -620,7 +621,7 @@ async function fetchAllPhotos(bucketName, userId, albumName, folderName) {
 }
 
 
-
+ 
 
 // ###########################################################################
 export const createFolder_Bucket = CatchAsync(async (req, res, next) => {
@@ -633,7 +634,7 @@ export const createFolder_Bucket = CatchAsync(async (req, res, next) => {
       status: 'error',
       message: 'User ID is required in the query parameters.'
     });
-  }
+  }  
  
   // await fetchAllPhotos('hapzea',userId, main_folder );
   await createFolderIn('hapzea',userId,folderName, main_folder );
@@ -732,7 +733,6 @@ export const fetch_Photos = CatchAsync(async (req, res, next) => {
 
   // Use the extracted parameters in your fetchAllPhotos function
   const fetchedFiles = await fetchAllPhotos('hapzea', id, main_folder, sub_folder);
-
   // Send the response
   res.status(200).json({
     status: 'success',
