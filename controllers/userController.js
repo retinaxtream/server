@@ -10,7 +10,10 @@ import sharp from 'sharp';
 const currentModuleUrl = new URL(import.meta.url);
 const currentModuleDir = path.dirname(currentModuleUrl.pathname);
 const serviceAccPath = path.resolve(currentModuleDir, '../credentials.json');
-const keyFilename = 'C:/Users/ADARSH/Desktop/Retina.x/credentials.json'
+// const keyFilename = 'C:/Users/ADARSH/Desktop/Retina.x/credentials.json'
+const keyFilename = path.resolve(currentModuleDir, '../credentials.json');
+
+
 
 
 const storage = new Storage({
