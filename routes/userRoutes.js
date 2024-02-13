@@ -34,7 +34,7 @@ router.post('/createfolder', auth.protect, userController.createFolder_Bucket);
 router.get('/fetchMedia', auth.protect, userController.fetch_Photos);
 router.post('/upload', auth.protect, upload.array('photos'), userController.upload);
 
-   
+    
 router
     .route('/')
     .get(userController.userWelcome);
