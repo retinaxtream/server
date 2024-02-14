@@ -7,15 +7,35 @@ import User from '../models/Usermodel.js';
 import fs from 'fs';
 
 import sharp from 'sharp';
+import { log } from 'console';
 const currentModuleUrl = new URL(import.meta.url);
-const currentModuleDir = path.dirname(currentModuleUrl.pathname);
-const serviceAccPath = path.resolve(currentModuleDir, '../credentials.json');
+// const currentModuleDir = path.dirname(currentModuleUrl.pathname);
+// const serviceAccPath = path.resolve(currentModuleDir, '../credentials.json');
 // const keyFilename = 'C:/Users/ADARSH/Desktop/Retina.x/credentials.json'
-const keyFilename = path.resolve(currentModuleDir, '../credentials.json');
+// const keyFilename = path.resolve(currentModuleDir, '../credentials.json');
+ 
+// const currentModuleUrl = new URL(import.meta.url);
+// const currentModuleDir = decodeURIComponent(path.dirname(currentModuleUrl.pathname));
+// const keyFilename = path.join(currentModuleDir, '..', 'credentials.json');
 
 
+const convertPath = (path) => {
+  // Replace backslashes with forward slashes
+  const outputPath = path.replace(/\\/g, "/");
+  // Remove leading backslash if present
+  const modifiedPath = outputPath.replace(/^\\/, "");
+  // Remove the /C before returning
+  const finalPath = modifiedPath.replace(/^\//, "");
+  console.log(finalPath);
+  return finalPath;
+}
+ 
+// const currentModuleUrl = new URL(import.meta.url);
+const currentModuleDir = decodeURIComponent(path.dirname(currentModuleUrl.pathname));
+const oldpath = path.join(currentModuleDir, '..', 'credentials.json');
+const keyFilename = convertPath(oldpath)
 
-
+ 
 const storage = new Storage({
   projectId: "primal-stock-396615",
   keyFilename: keyFilename,
@@ -687,6 +707,8 @@ async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoP
       stream.on('finish', () => {
         console.log(`Photo ${photoName} uploaded to '${destinationPath}'.`);
         // You can perform further processing or store the uploaded file information as needed
+        fs.unlinkSync(photoPath);
+        console.log(`Deleted ${photoPath}`);
       });
 
       // Pipe the file into the write stream
