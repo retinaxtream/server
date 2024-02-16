@@ -11,7 +11,7 @@ import { log } from 'console';
 const currentModuleUrl = new URL(import.meta.url);
 // const currentModuleDir = path.dirname(currentModuleUrl.pathname);
 // const serviceAccPath = path.resolve(currentModuleDir, '../credentials.json');
-// const keyFilename = 'C:/Users/ADARSH/Desktop/Retina.x/credentials.json'
+const keyFilename = './credentials.json'
 // const keyFilename = path.resolve(currentModuleDir, '../credentials.json');
  
 // const currentModuleUrl = new URL(import.meta.url);
@@ -19,21 +19,17 @@ const currentModuleUrl = new URL(import.meta.url);
 // const keyFilename = path.join(currentModuleDir, '..', 'credentials.json');
 
 
-const convertPath = (path) => {
-  // Replace backslashes with forward slashes
-  const outputPath = path.replace(/\\/g, "/");
-  // Remove leading backslash if present
-  const modifiedPath = outputPath.replace(/^\\/, "");
-  // Remove the /C before returning
-  const finalPath = modifiedPath.replace(/^\//, "");
-  console.log(finalPath);
-  return finalPath;
-}
+// const convertPath = (path) => {
+//   const outputPath = path.replace(/\\/g, "/");
+//   const modifiedPath = outputPath.replace(/^\\/, "");
+//   const finalPath = modifiedPath.replace(/^\//, "");
+//   console.log(finalPath);
+//   return finalPath;
+// }
  
-// const currentModuleUrl = new URL(import.meta.url);
-const currentModuleDir = decodeURIComponent(path.dirname(currentModuleUrl.pathname));
-const oldpath = path.join(currentModuleDir, '..', 'credentials.json');
-const keyFilename = convertPath(oldpath)
+// const currentModuleDir = decodeURIComponent(path.dirname(currentModuleUrl.pathname));
+// const oldpath = path.join(currentModuleDir, '..', 'credentials.json');
+// const keyFilename = convertPath(oldpath)
 
  
 const storage = new Storage({
@@ -42,7 +38,7 @@ const storage = new Storage({
 });
 
 const bucketName = 'hapzea';
-
+    
 
 // userRouter.post(
 //   "/",
