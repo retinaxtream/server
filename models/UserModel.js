@@ -91,7 +91,23 @@ const userSchema = new mongoose.Schema({
         },
         default: ''
       },
+
+
+
+      //pass
+
+      password: { type: String, required: true, select: false },
+      passwordChangedAt: { type: Date }
+
 });
+
+//pass
+
+userSchema.methods.correctPassword = async function(candidatePassword, userPassword) {
+  return await bcrypt.compare(candidatePassword, userPassword);
+};
+
+
 
 userSchema.pre('save', async function (next) {
 
@@ -159,6 +175,7 @@ userSchema.methods.createPasswordResetToken = function () {
 
   return resetToken;
 };
+
 
 const User = mongoose.model('User', userSchema);
 

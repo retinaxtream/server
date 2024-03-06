@@ -2,7 +2,12 @@ import { CatchAsync } from '../Utils/CatchAsync.js'
 import User from '../models/Usermodel.js';
 import { log } from 'console';
 import jwt from 'jsonwebtoken';
+import AppError from '../Utils/AppError.js';
 
+
+const signToken = id => {
+  return jwt.sign({ id: id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN })
+}
 
 
   export const getUserById = CatchAsync(async (req, res, next) => {
@@ -107,8 +112,52 @@ import jwt from 'jsonwebtoken';
         });
     });
     
+    
+  export const changePassword = CatchAsync(async (req, res, next) => {
+    console.log("Starting to change password for user:", req.user.id);
+    const user = await User.findById(req.user.id).select('+password');
 
-  
+    if (!user) {
+      console.log("User not found with id:", req.user.id);
+      // Stop further execution and pass control to the global error handling middleware
+      return next(new AppError('User not found.', 404));
+    }
+
+    console.log("User found. Checking current password...");
+    if (!(await user.correctPassword(req.body.currentPassword, user.password))) {
+      console.log("Current password is incorrect.");
+      // Stop further execution and pass control to the global error handling middleware
+      return next(new AppError('Your current password is wrong.', 401));
+    }
+
+    console.log("Current password is correct. Updating to new password...");
+    user.password = req.body.newPassword;
+    user.passwordConfirm = req.body.passwordConfirm; 
+    
+    await user.save(); // Save the updated user, which will also hash the new password
+
+    console.log("Password updated successfully.");
+    
+    const token = signToken(user._id);
+    console.log("JWT token generated and being sent to the user.");
+    
+    // Send the response back to the client
+    res.status(200).json({
+      status: 'success',
+      token,
+      data: {
+        user: {
+          id: user._id,
+          businessName: user.businessName,
+          email: user.email,
+          role: user.role
+        }
+      }
+    });
+
+    console.log("Change password process completed.");
+  });
+
 
 export const decodeJwt = (req, res) => {
   const { token } = req.body;
