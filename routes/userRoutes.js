@@ -4,6 +4,8 @@ import multer from 'multer';
 import * as authController from '../controllers/authController.js';
 import * as auth from '../controllers/auth.js';
 
+import * as RhzuserController from '../controllers/RhzuserController.js';
+
 
 const multerStorage = multer.memoryStorage();
 // const upload = multer({ storage: multerStorage });
@@ -35,6 +37,17 @@ router.get('/fetchMedia', auth.protect, userController.fetch_Photos);
 router.post('/upload', auth.protect, upload.array('photos'), userController.upload);
 
     
+
+//Rohan
+
+router.get('/user/:id', auth.protect, RhzuserController.getUserById);
+router.post('/decode-jwt',auth.protect, RhzuserController.decodeJwt);
+router.put('/updateUser/:id',auth.protect, RhzuserController.updateUserById);
+
+router.post('/:userId/profile', auth.protect, upload.single('profilePicture'), RhzuserController.updateProfilePicture);
+
+
+
 router
     .route('/')
     .get(userController.userWelcome);
