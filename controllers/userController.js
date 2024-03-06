@@ -6,7 +6,7 @@ import { Storage } from '@google-cloud/storage';
 import User from '../models/Usermodel.js';
 import fs from 'fs';
 
-import sharp from 'sharp';
+// import sharp from 'sharp';
 import { log } from 'console';
 const currentModuleUrl = new URL(import.meta.url);
 // const currentModuleDir = path.dirname(currentModuleUrl.pathname);

@@ -46,7 +46,7 @@ router.put('/updateUser/:id',auth.protect, RhzuserController.updateUserById);
 
 router.post('/:userId/profile', auth.protect, upload.single('profilePicture'), RhzuserController.updateProfilePicture);
 
-
+router.patch('/changePassword', auth.protect, RhzuserController.changePassword);
 
 router
     .route('/')
