@@ -60,7 +60,37 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
     select: false
-  }
+  },
+
+  //rhz
+  
+    address: {
+      type: String,
+      
+    },
+    
+      website: {
+        type: String,
+        validate: {
+          validator: function(v) {
+            // Check if 'v' is not empty, and then validate URL
+            return v === '' || validator.isURL(v);
+          },
+          message: 'Please provide a valid URL',
+        },
+        default: ''
+      },
+      googleMapLink: {
+        type: String,
+        validate: {
+          validator: function(v) {
+            // Check if 'v' is not empty, and then validate URL
+            return v === '' || validator.isURL(v);
+          },
+          message: 'Please provide a valid URL',
+        },
+        default: ''
+      },
 });
 
 userSchema.pre('save', async function (next) {
