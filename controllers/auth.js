@@ -38,7 +38,7 @@ export const protect = CatchAsync(async (req, res, next) => {
     console.log(token);
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log('Decoded.....');
-    console.log(decoded);
+    console.log(decoded);  
     // console.log();
     req.user = await User.findById(decoded.id).select('-password');
      console.log('UUUUSEER');

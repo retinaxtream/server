@@ -4,6 +4,7 @@ import { CatchAsync } from '../Utils/CatchAsync.js'
 import Client from '../models/ClientModel.js';
 import { Storage } from '@google-cloud/storage';
 import User from '../models/Usermodel.js';
+import nodemailer from "nodemailer";
 import fs from 'fs';
 
 import sharp from 'sharp';
@@ -282,7 +283,7 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
 // ###########################################################################
 export const validateLink = CatchAsync(async (req, res, next) => {
   const clients = await Client.find({ _id: req.body.id });
-
+console.log(req.body.id);
   console.log(clients);
 
   if (clients.length === 0) {
@@ -293,6 +294,9 @@ export const validateLink = CatchAsync(async (req, res, next) => {
     });
   }
   const user = await User.findOne({ _id: clients[0].userId });
+  console.log('link validation');
+  console.log(user);
+
   let linkStatus;
 
   if (clients[0].EventName === req.body.EventName && user.businessName === req.body.businessName) {
@@ -718,6 +722,57 @@ async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoP
   }
 }
 
+
+
+
+const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataValue) => {
+  try {
+    console.log('called getFoldersByMetadata');
+    const bucket = storage.bucket(bucketName);
+
+    const folderPath = `${userId}/PhotoSelection`;
+
+    const [files] = await bucket.getFiles({
+      prefix: folderPath, 
+    });
+    console.log('files.........');
+    // console.log(files);
+
+    const matchingFolders = files.filter((file) => {
+      const metadata = file.metadata;
+      console.log('metadata');
+      console.log(metadata);
+      console.log(metadata.metadata);
+      // Check if the file has metadata
+      if (metadata.metadata) {
+        // Check if the nested metadata object contains the specified key and value
+        const nestedMetadata = metadata.metadata; // Access nested metadata object
+        console.log(nestedMetadata);
+        console.log(nestedMetadata['selected']); // Access the 'selected' key as a string
+        return nestedMetadata && nestedMetadata['selected'] === metadataValue.toString();
+      }
+      return false; // File doesn't have metadata
+    });
+
+    // Extract folder names from file paths
+    const folderNames = matchingFolders.map((file) => {
+      const filePath = file.name; // Use 'name' property to get the file path
+      const folderName = filePath.substring(folderPath.length); // Get the folder name relative to folderPath
+      console.log('folders');
+      console.log(folderName);
+      return folderName;
+    });
+
+    return folderNames;
+  } catch (error) {
+    console.error('Error fetching folders by metadata:', error);
+    throw error;
+  }
+};
+
+
+
+
 // ###########################################################################
 export const getClientById = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
@@ -764,9 +819,6 @@ export const fetch_Photos = CatchAsync(async (req, res, next) => {
 });
 
 
-
- 
-
 export const upload = CatchAsync(async (req, res, next) => {
   const photoPaths = req.files.map(file => file.path);
   console.log(photoPaths);
@@ -781,3 +833,166 @@ export const upload = CatchAsync(async (req, res, next) => {
     status: 'success',
   });
 }); 
+
+
+
+export const sendPublic_url = CatchAsync(async (req, res, next) => {
+  console.log('calling');
+  console.log(req.body);
+  const { email, magic_url, company_name, event_name } = req.body;
+  await sendURL(email, magic_url, company_name, event_name);
+  res.status(200).json({
+    status: 'success',
+  });
+});
+
+
+
+export const folder_metadata = CatchAsync(async (req, res, next) => {
+  const clientId = req.params.id;
+  const folders = req.body.selected;
+  console.log(clientId);
+  const bucketName = 'hapzea';            
+  const bucket = storage.bucket(bucketName);
+
+  const [files] = await bucket.getFiles({
+    prefix: `${clientId}/PhotoSelection/`,
+  });
+
+  for (const file of files) {
+    await file.setMetadata({ metadata: null });
+    console.log(`Metadata removed for file ${file.name}`);
+  }
+  for (const folder of folders) {
+    const folderPath = `${clientId}/PhotoSelection/${folder}/`;
+    
+    // Remove existing metadata for the folder
+    // await bucket.file(folderPath).setMetadata({
+    //   metadata: null, 
+    // });
+    console.log(`Metadata removed for folder ${folderPath}`);
+    
+    // Now set new metadata for the folder  
+    await bucket.file(folderPath).setMetadata({
+      metadata: {
+        selected: false
+      }, 
+    });
+    console.log(`New metadata set for folder ${folderPath}`);
+  }
+  res.status(200).json({
+    status: 'success',
+  });
+});
+
+
+
+export const matchingFolders = CatchAsync(async (req, res, next) => {
+  const clientId = req.params.id;
+  const folders = await getFoldersByMetadata("hapzea", clientId, "selected", false);
+  if (folders) {
+    console.log('from');
+    console.log(folders);
+    res.status(200).json({
+      status: 'success',
+      data: folders
+    });
+  }
+});
+
+
+const sendURL = async (email, magic_url, company_name, event_name) => {
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "retina@hapzea.com",
+        pass: "nkhz kfjz nvri tkny", // Provide the correct password
+      },
+    });
+
+    const mailOptions = {
+      from: "retina@hapzea.com",
+      to: email,
+      subject: "Invitation",
+      html: `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Public URL For Event</title>
+      <style>
+        /* CSS styles for the email template */
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+          background-color: #f4f4f4;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background-color: #fff;
+          border-radius: 8px;
+          box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 20px;
+        }
+        .header h1 {
+          color: #820037;
+          margin: 0;
+        }
+        .content {
+          margin-bottom: 20px;
+        }
+        .content p {
+          font-size: 16px;
+          line-height: 1.6;
+          margin: 0;
+        }
+        .button {
+          text-align: center;
+          margin-top: 20px;
+        }
+        .button a {
+          display: inline-block;
+          background-color: #820037;
+          color: #fff;
+          text-decoration: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+        }
+      </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header"> 
+            <h1>Public URL for Invitation</h1>
+            <p>Love from ${company_name}</p> 
+          </div>
+          <div class="content">
+            <p>Hello,</p>
+            <p>We are sharing the public URL for you to invite your guest for ${event_name}.Please find the details below:</p>
+            <p>Click the button below to view more details and RSVP to the event:</p>
+          </div>
+          <div class="button">
+            <a href="${magic_url}" target="_blank">View Event Details</a> <!-- Replace [Public URL] with the actual public URL sent from frontend -->
+          </div>
+        </div>
+      </body>
+      </html>      
+      `,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent: " + info.response);
+    return "send";
+  } catch (error) {
+    throw error;
+  }
+};
+  
