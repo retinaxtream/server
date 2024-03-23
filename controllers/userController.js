@@ -761,7 +761,7 @@ const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataVal
       console.log('folders');
       console.log(folderName);
       return folderName;
-    });
+    }); 
 
     return folderNames;
   } catch (error) {
