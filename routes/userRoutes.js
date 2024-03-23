@@ -44,7 +44,7 @@ router
   
 router
     .get('/protect', userController.jwtcheck);
-router
+router 
     .route('/upload/images')
     .post(upload.array('images'), userController.uploadImage);
 
