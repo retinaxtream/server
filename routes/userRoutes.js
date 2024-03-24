@@ -10,18 +10,18 @@ const multerStorage = multer.memoryStorage();
 const router = express.Router();
 
 
-const storage = multer.diskStorage({ 
-  destination: function (req, file, cb) {
-      cb(null, 'uploads/'); // Specify a subdirectory within your project
-  },
-  filename: function (req, file, cb) {
-      cb(null, file.originalname);
-  }
-}); 
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads/'); // Specify a subdirectory within your project
+    },
+    filename: function (req, file, cb) {
+        cb(null, file.originalname);
+    }
+});
 
 
-const upload = multer({ storage: storage }); 
-  
+const upload = multer({ storage: storage });
+
 router.post('/signup', authController.signup);
 router.post('/login', authController.login);
 router.post('/validatingLink', userController.validateLink);
@@ -30,21 +30,22 @@ router.get('/create/client', auth.protect, userController.getClients);
 router.get('/client/sorted', auth.protect, userController.clientSorted);
 router.get('/client/:id', auth.protect, userController.getClientById);
 router.get('/getfiles', auth.protect, userController.getFiles);
-router.post('/createfolder', auth.protect, userController.createFolder_Bucket); 
+router.post('/createfolder', auth.protect, userController.createFolder_Bucket);
 router.get('/fetchMedia', auth.protect, userController.fetch_Photos);
 router.post('/upload', auth.protect, upload.array('photos'), userController.upload);
 router.post('/sendUrl', userController.sendPublic_url);
-router.post('/meta/:id',auth.protect, userController.folder_metadata);
-router.get('/metacheck/:id',auth.protect, userController.matchingFolders);
- 
-  
+router.post('/meta/:id', auth.protect, userController.folder_metadata);
+router.get('/metacheck/:id', auth.protect, userController.matchingFolders);
+router.get('/meta_selction_check/:id', auth.protect, userController.matchingFiles);
+
+
 router
     .route('/')
-    .get(userController.userWelcome);   
-  
+    .get(userController.userWelcome);
+
 router
     .get('/protect', userController.jwtcheck);
-router 
+router
     .route('/upload/images')
     .post(upload.array('images'), userController.uploadImage);
 
