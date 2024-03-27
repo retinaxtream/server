@@ -800,7 +800,7 @@ const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue
       return folderName;
     }); 
 
-    return folderNames;
+    return { sub_Files: sub_Files, folderNames: folderNames };
   } catch (error) {
     console.error('Error fetching folders by metadata:', error);
     throw error;
@@ -903,9 +903,14 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     const [files] = await bucket.getFiles({
       prefix: prefix,
     });
+
+    // for (const file of files) {
+    //     await file.setMetadata({ metadata: null });
+    //     console.log(`Metadata removed for file ${file.name}`);
+  
+    // }
     
     for (const file of files) {
-      // Exclude directories from removal
       if (!file.name.endsWith('/')) {
         await file.setMetadata({ metadata: null });
         console.log(`Metadata removed for file ${file.name}`);
@@ -982,10 +987,11 @@ export const matchingFolders = CatchAsync(async (req, res, next) => {
 export const matchingFiles = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
   let sub_Files;
-   sub_Files = req.body.subFiles;
-   console.log('subFiles is present');
-  
-  const Files = await getFilesByMetadata("hapzea", clientId, "selected", true,sub_Files);
+  sub_Files = req.query.subFiles; // Access query parameter from req.query
+  console.log('*************');
+  console.log(sub_Files); // Correctly log subFiles from req.query
+
+  const Files = await getFilesByMetadata("hapzea", clientId, "selected", true, sub_Files);
   if (Files) {
     console.log('Files');  
     console.log(Files);
@@ -993,9 +999,8 @@ export const matchingFiles = CatchAsync(async (req, res, next) => {
       status: 'success',
       data: Files
     });
-  }
-
-}); 
+  } 
+});  
 
 
 const sendURL = async (email, magic_url, company_name, event_name) => {
