@@ -36,7 +36,7 @@ router.post('/upload', auth.protect, upload.array('photos'), userController.uplo
 router.post('/sendUrl', userController.sendPublic_url);
 router.post('/meta/:id', auth.protect, userController.folder_metadata);
 router.get('/metacheck/:id', auth.protect, userController.matchingFolders);
-router.get('/meta_selction_check/:id', auth.protect, userController.matchingFiles);
+router.get('/meta_selction_check/:id', userController.matchingFiles);
 
 
 router
