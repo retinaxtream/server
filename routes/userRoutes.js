@@ -34,15 +34,16 @@ router.post('/createfolder', auth.protect, userController.createFolder_Bucket);
 router.get('/fetchMedia', auth.protect, userController.fetch_Photos);
 router.post('/upload', auth.protect, upload.array('photos'), userController.upload);
 router.post('/sendUrl', userController.sendPublic_url);
+router.post('/sendMedia', userController.sendMedia_Files);
 router.post('/meta/:id', auth.protect, userController.folder_metadata);
 router.get('/metacheck/:id', auth.protect, userController.matchingFolders);
-router.get('/meta_selction_check/:id', userController.matchingFiles);
+router.get('/meta_selction_check/:id',auth.protect, userController.matchingFiles);
 
 
 router
     .route('/')
     .get(userController.userWelcome);
-
+ 
 router
     .get('/protect', userController.jwtcheck);
 router
