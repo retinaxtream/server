@@ -283,6 +283,9 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
 
 // ###########################################################################
 export const validateLink = CatchAsync(async (req, res, next) => {
+  console.log(req.body.type);
+  console.log('tttttty');
+  const  Type  =req.body.type
   const clients = await Client.find({ _id: req.body.id });
 console.log(req.body.id);
   console.log(clients);
@@ -300,10 +303,18 @@ console.log(req.body.id);
 
   let linkStatus;
 
-  if (clients[0].EventName === req.body.EventName && user.businessName === req.body.businessName) {
-    linkStatus = 'Allow Access';
-  } else {
-    linkStatus = 'Deny Access';
+  if(Type === 'media'){
+    if (user.businessName === req.body.businessName) {
+      linkStatus = 'Allow Access';
+    } else {
+      linkStatus = 'Deny Access';
+    }
+  }else{
+    if (clients[0].EventName === req.body.EventName && user.businessName === req.body.businessName) {
+      linkStatus = 'Allow Access';
+    } else {
+      linkStatus = 'Deny Access';
+    }
   }
 
   res.status(200).json({
@@ -315,7 +326,7 @@ console.log(req.body.id);
   });
 });
 
-
+ 
 
 // ###########################################################################
 async function listFilesInOne(bucketName, idFolderName) {
@@ -1206,3 +1217,38 @@ const sendMedia = async (email, magic_url, company_name, event_name) => {
   }
 };
   
+
+export const downloadFile = CatchAsync(async (req, res, next) => {
+  try {
+    const bucketName = 'hapzea';
+    const fileName = '66066f3a59374beb5c1816fb/PhotoSelection/Full Photos/mathilde-langevin-SG5KAZirWVA-unsplash.jpg';
+
+    // Downloads the file into a buffer in memory.
+    const contents = await storage.bucket(bucketName).file(fileName).download();
+
+    console.log(
+      `Contents of gs://${bucketName}/${fileName} are ${contents.toString()}.`
+    );
+
+    // Get the file extension from the fileName
+    const fileExtension = fileName.split('.').pop().toLowerCase();
+    let contentType = 'application/octet-stream'; // Default content type
+
+    // Set content type based on file extension
+    if (fileExtension === 'jpg' || fileExtension === 'jpeg') {
+      contentType = 'image/jpeg';
+    } else if (fileExtension === 'png') {
+      contentType = 'image/png';
+    } else if (fileExtension === 'gif') {
+      contentType = 'image/gif';
+    }
+
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Type', contentType);
+
+    res.send(contents);
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
