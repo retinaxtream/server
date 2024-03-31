@@ -38,7 +38,8 @@ router.post('/sendMedia', userController.sendMedia_Files);
 router.post('/meta/:id', auth.protect, userController.folder_metadata);
 router.get('/metacheck/:id', auth.protect, userController.matchingFolders);
 router.get('/meta_selction_check/:id',auth.protect, userController.matchingFiles);
-
+router.get('/download-into-memory', userController.downloadFile);
+ 
 
 router
     .route('/')
