@@ -92,6 +92,41 @@ const userSchema = new mongoose.Schema({
         default: ''
       },
 
+      //socialprofile
+      socialProfiles: {
+        facebook: {
+          type: String,
+          validate: {
+            validator: function(v) {
+              return v === '' || validator.isURL(v);
+            },
+            message: 'Please provide a valid URL for Facebook',
+          },
+          default: ''
+        },
+        twitter: {
+          type: String,
+          validate: {
+            validator: function(v) {
+              return v === '' || validator.isURL(v);
+            },
+            message: 'Please provide a valid URL for Twitter',
+          },
+          default: ''
+        },
+        instagram: {
+          type: String,
+          validate: {
+            validator: function(v) {
+              return v === '' || validator.isURL(v);
+            },
+            message: 'Please provide a valid URL for Instagram',
+          },
+          default: ''
+        },
+      },
+      
+
 
 
       //pass

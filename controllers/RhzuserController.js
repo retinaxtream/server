@@ -36,55 +36,55 @@ const signToken = id => {
 
   //Update Profile
 
-  export const updateUserById = CatchAsync(async (req, res, next) => {
-    const userId = req.params.id;
-    if (!userId) {
-    return res.status(400).json({
-        status: 'error',
-        message: 'User Id is required in the URL parameters.'
-    });
-    }
+  // export const updateUserById2 = CatchAsync(async (req, res, next) => {
+  //   const userId = req.params.id;
+  //   if (!userId) {
+  //   return res.status(400).json({
+  //       status: 'error',
+  //       message: 'User Id is required in the URL parameters.'
+  //   });
+  //   }
 
-    // Fields that can be updated
-    const allowedUpdateFields = ['businessName', 'email', 'photo', 'mobile', 'address', 'website', 'googleMapLink', 'socialProfiles'];
-    const updates = {};
+  //   // Fields that can be updated
+  //   const allowedUpdateFields = ['businessName', 'email', 'photo', 'mobile', 'address', 'website', 'googleMapLink', 'socialProfiles'];
+  //   const updates = {};
 
-    // Fields that are allowed to be updated
-    Object.keys(req.body).forEach(field => {
-    if (allowedUpdateFields.includes(field)) {
-        updates[field] = req.body[field];
-    }
-    });
+  //   // Fields that are allowed to be updated
+  //   Object.keys(req.body).forEach(field => {
+  //   if (allowedUpdateFields.includes(field)) {
+  //       updates[field] = req.body[field];
+  //   }
+  //   });
 
     
-    // validation: Check if email format is valid
-    if (updates.email && !validator.isEmail(updates.email)) {
-    return res.status(400).json({
-        status: 'error',
-        message: 'Invalid email format.'
-    });
-    }
+  //   // validation: Check if email format is valid
+  //   if (updates.email && !validator.isEmail(updates.email)) {
+  //   return res.status(400).json({
+  //       status: 'error',
+  //       message: 'Invalid email format.'
+  //   });
+  //   }
 
-    // update operation 
-    const user = await User.findByIdAndUpdate(userId, updates, {
-    new: true, // Return the modified user instead of the original.
-    runValidators: true // Ensure updated fields are validated by the schema.
-    });
+  //   // update operation 
+  //   const user = await User.findByIdAndUpdate(userId, updates, {
+  //   new: true, // Return the modified user instead of the original.
+  //   runValidators: true // Ensure updated fields are validated by the schema.
+  //   });
 
-    if (!user) {
-    return res.status(404).json({
-        status: 'fail',
-        message: 'User not found.'
-    });
-    }
+  //   if (!user) {
+  //   return res.status(404).json({
+  //       status: 'fail',
+  //       message: 'User not found.'
+  //   });
+  //   }
 
-    res.status(200).json({
-    status: 'success',
-    data: {
-        user,
-    },
-    });
-    });
+  //   res.status(200).json({
+  //   status: 'success',
+  //   data: {
+  //       user,
+  //   },
+  //   });
+  //   });
 
 
 
@@ -164,8 +164,61 @@ export const decodeJwt = (req, res) => {
   try {
     // Decode token payload without verification
     const decoded = jwt.decode(token);
-    res.status(200).json({ decoded });
+    res.status(200).json({ decoded }); 
   } catch (error) {
     res.status(400).json({ error: "Invalid token format" });
   }
 };
+
+
+
+
+export const updateUserById = CatchAsync(async (req, res, next) => {
+    const userId = req.params.id;
+    if (!userId) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'User Id is required in the URL parameters.'
+        });
+    }
+
+    const allowedUpdateFields = ['businessName', 'email', 'photo', 'mobile', 'address', 'website', 'googleMapLink', 'socialProfiles'];
+    const updates = {};
+
+    Object.keys(req.body).forEach(field => {
+        if (allowedUpdateFields.includes(field)) {
+            updates[field] = req.body[field];
+        }
+    });
+
+    // Log the fields that will be updated
+    console.log('Fields to be updated:', updates);
+
+    // validation: Check if email format is valid
+    if (updates.email && !validator.isEmail(updates.email)) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'Invalid email format.'
+        });
+    }
+
+    const user = await User.findByIdAndUpdate(userId, updates, {
+        new: true,
+        runValidators: true,
+        select: 'businessName email photo mobile address website googleMapLink socialProfiles'
+    });
+
+    if (!user) {
+        return res.status(404).json({
+            status: 'fail',
+            message: 'User not found.'
+        });
+    }
+
+    res.status(200).json({
+        status: 'success',
+        data: {
+            user,
+        },
+    });
+});
