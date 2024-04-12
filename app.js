@@ -25,17 +25,18 @@ app.use((req, res, next) => {
 app.use(
   cors({  
     origin: [
-      'http://localhost:3000',
+      'https://api.hapzea.com',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options'],
     credentials: true,
   })
 );
-
+ 
 app.use('/api/v1/user', userroute);
 
 const port = process.env.PORT;
 app.listen(port, () => {
   console.log(`App running on port ${port}`);
 });
+ 
