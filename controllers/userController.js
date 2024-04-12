@@ -5,7 +5,7 @@ import Client from '../models/ClientModel.js';
 import { Storage } from '@google-cloud/storage';
 import User from '../models/Usermodel.js';
 import nodemailer from "nodemailer";
-import fs from 'fs';
+import fs from 'fs'; 
 
 import sharp from 'sharp';
 import { log } from 'console';
@@ -13,24 +13,6 @@ const currentModuleUrl = new URL(import.meta.url);
 // const currentModuleDir = path.dirname(currentModuleUrl.pathname);
 // const serviceAccPath = path.resolve(currentModuleDir, '../credentials.json');
 const keyFilename = './credentials.json'
-// const keyFilename = path.resolve(currentModuleDir, '../credentials.json');
- 
-// const currentModuleUrl = new URL(import.meta.url);
-// const currentModuleDir = decodeURIComponent(path.dirname(currentModuleUrl.pathname));
-// const keyFilename = path.join(currentModuleDir, '..', 'credentials.json');
-
-
-// const convertPath = (path) => {
-//   const outputPath = path.replace(/\\/g, "/");
-//   const modifiedPath = outputPath.replace(/^\\/, "");
-//   const finalPath = modifiedPath.replace(/^\//, "");
-//   console.log(finalPath);
-//   return finalPath;
-// }
- 
-// const currentModuleDir = decodeURIComponent(path.dirname(currentModuleUrl.pathname));
-// const oldpath = path.join(currentModuleDir, '..', 'credentials.json');
-// const keyFilename = convertPath(oldpath)
 
  
 const storage = new Storage({
@@ -41,52 +23,11 @@ const storage = new Storage({
 const bucketName = 'hapzea'; 
     
 
-// userRouter.post(
-//   "/",
-//   asyncHandler(async (req, res) => {
-//     const { email, password } = req.body;
-//     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-//     const passwordRegex =
-//       /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{12,}$/;
-//     if (!emailRegex.test(email)) {
-//       res.status(400);
-//       throw new Error("Invalid Email Address");
-//     }
-
-//     if (!passwordRegex.test(password)) {
-//       res.status(400);
-//       throw new Error(
-//         "Invalid Password. It should be at least 12 characters long, contain at least one uppercase letter, one lowercase letter, and one number."
-//       );
-//     }
-
-//     const userExist = await User.findOne({ email });
-//     if (userExist) {
-//       res.status(400);
-//       throw new Error("User Already Exists");
-//     }
-//     // const otp = await sendOTP(email);
-
-//     const user = await User.create({
-//       email,
-//       password,
-//     });
-
-//     if (user) {
-//       res.status(201).json({
-//         _id: user._id,
-//         email: user.email,
-//         isAdmin: user.isAdmin,
-//         token: generateToken(user._id),
-//       });
-//     } else {
-//       res.status(400);
-//       throw new Error("Invalid User Data");
-//     }
-//   })
-// );
 
 
+// export const home = CatchAsync(async (req, res) => {
+//   res.status(200).send('Hello from the retina server');
+// }); 
 // ###########################################################################
 export const userWelcome = CatchAsync(async (req, res) => {
   res.status(200).json({
@@ -200,7 +141,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Source: req.body.Source,
       });
       await createFolder('hapzea', `${newClient._id}/`);
-      magicLink = `http://localhost:3000/${req.user.businessName}/${req.body.Event_Name}/${newClient._id}`;
+      magicLink = `https://api.hapzea.com/${req.user.businessName}/${req.body.Event_Name}/${newClient._id}`;
     } else {
       newClient = await Client.create({
         userId: req.user._id,
@@ -214,7 +155,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Source: req.body.Source,
       });
       await createFolder('hapzea', `${newClient._id}/`);
-      magicLink = `http://localhost:3000/${req.user.businessName}/${req.body.Event_Name}/${newClient._id}`;
+      magicLink = `https://api.hapzea.com/${req.user.businessName}/${req.body.Event_Name}/${newClient._id}`;
     }
 
     await Client.findByIdAndUpdate(newClient._id, { $set: { magicLink } }, { new: true });

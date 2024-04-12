@@ -8,6 +8,10 @@ const signToken = id => {
 }
 
 
+
+
+
+
 export const signup = CatchAsync(async (req, res, next) => {
   if (!req.body.mobile.startsWith('+91')) {
     req.body.mobile = '+91' + req.body.mobile;
@@ -38,9 +42,6 @@ export const signup = CatchAsync(async (req, res, next) => {
 export const login = CatchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
-  // console.log(email,password);
-
-  //1) check if email amd password exist
   if (!email || !password) {
     return res.status(400).json({
       status: 'Please provide email and password',
@@ -64,10 +65,6 @@ export const login = CatchAsync(async (req, res, next) => {
     status: 'success',
     token
   })
-
-  //3)if everything ok, send token to client
-
-  // createSendToken(user, 200, res);
 });
 
 
