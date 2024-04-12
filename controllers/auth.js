@@ -16,7 +16,7 @@ export const protect = CatchAsync(async (req, res, next) => {
     if (jwtCookie) {
       token = jwtCookie.split('=')[1].trim();
     }
-  }
+  } 
   else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
   } else if (req.cookies.jwt) {
