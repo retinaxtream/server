@@ -3,7 +3,7 @@ import path from 'path';
 import { CatchAsync } from '../Utils/CatchAsync.js'
 import Client from '../models/ClientModel.js';
 import { Storage } from '@google-cloud/storage';
-import User from '../models/Usermodel.js';
+import User from '../models/UserModel.js';
 import nodemailer from "nodemailer";
 import fs from 'fs'; 
 
