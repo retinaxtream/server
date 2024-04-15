@@ -8,7 +8,6 @@ const logtail = new Logtail("f27qB9WwtTgD9srKQETiBVG7");
 
 
 
-
 const signToken = id => {
   logtail.info(id, process.env.JWT_SECRET, process.env.JWT_EXPIRES_IN);
   return jwt.sign({ id: id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN })
@@ -49,6 +48,10 @@ export const signup = CatchAsync(async (req, res, next) => {
 
 export const login = CatchAsync(async (req, res, next) => {
   const { email, password } = req.body;
+
+
+  logtail.info({email, password });
+  // console.log(email,password);
 
   if (!email || !password) {
     return res.status(400).json({
