@@ -6,9 +6,14 @@ import { Storage } from '@google-cloud/storage';
 import User from '../models/UserModel.js';
 import nodemailer from "nodemailer";
 import fs from 'fs'; 
-
 import sharp from 'sharp';
 import { log } from 'console';
+import { Logtail } from "@logtail/node";
+
+
+const logtail = new Logtail("f27qB9WwtTgD9srKQETiBVG7");
+
+
 const currentModuleUrl = new URL(import.meta.url);
 // const currentModuleDir = path.dirname(currentModuleUrl.pathname);
 // const serviceAccPath = path.resolve(currentModuleDir, '../credentials.json');
@@ -43,6 +48,10 @@ export const jwtcheck = CatchAsync(async (req, res) => {
   console.log(req.headers);
   const cookieString = req.headers.cookie;
   // logger.info(cookieString);
+  logtail.info('cookieString');
+  logtail.info(cookieString);
+  logtail.info(req.headers);
+  
 
   if (cookieString) {
     const cookies = cookieString.split("; ");
