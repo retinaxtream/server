@@ -6,13 +6,14 @@
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start:dev": "nodemon app.js",  
+    "start:dev": "nodemon app.js",
     "start:prod": "cross-env NODE_ENV=production nodemon app.js"
   },
   "author": "\"Team Members\"",
   "license": "ISC",
   "dependencies": {
     "@google-cloud/storage": "^7.1.0",
+    "@logtail/node": "^0.4.21",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
