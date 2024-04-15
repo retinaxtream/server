@@ -1,6 +1,12 @@
 import User from '../models/UserModel.js';
 import { CatchAsync } from '../Utils/CatchAsync.js'
 import jwt from 'jsonwebtoken';
+import { Logtail } from "@logtail/node";
+
+
+const logtail = new Logtail("f27qB9WwtTgD9srKQETiBVG7");
+
+
 
 
 const signToken = id => {
@@ -8,13 +14,11 @@ const signToken = id => {
 }
 
 
-
-
-
-
 export const signup = CatchAsync(async (req, res, next) => {
+  logtail.info(req.body)
   if (!req.body.mobile.startsWith('+91')) {
     req.body.mobile = '+91' + req.body.mobile;
+    logtail.info( req.body.mobile);
   }
 
   const newUser = await User.create({
@@ -27,8 +31,10 @@ export const signup = CatchAsync(async (req, res, next) => {
     role: req.body.role
   });
 
-  const token = signToken(newUser._id);
+  logtail.info(newUser);
 
+  const token = signToken(newUser._id);
+ logtail.info(token)
   res.status(201).json({
     status: 'success',
     token: token,
@@ -37,6 +43,7 @@ export const signup = CatchAsync(async (req, res, next) => {
     }
   })
 });
+
 
      
 export const login = CatchAsync(async (req, res, next) => {
