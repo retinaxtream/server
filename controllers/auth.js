@@ -1,6 +1,10 @@
 import User from '../models/UserModel.js';
 import { CatchAsync } from '../Utils/CatchAsync.js'
 import jwt from 'jsonwebtoken';
+import { Logtail } from "@logtail/node";
+
+
+const logtail = new Logtail("f27qB9WwtTgD9srKQETiBVG7");
 
 
 
