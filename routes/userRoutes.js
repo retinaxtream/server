@@ -3,6 +3,12 @@ import * as userController from '../controllers/userController.js';
 import multer from 'multer';
 import * as authController from '../controllers/authController.js';
 import * as auth from '../controllers/auth.js';
+import  { Logtail } from "@logtail/node";
+
+
+
+const logtail = new Logtail("f27qB9WwtTgD9srKQETiBVG7");
+
 
 const multerStorage = multer.memoryStorage();
 // const upload = multer({ storage: multerStorage });
