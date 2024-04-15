@@ -1,4 +1,4 @@
-import User from '../models/Usermodel.js';
+import User from '../models/UserModel.js';
 import { CatchAsync } from '../Utils/CatchAsync.js'
 import jwt from 'jsonwebtoken';
 import { Logtail } from "@logtail/node";
@@ -9,6 +9,10 @@ const logtail = new Logtail("f27qB9WwtTgD9srKQETiBVG7");
 const signToken = id => {
   return jwt.sign({ id: id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN })
 }
+
+
+
+
 
 
 export const signup = CatchAsync(async (req, res, next) => {
@@ -46,10 +50,10 @@ export const signup = CatchAsync(async (req, res, next) => {
 export const login = CatchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
+
   logtail.info({email, password });
   // console.log(email,password);
 
-  //1) check if email amd password exist
   if (!email || !password) {
     return res.status(400).json({
       status: 'Please provide email and password',
@@ -73,10 +77,6 @@ export const login = CatchAsync(async (req, res, next) => {
     status: 'success',
     token
   })
-
-  //3)if everything ok, send token to client
-
-  // createSendToken(user, 200, res);
 });
 
 
