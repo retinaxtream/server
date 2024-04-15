@@ -4,7 +4,6 @@ import multer from 'multer';
 import * as authController from '../controllers/authController.js';
 import * as auth from '../controllers/auth.js';
 
-
 const multerStorage = multer.memoryStorage();
 // const upload = multer({ storage: multerStorage });
 const router = express.Router();
