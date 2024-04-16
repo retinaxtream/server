@@ -1,24 +1,24 @@
 import User from '../models/UserModel.js';
 import { CatchAsync } from '../Utils/CatchAsync.js'
 import jwt from 'jsonwebtoken';
-import { Logtail } from "@logtail/node";
+// import { Logtail } from "@logtail/node";
 
 
-const logtail = new Logtail("f27qB9WwtTgD9srKQETiBVG7");
+// const logtail = new Logtail("f27qB9WwtTgD9srKQETiBVG7");
 
 
 
 const signToken = id => {
-  logtail.info(id, process.env.JWT_SECRET, process.env.JWT_EXPIRES_IN);
+  // logtail.info(id, process.env.JWT_SECRET, process.env.JWT_EXPIRES_IN);
   return jwt.sign({ id: id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN })
 }
 
 
 export const signup = CatchAsync(async (req, res, next) => {
-  logtail.info(req.body)
+  // logtail.info(req.body)
   if (!req.body.mobile.startsWith('+91')) {
     req.body.mobile = '+91' + req.body.mobile;
-    logtail.info(req.body.mobile);
+    // logtail.info(req.body.mobile);
   }
 
   const newUser = await User.create({
@@ -31,10 +31,10 @@ export const signup = CatchAsync(async (req, res, next) => {
     role: req.body.role
   });
 
-  logtail.info(newUser);
+  // logtail.info(newUser);
 
   const token = signToken(newUser._id);
-  logtail.info(token)
+  // logtail.info(token)
   res.status(201).json({
     status: 'success',
     token: token,
@@ -50,7 +50,7 @@ export const login = CatchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
 
-  logtail.info({email, password });
+  // logtail.info({email, password });
   // console.log(email,password);
 
   if (!email || !password) {
@@ -82,8 +82,8 @@ export const login = CatchAsync(async (req, res, next) => {
 
 export const protect = CatchAsync(async (req, res, next) => {
   let token;
-  logtail.info('token is here')
-  logtail.info(token)
+  // logtail.info('token is here')
+  // logtail.info(token)
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
     console.log(token);
