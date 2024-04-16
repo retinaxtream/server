@@ -27,9 +27,6 @@ const storage = new Storage({
 
 const bucketName = 'hapzea'; 
     
-
-
-
 // export const home = CatchAsync(async (req, res) => {
 //   res.status(200).send('Hello from the retina server');
 // }); 
@@ -45,13 +42,13 @@ export const userWelcome = CatchAsync(async (req, res) => {
 // ###########################################################################
 export const jwtcheck = CatchAsync(async (req, res) => {
   // logger.info("from protect router");
+  logtail.info(req.headers);
   console.log(req.headers);
   const cookieString = req.headers.cookie;
   // logger.info(cookieString);
   logtail.info('cookieString');
   logtail.info(cookieString);
-  logtail.info(req.headers);
-  
+
 
   if (cookieString) {
     const cookies = cookieString.split("; ");
