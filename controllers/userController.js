@@ -11,7 +11,7 @@ import { log } from 'console';
 import { Logtail } from "@logtail/node";
 
 
-const logtail = new Logtail("f27qB9WwtTgD9srKQETiBVG7");
+const logtail = new Logtail("wioUzMpsdSdWHrZeN5YSuKS3");
 
 
 const currentModuleUrl = new URL(import.meta.url);
@@ -44,10 +44,10 @@ export const jwtcheck = CatchAsync(async (req, res) => {
   // logger.info("from protect router");
   logtail.info(req.headers);
   console.log(req.headers);
-  const cookieString = req.headers.cookie;
+  const cookieString =  req.headers.cookie;
   // logger.info(cookieString);
   logtail.info('cookieString');
-  logtail.info(cookieString);
+  logtail.info(req.headers.cookie);
 
 
   if (cookieString) {
