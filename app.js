@@ -25,7 +25,7 @@ app.use((req, res, next) => {
 // CORS Configuration
 // CORS Configuration
 app.use(cors({  
-  origin: ['https://api.hapzea.com', 'https://hapzea.com'],
+  origin: ['https://hapzea.com','http://hapzea.com'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options'],
   credentials: true,
