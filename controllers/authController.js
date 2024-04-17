@@ -1,10 +1,10 @@
 import User from '../models/UserModel.js';
 import { CatchAsync } from '../Utils/CatchAsync.js'
 import jwt from 'jsonwebtoken';
-// import { Logtail } from "@logtail/node";
+import { Logtail } from "@logtail/node";
 
 
-// const logtail = new Logtail("f27qB9WwtTgD9srKQETiBVG7");
+const logtail = new Logtail("f27qB9WwtTgD9srKQETiBVG7");
 
 
 
@@ -72,6 +72,12 @@ export const login = CatchAsync(async (req, res, next) => {
 
 
   const token = signToken(user._id);
+  res.cookie('jwtToken', token, {
+    httpOnly: true, 
+    secure: true,   
+    sameSite: 'strict' 
+  });
+
   res.status(200).json({
     status: 'success',
     token
@@ -82,8 +88,8 @@ export const login = CatchAsync(async (req, res, next) => {
 
 export const protect = CatchAsync(async (req, res, next) => {
   let token;
-  // logtail.info('token is here')
-  // logtail.info(token)
+  logtail.info('token is here')
+  logtail.info(token)
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
     console.log(token);
