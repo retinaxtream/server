@@ -6,6 +6,7 @@ import * as auth from '../controllers/auth.js';
 
 import * as RhzuserController from '../controllers/RhzuserController.js';
 
+// const { logout } = require('../controllers/authController');
 
 const multerStorage = multer.memoryStorage();
 // const upload = multer({ storage: multerStorage });
@@ -47,6 +48,9 @@ router.put('/updateUser/:id',auth.protect, RhzuserController.updateUserById);
 router.post('/:userId/profile', auth.protect, upload.single('profilePicture'), RhzuserController.updateProfilePicture);
 
 router.patch('/changePassword', auth.protect, RhzuserController.changePassword);
+
+
+router.get('/logout', authController.logout);
 
 router
     .route('/')
