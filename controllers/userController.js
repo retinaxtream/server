@@ -161,7 +161,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Source: req.body.Source,
       });
       await createFolder('hapzea', `${newClient._id}/`);
-      magicLink = `https://api.hapzea.com/${req.user.businessName}/${req.body.Event_Name}/${newClient._id}`;
+      magicLink = `https://hapzea.com/${req.user.businessName}/${req.body.Event_Name}/${newClient._id}`;
     }
 
     await Client.findByIdAndUpdate(newClient._id, { $set: { magicLink } }, { new: true });
