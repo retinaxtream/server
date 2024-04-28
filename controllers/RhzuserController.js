@@ -14,7 +14,9 @@ const signToken = id => {
 
 
   export const getUserById = CatchAsync(async (req, res, next) => {
-    const userId = req.params.id;
+    const userId = req.user._id;
+    console.log('$%$%$%$%$%$%');
+    console.log(req.user._id);
     if (!userId) {
       return res.status(400).json({
         status: 'error',
