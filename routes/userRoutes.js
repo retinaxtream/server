@@ -3,7 +3,7 @@ import * as userController from '../controllers/userController.js';
 import multer from 'multer';
 import * as authController from '../controllers/authController.js';
 import * as auth from '../controllers/auth.js';
-import  { Logtail } from "@logtail/node";
+import { Logtail } from "@logtail/node";
 
 
 
@@ -42,14 +42,14 @@ router.post('/sendUrl', userController.sendPublic_url);
 router.post('/sendMedia', userController.sendMedia_Files);
 router.post('/meta/:id', auth.protect, userController.folder_metadata);
 router.get('/metacheck/:id', auth.protect, userController.matchingFolders);
-router.get('/meta_selction_check/:id',auth.protect, userController.matchingFiles);
+router.get('/meta_selction_check/:id', auth.protect, userController.matchingFiles);
 router.get('/download-into-memory', userController.downloadFile);
+router.get('/me/:id', auth.protect, userController.getMeById);
  
-
 router
     .route('/')
     .get(userController.userWelcome);
- 
+
 router
     .get('/protect', userController.jwtcheck);
 router

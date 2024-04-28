@@ -47,6 +47,7 @@ export const protect = CatchAsync(async (req, res, next) => {
     req.user = await User.findById(decoded.id).select('-password');
     console.log('UUUUSEER');
     console.log(req.user);
+    return req.user
     // const user = await User.findById(decoded.id).select('-password');
     next();
   } catch (error) {
