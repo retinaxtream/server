@@ -6,7 +6,7 @@ import { Storage } from '@google-cloud/storage';
 import User from '../models/UserModel.js';
 import nodemailer from "nodemailer";
 import fs from 'fs'; 
-import sharp from 'sharp';
+// import sharp from 'sharp';
 
 import { log } from 'console';
 import { Logtail } from "@logtail/node";

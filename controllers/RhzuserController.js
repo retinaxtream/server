@@ -1,5 +1,5 @@
 import { CatchAsync } from '../Utils/CatchAsync.js'
-import User from '../models/Usermodel.js';
+import User from '../models/UserModel.js';
 import { log } from 'console';
 import jwt from 'jsonwebtoken';
 import AppError from '../Utils/AppError.js';

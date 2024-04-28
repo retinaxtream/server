@@ -1,10 +1,6 @@
 import User from '../models/UserModel.js';
 import { CatchAsync } from '../Utils/CatchAsync.js'
 import jwt from 'jsonwebtoken';
-import { Logtail } from "@logtail/node";
-
-
-const logtail = new Logtail("f27qB9WwtTgD9srKQETiBVG7");
 
 
 
@@ -16,11 +12,11 @@ export const protect = CatchAsync(async (req, res, next) => {
     const cookies = req.headers.cookie.split(';'); // Split the string into an array of cookies
     console.log(cookies);
     const jwtCookie = cookies.find(cookie => cookie.trim().startsWith('jwtToken='));
-
+  
     if (jwtCookie) {
       token = jwtCookie.split('=')[1].trim();
-    }
-  } 
+    }      
+  }
   else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
   } else if (req.cookies.jwt) {
@@ -32,12 +28,12 @@ export const protect = CatchAsync(async (req, res, next) => {
 
   try {
     if (!token) {
-      //   logger.info('No token found');
+    //   logger.info('No token found');
       res.status(401);
       throw new Error('Not Authorized, no token');
     }
 
-
+      
     console.log('TOKEN');
     console.log(token);
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -45,9 +41,8 @@ export const protect = CatchAsync(async (req, res, next) => {
     console.log(decoded);
     // console.log();
     req.user = await User.findById(decoded.id).select('-password');
-    console.log('UUUUSEER');
-    console.log(req.user);
-    return req.user
+     console.log('UUUUSEER');
+     console.log(req.user);
     // const user = await User.findById(decoded.id).select('-password');
     next();
   } catch (error) {
@@ -57,4 +52,3 @@ export const protect = CatchAsync(async (req, res, next) => {
     throw new Error('Not Authorized, token failed');
   }
 });
-
