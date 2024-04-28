@@ -83,6 +83,15 @@ export const login = CatchAsync(async (req, res, next) => {
 });
 
 
+export const logout = (req, res) => {
+  res.cookie('jwt', 'loggedout', {
+    expires: new Date(Date.now() + 10 * 1000), // expires in 10 seconds
+    httpOnly: true
+  });
+  res.status(200).json({ status: 'success' });
+};
+
+
 
 export const protect = CatchAsync(async (req, res, next) => {
   let token;
