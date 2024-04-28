@@ -54,7 +54,7 @@ router.get('/download-into-memory', userController.downloadFile);
 
 //Rohan
 
-router.get('/me/:id', auth.protect, RhzuserController.getUserById);
+router.get('/me', auth.protect, RhzuserController.getUserById);
 router.post('/decode-jwt',auth.protect, RhzuserController.decodeJwt);
 router.put('/updateUser/:id',auth.protect, RhzuserController.updateUserById);
 
