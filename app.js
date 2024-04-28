@@ -22,18 +22,38 @@ app.use((req, res, next) => {
   next();
 });
 
-
-app.use(cors({  
-  origin: ['https://hapzea.com','http://hapzea.com','http://localhost:3000'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options'],
-  credentials: true,
-}));
-
+app.use(
+  cors({  
+    origin: [
+      'http://localhost:3000',
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options'],
+    credentials: true,
+  })
+);
 
 app.use('/api/v1/user', userroute);
+
+// Catch-all for unhandled routes
+app.all('*', (req, res, next) => {
+  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+});
+
+
+app.use((err, req, res, next) => {
+  err.statusCode = err.statusCode || 500;
+  err.status = err.status || 'error';
+  res.status(err.statusCode).json({
+    status: err.status,
+    message: err.message,
+    error: err,
+    stack: err.stack,
+  });
+});
+
 
 const port = process.env.PORT;
 app.listen(port, () => {
   console.log(`App running on port ${port}`);
-});            
+});

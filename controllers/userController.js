@@ -41,29 +41,6 @@ export const userWelcome = CatchAsync(async (req, res) => {
 
 
 // ###########################################################################
-export const getMeById= CatchAsync(async (req, res, next) => {
-  // console.log(req.user._id);
-  const userId = req.params.id;
-  if (!userId) {
-    return res.status(400).json({
-      status: 'error',
-      message: 'User Id is required in the URL parameters.'
-    });
-  }
-  const user = await User.findById(userId);
-  if (!user) {
-    return res.status(404).json({
-      status: 'fail',
-      message: 'User not found.'
-    });
-  }
-  res.status(200).json({
-    status: 'success',
-    data: {
-      user,
-    },
-  });
-});
 
 
  
