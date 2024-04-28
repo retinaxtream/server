@@ -60,8 +60,89 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
     select: false
-  }
+  },
+
+  //rhz
+  
+    address: {
+      type: String,
+      
+    },
+    
+      website: {
+        type: String,
+        validate: {
+          validator: function(v) {
+            // Check if 'v' is not empty, and then validate URL
+            return v === '' || validator.isURL(v);
+          },
+          message: 'Please provide a valid URL',
+        },
+        default: ''
+      },
+      googleMapLink: {
+        type: String,
+        validate: {
+          validator: function(v) {
+            // Check if 'v' is not empty, and then validate URL
+            return v === '' || validator.isURL(v);
+          },
+          message: 'Please provide a valid URL',
+        },
+        default: ''
+      },
+
+      //socialprofile
+      socialProfiles: {
+        facebook: {
+          type: String,
+          validate: {
+            validator: function(v) {
+              return v === '' || validator.isURL(v);
+            },
+            message: 'Please provide a valid URL for Facebook',
+          },
+          default: ''
+        },
+        twitter: {
+          type: String,
+          validate: {
+            validator: function(v) {
+              return v === '' || validator.isURL(v);
+            },
+            message: 'Please provide a valid URL for Twitter',
+          },
+          default: ''
+        },
+        instagram: {
+          type: String,
+          validate: {
+            validator: function(v) {
+              return v === '' || validator.isURL(v);
+            },
+            message: 'Please provide a valid URL for Instagram',
+          },
+          default: ''
+        },
+      },
+      
+
+
+
+      //pass
+
+      password: { type: String, required: true, select: false },
+      passwordChangedAt: { type: Date }
+
 });
+
+//pass
+
+userSchema.methods.correctPassword = async function(candidatePassword, userPassword) {
+  return await bcrypt.compare(candidatePassword, userPassword);
+};
+
+
 
 userSchema.pre('save', async function (next) {
 
@@ -129,6 +210,7 @@ userSchema.methods.createPasswordResetToken = function () {
 
   return resetToken;
 };
+
 
 const User = mongoose.model('User', userSchema);
 
