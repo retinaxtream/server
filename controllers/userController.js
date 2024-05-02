@@ -746,7 +746,7 @@ const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue
       const metadata = file.metadata;
       console.log('%$%$%$');
       console.log(file.metadata);
-      console.log(metadata);
+      console.log(metadata);  
       console.log(file);
       // Check if the file has metadata
       if (metadata.metadata) {
@@ -964,7 +964,6 @@ export const matchingFiles = CatchAsync(async (req, res, next) => {
   sub_Files = req.query.subFiles; // Access query parameter from req.query
   console.log('*************');
   console.log(sub_Files); // Correctly log subFiles from req.query
-
   const Files = await getFilesByMetadata("hapzea", clientId, "selected", true, sub_Files);
   if (Files) {
     console.log('Files');  

@@ -62,7 +62,6 @@ router.post('/:userId/profile', auth.protect, upload.single('profilePicture'), R
 
 router.patch('/changePassword', auth.protect, RhzuserController.changePassword);
 
-
 router.get('/logout', authController.logout);
 
 router
@@ -71,6 +70,7 @@ router
 
 router
     .get('/protect', userController.jwtcheck);
+    
 router
     .route('/upload/images')
     .post(upload.array('images'), userController.uploadImage);
