@@ -21,7 +21,7 @@ app.use((req, res, next) => {
   console.log('Hello from the middleware 👋');
   next();
 });
-
+ 
 app.use(cors({  
   origin: ['https://hapzea.com','http://hapzea.com'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
