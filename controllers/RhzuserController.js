@@ -230,7 +230,7 @@ export const decodeJwt = (req, res) => {
 
 
 export const updateUserById = CatchAsync(async (req, res, next) => {
-    const userId = req.params.id;
+  const userId = req.user._id;
     if (!userId) {
         return res.status(400).json({
             status: 'error',
@@ -245,7 +245,7 @@ export const updateUserById = CatchAsync(async (req, res, next) => {
         if (allowedUpdateFields.includes(field)) {
             updates[field] = req.body[field];
         }
-    });
+    }); 
 
     // Log the fields that will be updated
     console.log('Fields to be updated:', updates);
