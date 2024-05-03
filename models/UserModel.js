@@ -92,7 +92,7 @@ const userSchema = new mongoose.Schema({
         default: ''
       },
 
-      //socialprofile
+    
       socialProfiles: {
         facebook: {
           type: String,
