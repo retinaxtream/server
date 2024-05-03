@@ -5,7 +5,7 @@ import Client from '../models/ClientModel.js';
 import { Storage } from '@google-cloud/storage';
 import User from '../models/UserModel.js';
 import nodemailer from "nodemailer";
-import fs from 'fs'; 
+import fs from 'fs';
 // import sharp from 'sharp';
 
 import { log } from 'console';
@@ -20,14 +20,14 @@ const currentModuleUrl = new URL(import.meta.url);
 // const serviceAccPath = path.resolve(currentModuleDir, '../credentials.json');
 const keyFilename = './credentials.json'
 
- 
+
 const storage = new Storage({
   projectId: "primal-stock-396615",
   keyFilename: keyFilename,
 });
 
-const bucketName = 'hapzea'; 
-    
+const bucketName = 'hapzea';
+
 // export const home = CatchAsync(async (req, res) => {
 //   res.status(200).send('Hello from the retina server');
 // }); 
@@ -38,19 +38,56 @@ export const userWelcome = CatchAsync(async (req, res) => {
     message: 'Hello from the retina server',
     app: "Retina"
   });
-}); 
+});
 
 
 // ###########################################################################
+export const updateUserById = CatchAsync(async (req, res, next) => {
+  try {
+    console.log('called');
+    const userId = req.user._id;
+    console.log(req.body);
+    console.log('*(*(*(*())))');
+    console.log(userId);
+
+    // Retrieve user from the database
+    const user = await User.findById(userId);
+    console.log(user);
+
+    // Update user's information with data from the request body
+    user.businessName = req.body.businessName || user.businessName;
+    user.email = req.body.email || user.email;
+    user.address = req.body.address || user.address;
+    user.website = req.body.website || user.website;
+    user.googleMapLink = req.body.googleMapLink || user.googleMapLink;
+    user.socialProfiles = req.body.socialProfiles || user.socialProfiles;
+    user.youtube = req.body.youtube || user.youtube; // Include the youtube property
+
+    // Save the updated user
+    await user.save();
+
+    // Send response
+    res.status(200).json({
+      status: 'success',
+      data: {
+        user,
+      },
+    });
+  } catch (err) {
+    // Handle errors properly
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 
- 
+
 // ###########################################################################
 export const jwtcheck = CatchAsync(async (req, res) => {
   // logger.info("from protect router");
   logtail.info(req.headers);
   console.log(req.headers);
-  const cookieString =  req.headers.cookie;
+  const cookieString = req.headers.cookie;
   // logger.info(cookieString);
   logtail.info('cookieString');
   logtail.info(req.headers.cookie);
@@ -192,6 +229,8 @@ export const getClients = CatchAsync(async (req, res, next) => {
   });
 });
 
+
+
 // ###########################################################################
 export const clientSorted = CatchAsync(async (req, res, next) => {
   const aggregatedClients = await Client.aggregate([
@@ -238,9 +277,9 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
 export const validateLink = CatchAsync(async (req, res, next) => {
   console.log(req.body.type);
   console.log('tttttty');
-  const  Type  =req.body.type
+  const Type = req.body.type
   const clients = await Client.find({ _id: req.body.id });
-console.log(req.body.id);
+  console.log(req.body.id);
   console.log(clients);
 
   if (clients.length === 0) {
@@ -256,13 +295,13 @@ console.log(req.body.id);
 
   let linkStatus;
 
-  if(Type === 'media'){
+  if (Type === 'media') {
     if (user.businessName === req.body.businessName) {
       linkStatus = 'Allow Access';
     } else {
       linkStatus = 'Deny Access';
     }
-  }else{
+  } else {
     if (clients[0].EventName === req.body.EventName && user.businessName === req.body.businessName) {
       linkStatus = 'Allow Access';
     } else {
@@ -279,7 +318,7 @@ console.log(req.body.id);
   });
 });
 
- 
+
 
 // ###########################################################################
 async function listFilesInOne(bucketName, idFolderName) {
@@ -494,7 +533,7 @@ async function createSubfolder(bucket, parentFolderName, subfolderName) {
 }
 
 // ###########################################################################
-async function createFolderIn(bucketName, userId, newFolderName,media) {
+async function createFolderIn(bucketName, userId, newFolderName, media) {
   try {
     const bucket = storage.bucket(bucketName);
 
@@ -548,7 +587,7 @@ async function createFolderIn(bucketName, userId, newFolderName,media) {
 // ###########################################################################
 export const getFiles = CatchAsync(async (req, res, next) => {
   const userId = req.query._id;
-  
+
   if (!userId) {
     return res.status(400).json({
       status: 'error',
@@ -562,7 +601,7 @@ export const getFiles = CatchAsync(async (req, res, next) => {
     data: {
       album: AlbumsSubs,
       photo: PhotoSubs
-    } 
+    }
   });
 });
 
@@ -582,7 +621,7 @@ async function fetchAllPhotos(bucketName, userId, albumName, folderName) {
     }
     if (folderName) {
       prefix += `${folderName}/`;
-    } 
+    }
 
     // List all files with the specified prefix
     const [files] = await bucket.getFiles({
@@ -609,12 +648,12 @@ async function fetchAllPhotos(bucketName, userId, albumName, folderName) {
 }
 
 
- 
+
 
 // ###########################################################################
 export const createFolder_Bucket = CatchAsync(async (req, res, next) => {
   const main_folder = req.body.main_folder
-  const folderName =req.body.folder_name
+  const folderName = req.body.folder_name
   // const sub_folder = req.params.sub_folder
   const userId = req.query._id;
   if (!userId) {
@@ -622,10 +661,10 @@ export const createFolder_Bucket = CatchAsync(async (req, res, next) => {
       status: 'error',
       message: 'User ID is required in the query parameters.'
     });
-  }  
- 
+  }
+
   // await fetchAllPhotos('hapzea',userId, main_folder );
-  await createFolderIn('hapzea',userId,folderName, main_folder );
+  await createFolderIn('hapzea', userId, folderName, main_folder);
   // if (subfolder !== null) {
   //   await createSubFolderIn('hapzea', userId, folderName, media, subfolder);
   // } else {
@@ -698,7 +737,7 @@ const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataVal
     const folderPath = `${userId}/PhotoSelection`;
 
     const [files] = await bucket.getFiles({
-      prefix: folderPath, 
+      prefix: folderPath,
     });
     console.log('files.........');
     // console.log(files);
@@ -721,7 +760,7 @@ const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataVal
       console.log('folders');
       console.log(folderName);
       return folderName;
-    }); 
+    });
 
     return folderNames;
   } catch (error) {
@@ -729,7 +768,7 @@ const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataVal
     throw error;
   }
 };
-const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue,sub_Files) => {
+const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue, sub_Files) => {
   try {
     console.log('called getFilesByMetadata');
     const bucket = storage.bucket(bucketName);
@@ -737,7 +776,7 @@ const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue
     const folderPath = `${userId}/PhotoSelection/${sub_Files}/`;
 
     const [files] = await bucket.getFiles({
-      prefix: folderPath, 
+      prefix: folderPath,
     });
     console.log('files.........');
     console.log(files);
@@ -746,14 +785,14 @@ const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue
       const metadata = file.metadata;
       console.log('%$%$%$');
       console.log(file.metadata);
-      console.log(metadata);  
+      console.log(metadata);
       console.log(file);
       // Check if the file has metadata
       if (metadata.metadata) {
-        const nestedMetadata = metadata.metadata; 
+        const nestedMetadata = metadata.metadata;
         return nestedMetadata && nestedMetadata['selected'] === metadataValue.toString();
       }
-      return false; 
+      return false;
     });
 
     // Extract folder names from file paths
@@ -763,7 +802,7 @@ const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue
       console.log('folders');
       console.log(folderName);
       return folderName;
-    }); 
+    });
 
     return { sub_Files: sub_Files, folderNames: folderNames };
   } catch (error) {
@@ -802,7 +841,7 @@ export const getClientById = CatchAsync(async (req, res, next) => {
 
 export const fetch_Photos = CatchAsync(async (req, res, next) => {
   console.log('fetch photos called from server');
-  
+
   // Extract parameters from the query string
   const main_folder = req.query.main_folder;
   const sub_folder = req.query.sub_folder;
@@ -825,15 +864,15 @@ export const upload = CatchAsync(async (req, res, next) => {
   console.log(photoPaths);
   const main_folder = req.query.main_folder;
   const sub_folder = req.query.sub_folder;
-  const id = req.query.id; 
+  const id = req.query.id;
   // Use your uploadPhotos function to handle the photo upload
-  await uploadPhotos('hapzea', id, main_folder, sub_folder,photoPaths);
+  await uploadPhotos('hapzea', id, main_folder, sub_folder, photoPaths);
 
-  console.log('frrafsefsdf'); 
+  console.log('frrafsefsdf');
   res.status(200).json({
     status: 'success',
   });
-}); 
+});
 
 
 
@@ -863,13 +902,13 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
   const folders = req.body.selected;
   let subFolder;
-  if(req.body.sub_folder){
-     subFolder = req.body.sub_folder;
+  if (req.body.sub_folder) {
+    subFolder = req.body.sub_folder;
   }
   console.log(clientId);
-  const bucketName = 'hapzea';            
+  const bucketName = 'hapzea';
   const bucket = storage.bucket(bucketName);
-  
+
   let [files] = [];
 
   if (subFolder) {
@@ -881,9 +920,9 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     // for (const file of files) {
     //     await file.setMetadata({ metadata: null });
     //     console.log(`Metadata removed for file ${file.name}`);
-  
+
     // }
-    
+
     for (const file of files) {
       if (!file.name.endsWith('/')) {
         await file.setMetadata({ metadata: null });
@@ -898,11 +937,11 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
       await bucket.file(folderPath).setMetadata({
         metadata: {
           selected: true
-        }, 
+        },
       });
       console.log(`New metadata set for folder ${folderPath}`);
     }
-    
+
     res.status(200).json({
       status: 'success',
     });
@@ -913,7 +952,7 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
         prefix: prefix,
         autoPaginate: false // Make sure to disable auto-pagination
       });
-    
+
       for (const file of files) {
         if (file.name.endsWith('/')) {
           // It's a folder, remove metadata and recursively call the function
@@ -923,20 +962,20 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
         }
       }
     }
-    
+
     await removeMetadataFromFolders(bucket, `${clientId}/PhotoSelection/`);
-        
-    
+
+
     for (const folder of folders) {
       const folderPath = `${clientId}/PhotoSelection/${folder}/`;
       await bucket.file(folderPath).setMetadata({
         metadata: {
           selected: false
-        }, 
+        },
       });
       console.log(`New metadata set for folder ${folderPath}`);
     }
-    
+
     res.status(200).json({
       status: 'success',
     });
@@ -955,7 +994,7 @@ export const matchingFolders = CatchAsync(async (req, res, next) => {
       data: folders
     });
   }
-}); 
+});
 
 
 export const matchingFiles = CatchAsync(async (req, res, next) => {
@@ -966,14 +1005,14 @@ export const matchingFiles = CatchAsync(async (req, res, next) => {
   console.log(sub_Files); // Correctly log subFiles from req.query
   const Files = await getFilesByMetadata("hapzea", clientId, "selected", true, sub_Files);
   if (Files) {
-    console.log('Files');  
+    console.log('Files');
     console.log(Files);
     res.status(200).json({
       status: 'success',
       data: Files
     });
-  } 
-});  
+  }
+});
 
 
 const sendURL = async (email, magic_url, company_name, event_name) => {
@@ -1070,7 +1109,7 @@ const sendURL = async (email, magic_url, company_name, event_name) => {
     throw error;
   }
 };
-  
+
 
 
 
@@ -1168,7 +1207,7 @@ const sendMedia = async (email, magic_url, company_name, event_name) => {
     throw error;
   }
 };
-  
+
 
 export const downloadFile = CatchAsync(async (req, res, next) => {
   try {

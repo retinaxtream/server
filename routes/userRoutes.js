@@ -48,7 +48,7 @@ router.post('/meta/:id', auth.protect, userController.folder_metadata);
 router.get('/metacheck/:id', auth.protect, userController.matchingFolders);
 router.get('/meta_selction_check/:id', auth.protect, userController.matchingFiles);
 router.get('/download-into-memory', userController.downloadFile);
- 
+// router.post('/updateUser',auth.protect, RhzuserController.updateUserById);
 
     
 
@@ -56,7 +56,7 @@ router.get('/download-into-memory', userController.downloadFile);
 
 router.get('/me', auth.protect, RhzuserController.getUserById);
 router.post('/decode-jwt',auth.protect, RhzuserController.decodeJwt);
-router.put('/updateUser',auth.protect, RhzuserController.updateUserById);
+router.post('/updateUser', auth.protect, userController.updateUserById);
 
 router.post('/:userId/profile', auth.protect, upload.single('profilePicture'), RhzuserController.updateProfilePicture);
 

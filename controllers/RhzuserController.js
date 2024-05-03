@@ -231,6 +231,8 @@ export const decodeJwt = (req, res) => {
 
 export const updateUserById = CatchAsync(async (req, res, next) => {
   const userId = req.user._id;
+  console.log('*(*(*(*())))');
+  console.log(userId);
     if (!userId) {
         return res.status(400).json({
             status: 'error',
