@@ -32,15 +32,18 @@ const userSchema = new mongoose.Schema({
   },
   passwordConfirm: {
     type: String,
-    required: [true, 'Please confirm your password'],
     validate: {
-
       validator: function (el) {
-        return el === this.password;
+        // Only perform validation if password is provided
+        if (this.password) {
+          return el === this.password;
+        }
+        return true; // Return true if password is not provided
       },
       message: 'Passwords are not the same!'
     }
   },
+  
   mobile: {
     type: String,
     required: [true, 'Please provide your mobile number'],

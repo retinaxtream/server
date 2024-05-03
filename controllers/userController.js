@@ -44,15 +44,18 @@ export const userWelcome = CatchAsync(async (req, res) => {
 // ###########################################################################
 export const updateUserById = CatchAsync(async (req, res, next) => {
   try {
-    console.log('called');
     const userId = req.user._id;
-    console.log(req.body);
-    console.log('*(*(*(*())))');
-    console.log(userId);
+    console.log('User ID:', userId);
+    if (!userId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'User ID is required in the URL parameters.'
+      });
+    }
 
     // Retrieve user from the database
     const user = await User.findById(userId);
-    console.log(user);
+    console.log('User:', user);
 
     // Update user's information with data from the request body
     user.businessName = req.body.businessName || user.businessName;
@@ -61,7 +64,13 @@ export const updateUserById = CatchAsync(async (req, res, next) => {
     user.website = req.body.website || user.website;
     user.googleMapLink = req.body.googleMapLink || user.googleMapLink;
     user.socialProfiles = req.body.socialProfiles || user.socialProfiles;
-    user.youtube = req.body.youtube || user.youtube; // Include the youtube property
+    user.youtube = req.body.youtube || user.youtube;
+
+    // Only update password and confirm password if they are provided
+    if (req.body.password) {
+      user.password = req.body.password;
+      user.passwordConfirm = req.body.passwordConfirm;
+    }
 
     // Save the updated user
     await user.save();
@@ -73,13 +82,14 @@ export const updateUserById = CatchAsync(async (req, res, next) => {
         user,
       },
     });
-  } catch (err) {
+  } catch (error) {
     // Handle errors properly
-    console.error(err);
+    console.error('Error updating user:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
+ 
 
 
 // ###########################################################################
