@@ -85,12 +85,15 @@ export const login = CatchAsync(async (req, res, next) => {
 
 
 export const logout = (req, res) => {
-  res.cookie('jwt', 'loggedout', {
-    expires: new Date(Date.now() + 10 * 1000), // expires in 10 seconds
-    httpOnly: true
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Error destroying session:', err);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+    res.status(200).json({ status: 'success' });
   });
-  res.status(200).json({ status: 'success' });
 };
+         
 
 
 
