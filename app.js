@@ -21,9 +21,9 @@ app.use((req, res, next) => {
   console.log('Hello from the middleware 👋');
   next();
 });
- 
+
 app.use(cors({  
-  origin: ['http://localhost:3000'],
+  origin: ['https://hapzea.com','http://hapzea.com'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options'],
   credentials: true,
