@@ -21,7 +21,7 @@ app.use((req, res, next) => {
   console.log('Hello from the middleware 👋');
   next();
 });
-
+ 
 app.use(cors({  
   origin: ['https://hapzea.com','http://hapzea.com'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -31,7 +31,7 @@ app.use(cors({
 
 app.use('/api/v1/user', userroute);
 
-// Catch-all for unhandled routes
+// Catch-all for unhandled routes 
 app.all('*', (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
