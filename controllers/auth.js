@@ -5,8 +5,7 @@ import jwt from 'jsonwebtoken';
 
 
 export const protect = CatchAsync(async (req, res, next) => {
-  console.log('called');
-  console.log(req.headers.cookie);
+
   let token;
   if (req.headers.cookie) {
     console.log('#### INSIDE IF ####');
@@ -42,6 +41,7 @@ export const protect = CatchAsync(async (req, res, next) => {
     console.log('Decoded.....');
     console.log(decoded);
     // console.log();
+    req.token = token;
     req.user = await User.findById(decoded.id).select('-password');
      console.log('UUUUSEER');
      console.log(req.user);

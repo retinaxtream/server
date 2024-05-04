@@ -84,18 +84,19 @@ export const login = CatchAsync(async (req, res, next) => {
 });
 
 
-export const logout = (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      console.error('Error destroying session:', err);
-      return res.status(500).json({ message: 'Internal server error' });
-    }
-    res.status(200).json({ status: 'success' });
-  });
+export const logout = async (req, res) => {
+  try {
+      console.log(req.token);
+      // Clear the JWT cookie
+      await res.clearCookie("jwt");
+      await res.clearCookie("jwtToken");
+      console.log('Logout successful');
+      res.status(200).json({ status: 'success' });
+  } catch (error) {
+      console.error('Logout failed:', error);
+      res.status(400).json({ status: 'fail' });
+  }
 };
-         
-
-
 
 export const protect = CatchAsync(async (req, res, next) => {
   let token;
