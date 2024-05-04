@@ -23,7 +23,7 @@ app.use((req, res, next) => {
 });
  
 app.use(cors({  
-  origin: ['http://localhost:3000'],
+  origin: ['https://hapzea.com','http://hapzea.com'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options'],
   credentials: true,
@@ -31,7 +31,7 @@ app.use(cors({
 
 app.use('/api/v1/user', userroute);
 
-// Catch-all for unhandled routes
+// Catch-all for unhandled routes 
 app.all('*', (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
