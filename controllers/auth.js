@@ -5,8 +5,6 @@ import jwt from 'jsonwebtoken';
 
 
 export const protect = CatchAsync(async (req, res, next) => {
-  console.log('called');
-  console.log(req.headers.cookie);
   let token;
   if (req.headers.cookie) {
     console.log('#### INSIDE IF ####');
