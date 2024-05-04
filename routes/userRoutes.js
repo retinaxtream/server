@@ -56,7 +56,6 @@ router.post('/updateUser',auth.protect, userController.updateUserById);
 
 router.get('/me', auth.protect, RhzuserController.getUserById);
 router.post('/decode-jwt',auth.protect, RhzuserController.decodeJwt);
-// router.put('/updateUser/:id',auth.protect, RhzuserController.updateUserById);
     
 router.post('/:userId/profile', auth.protect, upload.single('profilePicture'), RhzuserController.updateProfilePicture);
 
