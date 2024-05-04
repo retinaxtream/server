@@ -62,13 +62,13 @@ router.post('/:userId/profile', auth.protect, upload.single('profilePicture'), R
 
 router.patch('/changePassword', auth.protect, RhzuserController.changePassword);
 
-router.get('/logout', authController.logout);
+router.get('/logout', auth.protect, authController.logout);
 
 router 
     .route('/')
     .get(userController.userWelcome);
 
-router
+router 
     .get('/protect', userController.jwtcheck);
     
 router
