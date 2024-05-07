@@ -10,7 +10,7 @@ connectDatabase();
 
 const app = express();
 app.use(express.json());
-
+ 
 console.log(process.env.NODE_ENV);
 
 if (process.env.NODE_ENV === 'development') {
@@ -23,7 +23,7 @@ app.use((req, res, next) => {
 });
  
 app.use(cors({  
-  origin: ['https://hapzea.com','http://hapzea.com'],
+  origin: ['https://hapzea.com','http://hapzea.com','http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options'],
   credentials: true,
@@ -37,7 +37,7 @@ app.all('*', (req, res, next) => {
 });
 
 
-app.use((err, req, res, next) => {
+app.use((err, req, res, next) => { 
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
   res.status(err.statusCode).json({
