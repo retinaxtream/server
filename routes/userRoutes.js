@@ -48,7 +48,7 @@ router.post('/meta/:id', auth.protect, userController.folder_metadata);
 router.get('/metacheck/:id', userController.matchingFolders);
 router.get('/meta_selction_check/:id', auth.protect, userController.matchingFiles);
 router.get('/download-into-memory', userController.downloadFile);
-router.post('/updateUser',auth.protect, userController.updateUserById);
+router.post('/updateUser', auth.protect, userController.updateUserById);
 
     
 
