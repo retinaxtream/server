@@ -36,7 +36,7 @@ router.post('/validatingLink', userController.validateLink);
 router.post('/create/client', auth.protect, userController.createClient);
 router.get('/create/client', auth.protect, userController.getClients);
 router.get('/client/sorted', auth.protect, userController.clientSorted);
-router.get('/client/:id', auth.protect, userController.getClientById);
+router.get('/client/:id', userController.getClientById);
 router.get('/getfiles', auth.protect, userController.getFiles);
 router.post('/createfolder', auth.protect, userController.createFolder_Bucket);
 router.get('/fetchMedia',  userController.fetch_Photos);
@@ -45,7 +45,7 @@ router.post('/upload', auth.protect, upload.array('photos'), userController.uplo
 router.post('/sendUrl', userController.sendPublic_url);
 router.post('/sendMedia', userController.sendMedia_Files);
 router.post('/meta/:id', auth.protect, userController.folder_metadata);
-router.get('/metacheck/:id', auth.protect, userController.matchingFolders);
+router.get('/metacheck/:id', userController.matchingFolders);
 router.get('/meta_selction_check/:id', auth.protect, userController.matchingFiles);
 router.get('/download-into-memory', userController.downloadFile);
 router.post('/updateUser',auth.protect, userController.updateUserById);
