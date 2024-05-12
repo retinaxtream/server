@@ -156,7 +156,6 @@ export const protect = CatchAsync(async (req, res, next) => {
 });
 
 
-
 export const googleAuth = CatchAsync(async (req, res, next) => {
   try {
     let { email, id } = req.body;
@@ -164,24 +163,24 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
       return res.status(401).json({ error: "Invalid Credentials" });
     }
 
-    console.log(email, id); 
+    console.log(email, id);
     const user = await User.findOne({ email });
 
     if (!user) {
       console.log('User not found, creating a new user');
       const newUser = await User.create({
-        email, 
+        email,
         password: "Asdfghjklqwer2",
+        passwordConfirm: "Asdfghjklqwer2",
         validating: true,
       });
 
       console.log('New user created:', newUser);
       const token = await signToken(newUser._id);
-
       res.cookie('jwtToken', token, {
-        httpOnly: true, 
-        secure: true,   
-        sameSite: 'strict' 
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict'
       });
 
       return res.status(201).json({
@@ -191,12 +190,13 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
           user: newUser
         }
       });
-    }else if(user){
+    } else if (user) { 
+      console.log('existing user');
       const token = await signToken(user._id);
       res.cookie('jwtToken', token, {
-        httpOnly: true, 
-        secure: true,   
-        sameSite: 'strict' 
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict'
       });
 
       return res.status(201).json({
@@ -205,12 +205,15 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
         data: {
           user
         }
-      })
+      });
     }
 
     next(); // Call next middleware if user already exists
   } catch (error) {
-    return res.status(500).json({ error: "Internal Server Error" });
+    // Log the error for debugging
+    console.error('Error in googleAuth middleware:', error);
+    // Return a detailed error response
+    return res.status(500).json({ error: error.message });
   }
 });
 
