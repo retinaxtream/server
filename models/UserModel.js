@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import  validator  from "validator";
@@ -47,16 +46,19 @@ const userSchema = new mongoose.Schema({
   
   mobile: {
     type: String,
-    sparse: true,
-    unique: true,
+    sparse: true, // Allows multiple documents to have null or empty mobile values
+    unique: false, // Remove unique index on mobile field
     validate: {
       validator: function (value) {
-
-        return /^(\+91[\d]{10})$/.test(value);
+        if (value) {
+          return /^(\+91[\d]{10})$/.test(value);
+        }
+        return true; // Return true if mobile value is null or empty
       },
-      message: 'Please provide a valid Indian mobile number with the format +919XXXXXXXXX.'
-    }
+      message: 'Please provide a valid Indian mobile number with the format +919XXXXXXXXX or leave it empty.',
+    },
   },
+  
   passwordChangedAt: Date,
   passwordResetToken: String,
   passwordResetExpires: Date,
@@ -70,7 +72,6 @@ const userSchema = new mongoose.Schema({
   
     address: {
       type: String,
-      
     },
     
       website: {
