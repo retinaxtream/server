@@ -155,6 +155,7 @@ export const protect = CatchAsync(async (req, res, next) => {
   }
 });
 
+
 export const googleAuth = CatchAsync(async (req, res, next) => {
   try {
     let { email, id } = req.body;
@@ -215,3 +216,4 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
     return res.status(500).json({ error: error.message });
   }
 });
+
