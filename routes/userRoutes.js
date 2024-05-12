@@ -51,7 +51,8 @@ router.get('/download-into-memory', userController.downloadFile);
 router.post('/updateUser',auth.protect, userController.updateUserById);
 
     
-
+router.post("/googlesignIn",authController.googleAuth);
+ 
 //Rohan
 
 router.get('/me', auth.protect, RhzuserController.getUserById);
