@@ -2,6 +2,7 @@ import express from 'express';
 import morgan from 'morgan';
 import userroute from './routes/userRoutes.js';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import connectDatabase from './config/mongodb.js';
 
@@ -10,12 +11,13 @@ connectDatabase();
 
 const app = express();
 app.use(express.json());
- 
+app.use(cookieParser());
+
 console.log(process.env.NODE_ENV);
 
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
-}
+} 
 
 app.use((req, res, next) => {
   console.log('Hello from the middleware 👋');
