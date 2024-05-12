@@ -77,8 +77,9 @@ export const login = CatchAsync(async (req, res, next) => {
     });
   }
 
-
-  const token = signToken(user._id);
+console.log('FROM LOGIN');
+const token = signToken(user._id);
+console.log(token);
   res.cookie('jwtToken', token, {
     httpOnly: true, 
     secure: true,   
@@ -162,19 +163,25 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
       return res.status(401).json({ error: "Invalid Credentials" });
     }
 
-    console.log(email, id);
+    console.log(email, id); 
     const user = await User.findOne({ email });
 
     if (!user) {
       console.log('User not found, creating a new user');
       const newUser = await User.create({
-        email,
+        email, 
         password: "Asdfghjklqwer2",
         validating: true,
       });
 
       console.log('New user created:', newUser);
       const token = await signToken(newUser._id);
+
+      res.cookie('jwtToken', token, {
+        httpOnly: true, 
+        secure: true,   
+        sameSite: 'strict' 
+      });
 
       return res.status(201).json({
         status: 'success',
