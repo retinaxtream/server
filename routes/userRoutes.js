@@ -41,7 +41,7 @@ router.get('/getfiles', auth.protect, userController.getFiles);
 router.post('/createfolder', auth.protect, userController.createFolder_Bucket);
 router.get('/fetchMedia',  userController.fetch_Photos);
 router.post('/upload', auth.protect, upload.array('photos'), userController.upload);
-
+router.post("/googlesignIn",authController.googleAuth);
 router.post('/sendUrl', userController.sendPublic_url);
 router.post('/sendMedia', userController.sendMedia_Files);
 router.post('/meta/:id', auth.protect, userController.folder_metadata);
