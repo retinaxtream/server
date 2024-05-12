@@ -47,7 +47,6 @@ const userSchema = new mongoose.Schema({
   mobile: {
     type: String,
     sparse: true, // Allows multiple documents to have null or empty mobile values
-    unique: false, // Remove unique index on mobile field
     validate: {
       validator: function (value) {
         if (value) {
