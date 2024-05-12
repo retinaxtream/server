@@ -217,5 +217,3 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
   }
 });
 
-
- 
