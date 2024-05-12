@@ -15,33 +15,42 @@ const signToken = id => {
 
 
 export const signup = CatchAsync(async (req, res, next) => {
-  // logtail.info(req.body)
-  if (!req.body.mobile.startsWith('+91')) {
-    req.body.mobile = '+91' + req.body.mobile;
-    // logtail.info(req.body.mobile);
-  }
-
-  const newUser = await User.create({
-    businessName: req.body.businessName,
-    email: req.body.email,
-    mobile: req.body.mobile,
-    password: req.body.password,
-    passwordConfirm: req.body.passwordConfirm,
-    passwordChangedAt: req.body.passwordChangedAt,
-    role: req.body.role
-  });
-
-  // logtail.info(newUser);
-
-  const token = signToken(newUser._id);
-  // logtail.info(token)
-  res.status(201).json({
-    status: 'success',
-    token: token,
-    data: {
-      user: newUser
+  try {
+    // logtail.info(req.body)
+    if (!req.body.mobile.startsWith('+91')) {
+      req.body.mobile = '+91' + req.body.mobile;
+      // logtail.info(req.body.mobile);
     }
-  })
+
+    const newUser = await User.create({
+      businessName: req.body.businessName,
+      email: req.body.email,
+      mobile: req.body.mobile,
+      password: req.body.password,
+      passwordConfirm: req.body.passwordConfirm,
+      passwordChangedAt: req.body.passwordChangedAt,
+      role: req.body.role
+    });
+
+    // logtail.info(newUser);
+
+    const token = signToken(newUser._id);
+    // logtail.info(token)
+    res.status(201).json({
+      status: 'success',
+      token: token,
+      data: {
+        user: newUser
+      }
+    });
+  } catch (error) {
+    // Handle the error
+    console.error('Error in signup controller:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Internal server error'
+    });
+  }
 });
 
 
@@ -68,8 +77,9 @@ export const login = CatchAsync(async (req, res, next) => {
     });
   }
 
-
-  const token = signToken(user._id);
+console.log('FROM LOGIN');
+const token = signToken(user._id);
+console.log(token);
   res.cookie('jwtToken', token, {
     httpOnly: true, 
     secure: true,   
@@ -90,7 +100,7 @@ export const logout = async (req, res) => {
       res.status(200).json({ status: 'success' });
   } catch (error) {
       console.error('Logout failed:', error);
-      res.status(400).json({ status: 'fail' });
+      res.status(400).json({ status: 'fail' });   
   }
 };
 
@@ -144,6 +154,7 @@ export const protect = CatchAsync(async (req, res, next) => {
     throw new Error('Not Authorized, token failed');
   }
 });
+
 
 
 export const googleAuth = CatchAsync(async (req, res, next) => {
