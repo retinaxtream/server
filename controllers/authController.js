@@ -153,3 +153,40 @@ export const protect = CatchAsync(async (req, res, next) => {
     throw new Error('Not Authorized, token failed');
   }
 });
+
+
+export const googleAuth = CatchAsync(async (req, res, next) => {
+  try {
+    let { email, id } = req.body;
+    if (!id) {
+      return res.status(401).json({ error: "Invalid Credentials" });
+    }
+
+    console.log(email, id);
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      console.log('User not found, creating a new user');
+      const newUser = await User.create({
+        email,
+        password: "Asdfghjklqwer2",
+        validating: true,
+      });
+
+      console.log('New user created:', newUser);
+      const token = await signToken(newUser._id);
+
+      return res.status(201).json({
+        status: 'success',
+        token: token,
+        data: {
+          user: newUser
+        }
+      });
+    }
+
+    next(); // Call next middleware if user already exists
+  } catch (error) {
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
