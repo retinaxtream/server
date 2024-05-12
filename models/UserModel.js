@@ -6,11 +6,11 @@ import crypto from 'crypto';
 const userSchema = new mongoose.Schema({
   businessName: {
     type: String,
-    required: [true, 'Please tell us your name!']
   },
+  validating: { type: Boolean },
   email: {
     type: String,
-    required: [true, 'Please provide your email'],
+    sparse: true,
     unique: true,
     lowercase: true,
     validate: [validator.isEmail, 'Please provide a valid email']
@@ -46,7 +46,7 @@ const userSchema = new mongoose.Schema({
   
   mobile: {
     type: String,
-    required: [true, 'Please provide your mobile number'],
+    sparse: true,
     unique: true,
     validate: {
       validator: function (value) {

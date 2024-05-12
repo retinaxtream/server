@@ -144,3 +144,33 @@ export const protect = CatchAsync(async (req, res, next) => {
     throw new Error('Not Authorized, token failed');
   }
 });
+
+
+export const googleAuth = CatchAsync(async (req, res) => {
+  let { email, id } = req.body;
+  if (id) {
+    console.log(email, id);
+    const user = await User.findOne({ email });
+    if (!user && id) {
+      console.log('calling inside');
+      const newUser = await User.create({
+        email,
+        password: "Asdfghjklqwer2",
+        validating: true,
+      });
+        console.log(newUser);
+      const token = await signToken(newUser._id);
+      res.status(201).json({
+        status: 'success',
+        token: token,
+        data: {
+          user: newUser
+        }
+      })   
+    }
+  }
+  
+  // If execution reaches here, it means the request is invalid
+  return res.status(401).json({ error: "Invalid Credentials" });
+}) 
+ 
