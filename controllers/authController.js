@@ -190,6 +190,21 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
           user: newUser
         }
       });
+    }else if(user){
+      const token = await signToken(user._id);
+      res.cookie('jwtToken', token, {
+        httpOnly: true, 
+        secure: true,   
+        sameSite: 'strict' 
+      });
+
+      return res.status(201).json({
+        status: 'success',
+        token: token,
+        data: {
+          user
+        }
+      })
     }
 
     next(); // Call next middleware if user already exists
@@ -197,3 +212,4 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
