@@ -2,6 +2,7 @@ import express from 'express';
 import morgan from 'morgan';
 import userroute from './routes/userRoutes.js';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import connectDatabase from './config/mongodb.js';
 
@@ -10,19 +11,21 @@ connectDatabase();
 
 const app = express();
 app.use(express.json());
+app.use(cookieParser());
 
 console.log(process.env.NODE_ENV);
 
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
-}
+} 
 
 app.use((req, res, next) => {
   console.log('Hello from the middleware 👋');
   next();
 });
  
-app.use(cors({   
+
+app.use(cors({  
   origin: ['https://hapzea.com','http://hapzea.com','http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options'],
@@ -37,7 +40,7 @@ app.all('*', (req, res, next) => {
 });
 
 
-app.use((err, req, res, next) => {
+app.use((err, req, res, next) => { 
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
   res.status(err.statusCode).json({
