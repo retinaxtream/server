@@ -182,8 +182,15 @@ export const createClient = CatchAsync(async (req, res, next) => {
   let magicLink;
 
   if (req.body) {
-    // Extracting username from email if businessName is empty
-    const businessName = req.user.businessName || extractUsernameFromEmail(req.user.email);
+    // Extracting username from email if businessName is empty or undefined
+    let businessName = req.user.businessName;
+    if (!businessName) {
+      const extractedUsername = await extractUsernameFromEmail(req.user.email); // Await here
+      if (extractedUsername) {
+        businessName = extractedUsername;
+      }
+    }
+
     console.log(businessName);
     if (
       req.body.Event_Category === 'Wedding' ||
@@ -232,9 +239,11 @@ export const createClient = CatchAsync(async (req, res, next) => {
 });
 
 
-function extractUsernameFromEmail(email) {
-  return email.split('@')[0];
+const extractUsernameFromEmail = async (email) => {
+  const EMAI = await email.split('@')[0];
+  return EMAI;
 }
+
 
 
 // ###########################################################################
