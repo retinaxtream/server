@@ -327,10 +327,10 @@ export const validateLink = CatchAsync(async (req, res, next) => {
 
   // Extracting username from email
   const extractedUsername = extractUsernameFromEmail(user.email);
-  logtail.info(extractedUsername);
+  logtail.info({extractedUsername});
 
   if (Type === 'media') {
-    logtail.info(extractedUsername,req.body.businessName,user.businessName);
+    logtail.info({ extractedUsername, reqBodyBusinessName: req.body.businessName, userBusinessName: user.businessName });
     if ((user.businessName === req.body.businessName) || (extractedUsername === req.body.businessName)) {
       logtail.info("Allow Access");
       linkStatus = 'Allow Access';
