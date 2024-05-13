@@ -177,16 +177,14 @@ export async function uploadImage(req, res) {
 
 // ###########################################################################
 export const createClient = CatchAsync(async (req, res, next) => {
-  console.log('ID FROM CREATE CLIENT');
-  console.log(req.user._id);
-  console.log(req.user);
+  console.log('%%%%%%%%%%%%%%');
   let newClient;
   let magicLink;
 
   if (req.body) {
     // Extracting username from email if businessName is empty
     const businessName = req.user.businessName || extractUsernameFromEmail(req.user.email);
-
+    console.log(businessName);
     if (
       req.body.Event_Category === 'Wedding' ||
       req.body.Event_Category === 'Engagement' ||
@@ -316,14 +314,17 @@ export const validateLink = CatchAsync(async (req, res, next) => {
 
   let linkStatus;
 
+  // Extracting username from email
+  const extractedUsername = extractUsernameFromEmail(user.email);
+
   if (Type === 'media') {
-    if (user.businessName === req.body.businessName) {
+    if ((user.businessName === req.body.businessName) || (extractedUsername === req.body.businessName)) {
       linkStatus = 'Allow Access';
     } else {
       linkStatus = 'Deny Access';
     }
   } else {
-    if (clients[0].EventName === req.body.EventName && user.businessName === req.body.businessName) {
+    if ((clients[0].EventName === req.body.EventName) && ((user.businessName === req.body.businessName) || (extractedUsername === req.body.businessName))) {
       linkStatus = 'Allow Access';
     } else {
       linkStatus = 'Deny Access';
@@ -338,6 +339,11 @@ export const validateLink = CatchAsync(async (req, res, next) => {
     },
   });
 });
+
+
+// function extractUsernameFromEmail(email) {
+//   return email.split('@')[0];
+// }
 
 
 
