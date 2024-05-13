@@ -305,6 +305,8 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
 export const validateLink = CatchAsync(async (req, res, next) => {
   console.log(req.body.type);
   console.log('tttttty');
+  logtail.info('validation')
+  logtail.info(req.body)
   const Type = req.body.type
   const clients = await Client.find({ _id: req.body.id });
   console.log(req.body.id);
@@ -328,14 +330,18 @@ export const validateLink = CatchAsync(async (req, res, next) => {
 
   if (Type === 'media') {
     if ((user.businessName === req.body.businessName) || (extractedUsername === req.body.businessName)) {
+      logtail.info("Allow Access")
       linkStatus = 'Allow Access';
     } else {
+      logtail.info("Deny Access")
       linkStatus = 'Deny Access';
     }
   } else {
     if ((clients[0].EventName === req.body.EventName) && ((user.businessName === req.body.businessName) || (extractedUsername === req.body.businessName))) {
+      logtail.info("Allow Access")
       linkStatus = 'Allow Access';
     } else {
+      logtail.info("Deny Access")
       linkStatus = 'Deny Access';
     }
   }
