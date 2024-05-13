@@ -184,6 +184,9 @@ export const createClient = CatchAsync(async (req, res, next) => {
   let magicLink;
 
   if (req.body) {
+    // Extracting username from email if businessName is empty
+    const businessName = req.user.businessName || extractUsernameFromEmail(req.user.email);
+
     if (
       req.body.Event_Category === 'Wedding' ||
       req.body.Event_Category === 'Engagement' ||
@@ -203,7 +206,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Source: req.body.Source,
       });
       await createFolder('hapzea', `${newClient._id}/`);
-      magicLink = `https://hapzea.com/invitation/${req.user.businessName}/${req.body.Event_Name}/${newClient._id}`;
+      magicLink = `https://hapzea.com/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
     } else {
       newClient = await Client.create({
         userId: req.user._id,
@@ -217,7 +220,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Source: req.body.Source,
       });
       await createFolder('hapzea', `${newClient._id}/`);
-      magicLink = `https://hapzea.com/invitation/${req.user.businessName}/${req.body.Event_Name}/${newClient._id}`;
+      magicLink = `https://hapzea.com/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
     }
 
     await Client.findByIdAndUpdate(newClient._id, { $set: { magicLink } }, { new: true });
@@ -229,6 +232,11 @@ export const createClient = CatchAsync(async (req, res, next) => {
     });
   }
 });
+
+
+function extractUsernameFromEmail(email) {
+  return email.split('@')[0];
+}
 
 
 // ###########################################################################

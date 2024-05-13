@@ -57,7 +57,7 @@ const userSchema = new mongoose.Schema({
         return true; // Return true if mobile value is null or empty
       },
       message: 'Please provide a valid Indian mobile number with the format +919XXXXXXXXX or leave it empty.',
-    },
+    }, 
   },
   
   passwordChangedAt: Date,
