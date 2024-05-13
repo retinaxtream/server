@@ -301,6 +301,13 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
   });
 });
 
+
+const extractUsernameFromEmail = async (email) => {
+  const EMAI = await email.split('@')[0];
+  return EMAI;
+}
+
+
 // ###########################################################################
 export const validateLink = CatchAsync(async (req, res, next) => {
   console.log(req.body.type);
@@ -326,11 +333,14 @@ export const validateLink = CatchAsync(async (req, res, next) => {
   let linkStatus;
 
   // Extracting username from email
-  const extractedUsername = extractUsernameFromEmail(user.email);
-  logtail.info(extractedUsername);
+  const userEmail = user.email;
+  console.log('User Email:', userEmail);
+
+  const extractedUsername = await extractUsernameFromEmail(userEmail);
+  console.log('Extracted Username:', extractedUsername);
 
   if (Type === 'media') {
-    logtail.info(extractedUsername,req.body.businessName,user.businessName);
+    logtail.info({ extractedUsername, reqBodyBusinessName: req.body.businessName, userBusinessName: user.businessName });
     if ((user.businessName === req.body.businessName) || (extractedUsername === req.body.businessName)) {
       logtail.info("Allow Access");
       linkStatus = 'Allow Access';
@@ -360,9 +370,6 @@ export const validateLink = CatchAsync(async (req, res, next) => {
 });
 
 
-// function extractUsernameFromEmail(email) {
-//   return email.split('@')[0];
-// }
 
 
 
