@@ -204,7 +204,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Source: req.body.Source,
       });
       await createFolder('hapzea', `${newClient._id}/`);
-      magicLink = `https://hapzea.com/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
+      magicLink = `http://localhost:3000/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
     } else {
       newClient = await Client.create({
         userId: req.user._id,
@@ -218,7 +218,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Source: req.body.Source,
       });
       await createFolder('hapzea', `${newClient._id}/`);
-      magicLink = `https://hapzea.com/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
+      magicLink = `http://localhost:3000/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
     }
 
     await Client.findByIdAndUpdate(newClient._id, { $set: { magicLink } }, { new: true });
@@ -318,7 +318,8 @@ export const validateLink = CatchAsync(async (req, res, next) => {
   const extractedUsername = extractUsernameFromEmail(user.email);
 
   if (Type === 'media') {
-    if ((user.businessName === req.body.businessName) || (extractedUsername === req.body.businessName)) {
+    console.log(req.body.businessName,req.body.businessName,extractedUsername);
+    if ((req.body.businessName === req.body.businessName) || (extractedUsername === req.body.businessName)) {
       linkStatus = 'Allow Access';
     } else {
       linkStatus = 'Deny Access';
