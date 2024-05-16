@@ -44,7 +44,7 @@ router.post('/upload', auth.protect, upload.array('photos'), userController.uplo
 router.post("/googlesignIn",authController.googleAuth);
 router.post('/sendUrl', userController.sendPublic_url);
 router.post('/sendMedia', userController.sendMedia_Files);
-router.post('/meta/:id', auth.protect, userController.folder_metadata);
+router.post('/meta/:id', userController.folder_metadata);
 router.get('/metacheck/:id', userController.matchingFolders);
 router.get('/meta_selction_check/:id', auth.protect, userController.matchingFiles);
 router.get('/download-into-memory', userController.downloadFile);
