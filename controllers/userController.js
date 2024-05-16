@@ -182,8 +182,15 @@ export const createClient = CatchAsync(async (req, res, next) => {
   let magicLink;
 
   if (req.body) {
-    // Extracting username from email if businessName is empty
-    const businessName = req.user.businessName || extractUsernameFromEmail(req.user.email);
+    // Extracting username from email if businessName is empty or undefined
+    let businessName = req.user.businessName;
+    if (!businessName) {
+      const extractedUsername = await extractUsernameFromEmail(req.user.email); // Await here
+      if (extractedUsername) {
+        businessName = extractedUsername;
+      }
+    }
+
     console.log(businessName);
     if (
       req.body.Event_Category === 'Wedding' ||
@@ -232,9 +239,11 @@ export const createClient = CatchAsync(async (req, res, next) => {
 });
 
 
-function extractUsernameFromEmail(email) {
-  return email.split('@')[0];
+const extractUsernameFromEmail = async (email) => {
+  const EMAI = await email.split('@')[0];
+  return EMAI;
 }
+
 
 
 // ###########################################################################
@@ -292,10 +301,13 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
   });
 });
 
+
 // ###########################################################################
 export const validateLink = CatchAsync(async (req, res, next) => {
   console.log(req.body.type);
   console.log('tttttty');
+  logtail.info('validation');
+  logtail.info(req.body)
   const Type = req.body.type
   const clients = await Client.find({ _id: req.body.id });
   console.log(req.body.id);
@@ -315,19 +327,30 @@ export const validateLink = CatchAsync(async (req, res, next) => {
   let linkStatus;
 
   // Extracting username from email
-  const extractedUsername = extractUsernameFromEmail(user.email);
+  const userEmail = user.email;
+  console.log('User Email:', userEmail);
+
+  const extractedUsername = await extractUsernameFromEmail(userEmail);
+  console.log('Extracted Username:', extractedUsername);
 
   if (Type === 'media') {
-    console.log(req.body.businessName,req.body.businessName,extractedUsername);
     if ((req.body.businessName === req.body.businessName) || (extractedUsername === req.body.businessName)) {
+    logtail.info({ extractedUsername, reqBodyBusinessName: req.body.businessName, userBusinessName: user.businessName });
+    if ((user.businessName === req.body.businessName) || (extractedUsername === req.body.businessName)) {
+      logtail.info("Allow Access");
       linkStatus = 'Allow Access';
     } else {
+      logtail.info("Deny Access");
       linkStatus = 'Deny Access';
     }
   } else {
+    logtail.info(extractedUsername,req.body.businessName,user.businessName);
+    logtail.info(clients[0].EventName,req.body.EventName,user.businessName);
     if ((clients[0].EventName === req.body.EventName) && ((user.businessName === req.body.businessName) || (extractedUsername === req.body.businessName))) {
+      logtail.info("Allow Access");
       linkStatus = 'Allow Access';
     } else {
+      logtail.info("Deny Access");
       linkStatus = 'Deny Access';
     }
   }
@@ -339,12 +362,9 @@ export const validateLink = CatchAsync(async (req, res, next) => {
       client: clients[0]
     },
   });
-});
+}});
 
 
-// function extractUsernameFromEmail(email) {
-//   return email.split('@')[0];
-// }
 
 
 
