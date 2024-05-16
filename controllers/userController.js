@@ -364,9 +364,6 @@ export const validateLink = CatchAsync(async (req, res, next) => {
 });
 
 
-
-
-
 // ###########################################################################
 async function listFilesInOne(bucketName, idFolderName) {
   try {
