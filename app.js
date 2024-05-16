@@ -25,7 +25,7 @@ app.use((req, res, next) => {
 });
  
 
-app.use(cors({  
+app.use(cors({   
   origin: ['http://localhost:3000','http://hapzea.com','http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options'],

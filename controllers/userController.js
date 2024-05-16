@@ -305,7 +305,7 @@ export const validateLink = CatchAsync(async (req, res, next) => {
     // Handle case where no matching client is found
     return res.status(404).json({
       status: 'fail',
-      message: 'Client not found',
+      message: 'Client not found', 
     });
   }
   const user = await User.findOne({ _id: clients[0].userId });
