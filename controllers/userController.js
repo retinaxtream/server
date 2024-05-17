@@ -478,7 +478,7 @@ async function getFoldersInPhoto(bucketName, idFolderName) {
       if (folderName) {
         foldersInAlbum.add(folderName);
       }
-    });
+    }); 
 
     const foldersList = Array.from(foldersInAlbum);
 
@@ -634,24 +634,106 @@ async function createFolderIn(bucketName, userId, newFolderName, media) {
 
 // ###########################################################################
 export const getFiles = CatchAsync(async (req, res, next) => {
-  const userId = req.query._id;
+  try {
+    const userId = req.query._id;
 
-  if (!userId) {
-    return res.status(400).json({
+    if (!userId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'User ID is required in the query parameters.'
+      });
+    }
+
+    let AlbumsSubs, PhotoSubs;
+
+    try {
+      AlbumsSubs = await getFoldersInAlbum('hapzea', userId);
+    } catch (error) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve albums data.',
+        error: error.message
+      });
+    }
+
+    try {
+      PhotoSubs = await getFoldersInPhoto('hapzea', userId);
+    } catch (error) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve photos data.',
+        error: error.message
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        album: AlbumsSubs,
+        photo: PhotoSubs
+      }
+    });
+  } catch (error) {
+    // This catches any unexpected errors
+    return res.status(500).json({
       status: 'error',
-      message: 'User ID is required in the query parameters.'
+      message: 'An unexpected error occurred.',
+      error: error.message
     });
   }
-  const AlbumsSubs = await getFoldersInAlbum('hapzea', userId);
-  const PhotoSubs = await getFoldersInPhoto('hapzea', userId);
-  res.status(200).json({
-    status: 'success',
-    data: {
-      album: AlbumsSubs,
-      photo: PhotoSubs
-    }
-  });
 });
+// ###########################################################################
+export const getPublic_Files = CatchAsync(async (req, res, next) => {
+  try {
+    const userId = req.query._id;
+    const user = await Client.findById(userId);
+    if (!userId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'User ID is required in the query parameters.'
+      });
+    }
+
+    let AlbumsSubs, PhotoSubs;
+
+    try {
+      AlbumsSubs = await getFoldersInAlbum('hapzea', userId);
+    } catch (error) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve albums data.',
+        error: error.message
+      });
+    }
+
+    try {
+      PhotoSubs = await getFoldersInPhoto('hapzea', userId);
+    } catch (error) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve photos data.',
+        error: error.message
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        album: AlbumsSubs,
+        photo: PhotoSubs
+      },
+      user
+    });
+  } catch (error) {
+    // This catches any unexpected errors
+    return res.status(500).json({
+      status: 'error',
+      message: 'An unexpected error occurred.',
+      error: error.message
+    });
+  }
+});
+
 
 
 // ###########################################################################
