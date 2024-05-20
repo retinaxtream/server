@@ -20,7 +20,25 @@ const router = express.Router();
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads/'); // Specify a subdirectory within your project
+        cb(null, 'uploads/'); 
+    },
+    filename: function (req, file, cb) {
+        cb(null, file.originalname);
+    }
+});
+
+// const storageOne = multer.diskStorage({
+//     destination: function (req, file, cb) {
+//         cb(null, 'cover/'); 
+//     },
+//     filename: function (req, file, cb) {
+//         cb(null, file.originalname);
+//     }
+// });
+
+const storageTwo = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'free/'); 
     },
     filename: function (req, file, cb) {
         cb(null, file.originalname);
@@ -29,6 +47,20 @@ const storage = multer.diskStorage({
 
 
 const upload = multer({ storage: storage });
+
+
+const storageOne = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'cover/'); 
+    },
+    filename: function (req, file, cb) {
+        cb(null, file.originalname);
+    }
+});
+const cover = multer({ storage: storageOne });
+  
+
+const free = multer({ storage: storageTwo });
 // router.get('/', userController.home);
 router.post('/signup', authController.signup);
 router.post('/login', authController.login);
@@ -50,12 +82,12 @@ router.get('/metacheck/:id', userController.matchingFolders);
 router.get('/meta_selction_check/:id', auth.protect, userController.matchingFiles);
 router.get('/download-into-memory', userController.downloadFile); 
 router.post('/updateUser', auth.protect, userController.updateUserById);
-
-    
+router.post('/uploadCoverPhoto', auth.protect, cover.single('photos'), userController.uploadCoverPhoto);
+router.post('/uploadResponsiveCoverPhoto', auth.protect, free.single('photos'), userController.uploadResponsiveCoverPhoto);
 router.post("/googlesignIn",authController.googleAuth);
  
+ 
 //Rohan
-
 router.get('/me', auth.protect, RhzuserController.getUserById);
 router.post('/decode-jwt',auth.protect, RhzuserController.decodeJwt);
     

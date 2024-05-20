@@ -1373,3 +1373,74 @@ export const downloadFile = CatchAsync(async (req, res, next) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
+async function uploadSinglePhoto(bucketName, userId, subfolderName, photoPath) {
+  try {
+    console.log('called uploadSinglePhoto');
+    const bucket = storage.bucket(bucketName);
+
+    // Construct the destination path based on userID and subfolder
+    let destinationPath = `${userId}/`;
+    if (subfolderName) {
+      destinationPath += `${subfolderName}/`;
+    }
+
+    const photoName = path.basename(photoPath); // Extract the photo name using path module
+    const file = bucket.file(`${destinationPath}${photoName}`);
+
+    // Create a write stream to upload the file
+    const stream = file.createWriteStream({
+      metadata: {
+        contentType: 'image/jpeg', // Change this based on your file type
+      },
+    });
+
+    // Handle stream events (success, error)
+    stream.on('error', (err) => {
+      console.error(`Error uploading photo ${photoName}:`, err);
+    });
+
+    stream.on('finish', () => {
+      console.log(`Photo ${photoName} uploaded to '${destinationPath}'.`);
+      // You can perform further processing or store the uploaded file information as needed
+      fs.unlinkSync(photoPath);
+      console.log(`Deleted ${photoPath}`);
+    });
+
+    // Pipe the file into the write stream
+    const readStream = fs.createReadStream(photoPath);
+    readStream.pipe(stream);
+
+    console.log('Photo uploaded successfully.');
+  } catch (error) {
+    console.error('Error uploading photo:', error);
+  }
+}
+
+
+export const uploadCoverPhoto = CatchAsync(async (req, res, next) => {
+  console.log('calling uploadCoverPhoto');
+  console.log(req);
+  console.log(req.query.id); 
+  const coverPhotoPath = req.file.path;
+  const id = req.query.id;
+
+  await uploadSinglePhoto('hapzea', id, 'cover', coverPhotoPath);
+
+  res.status(200).json({ 
+    status: 'success',
+  });
+});
+
+export const uploadResponsiveCoverPhoto = CatchAsync(async (req, res, next) => {
+  const responsiveCoverPhotoPath = req.file.path;
+  const id = req.query.id;
+
+  await uploadSinglePhoto('hapzea', id, 'responsive-cover', responsiveCoverPhotoPath);
+
+  res.status(200).json({
+    status: 'success',
+  });
+});
