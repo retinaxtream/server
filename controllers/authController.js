@@ -14,72 +14,99 @@ const signToken = id => {
 }
 
 
+
 export const signup = CatchAsync(async (req, res, next) => {
   try {
-    // logtail.info(req.body)
-    if (!req.body.mobile.startsWith('+91')) {
-      req.body.mobile = '+91' + req.body.mobile;
-      // logtail.info(req.body.mobile);
+    const { businessName, email, mobile, password, passwordConfirm, role } = req.body;
+
+    // Check for missing fields
+    if (!businessName || !email || !mobile || !password || !passwordConfirm) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Please provide all required fields',
+      });
     }
 
-    const newUser = await User.create({
-      businessName: req.body.businessName,
-      email: req.body.email,
-      mobile: req.body.mobile,
-      password: req.body.password,
-      passwordConfirm: req.body.passwordConfirm,
-      passwordChangedAt: req.body.passwordChangedAt,
-      role: req.body.role
-    });
+    // Check if password and passwordConfirm match
+    if (password !== passwordConfirm) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Passwords do not match',
+      });
+    }
 
-    // logtail.info(newUser);
+    // Normalize mobile number
+    const normalizedMobile = mobile.startsWith('+91') ? mobile : `+91${mobile}`;
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ $or: [{ email }, { mobile: normalizedMobile }] });
+    if (existingUser) {
+      return res.status(409).json({
+        status: 'fail',
+        message: 'User with this email already exists',
+      });
+    }
+
+    // Create new user
+    const newUser = await User.create({
+      businessName,
+      email,
+      mobile: normalizedMobile,
+      password,
+      passwordConfirm,
+      role,
+    });
 
     const token = signToken(newUser._id);
-    // logtail.info(token)
     res.status(201).json({
       status: 'success',
-      token: token,
+      token,
       data: {
-        user: newUser
-      }
+        user: newUser,
+      },
     });
   } catch (error) {
-    // Handle the error
     console.error('Error in signup controller:', error);
     res.status(500).json({
       status: 'error',
-      message: 'Internal server error'
+      message: 'Internal server error',
     });
   }
 });
 
 
-
 export const login = CatchAsync(async (req, res, next) => {
   const { email, password } = req.body;
-  // logtail.info({email, password });
-  // console.log(email,password);
 
   if (!email || !password) {
     return res.status(400).json({
-      status: 'Please provide email and password',
+      status: 'fail',
+      message: 'Please provide email and password',
     });
   }
 
-  //2) check if user exists && password is correct
+  // Check if the user exists based on the email
   const user = await User.findOne({ email }).select('+password');
-
-  // console.log(user);
-
-  if (!user || !(await user.correctPassword(password, user.password))) {
+  
+  if (!user) {
     return res.status(401).json({
-      status: 'Incorrect email or password',
+      status: 'fail',
+      message: 'Incorrect email',
     });
   }
 
-console.log('FROM LOGIN');
-const token = signToken(user._id);
-console.log(token);
+  // Check if the password is correct
+  if (!(await user.correctPassword(password, user.password))) {
+    return res.status(401).json({
+      status: 'fail',
+      message: 'Incorrect password',
+    });
+  }
+
+  console.log('FROM LOGIN');
+  const token = signToken(user._id);
+  console.log(token);
+  
   res.cookie('jwtToken', token, {
     httpOnly: true, 
     secure: true,   
@@ -90,7 +117,7 @@ console.log(token);
     status: 'success',
     token,
     user
-  })
+  });
 });
 
 
