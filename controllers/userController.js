@@ -211,7 +211,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Source: req.body.Source,
       });
       await createFolder('hapzea', `${newClient._id}/`);
-      magicLink = `https://hapzea.com/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
+      magicLink = `http://localhost:3000/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
     } else {
       newClient = await Client.create({
         userId: req.user._id,
@@ -225,7 +225,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Source: req.body.Source,
       });
       await createFolder('hapzea', `${newClient._id}/`);
-      magicLink = `https://hapzea.com/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
+      magicLink = `http://localhost:3000/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
     }
 
     await Client.findByIdAndUpdate(newClient._id, { $set: { magicLink } }, { new: true });
@@ -317,7 +317,7 @@ export const validateLink = CatchAsync(async (req, res, next) => {
     // Handle case where no matching client is found
     return res.status(404).json({
       status: 'fail',
-      message: 'Client not found',
+      message: 'Client not found', 
     });
   }
   const user = await User.findOne({ _id: clients[0].userId });
@@ -334,6 +334,7 @@ export const validateLink = CatchAsync(async (req, res, next) => {
   console.log('Extracted Username:', extractedUsername);
 
   if (Type === 'media') {
+    if ((req.body.businessName === req.body.businessName) || (extractedUsername === req.body.businessName)) {
     logtail.info({ extractedUsername, reqBodyBusinessName: req.body.businessName, userBusinessName: user.businessName });
     if ((user.businessName === req.body.businessName) || (extractedUsername === req.body.businessName)) {
       logtail.info("Allow Access");
@@ -361,7 +362,7 @@ export const validateLink = CatchAsync(async (req, res, next) => {
       client: clients[0]
     },
   });
-});
+}});
 
 
 // ###########################################################################
@@ -474,7 +475,7 @@ async function getFoldersInPhoto(bucketName, idFolderName) {
       if (folderName) {
         foldersInAlbum.add(folderName);
       }
-    });
+    }); 
 
     const foldersList = Array.from(foldersInAlbum);
 
@@ -630,24 +631,106 @@ async function createFolderIn(bucketName, userId, newFolderName, media) {
 
 // ###########################################################################
 export const getFiles = CatchAsync(async (req, res, next) => {
-  const userId = req.query._id;
+  try {
+    const userId = req.query._id;
 
-  if (!userId) {
-    return res.status(400).json({
+    if (!userId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'User ID is required in the query parameters.'
+      });
+    }
+
+    let AlbumsSubs, PhotoSubs;
+
+    try {
+      AlbumsSubs = await getFoldersInAlbum('hapzea', userId);
+    } catch (error) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve albums data.',
+        error: error.message
+      });
+    }
+
+    try {
+      PhotoSubs = await getFoldersInPhoto('hapzea', userId);
+    } catch (error) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve photos data.',
+        error: error.message
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        album: AlbumsSubs,
+        photo: PhotoSubs
+      }
+    });
+  } catch (error) {
+    // This catches any unexpected errors
+    return res.status(500).json({
       status: 'error',
-      message: 'User ID is required in the query parameters.'
+      message: 'An unexpected error occurred.',
+      error: error.message
     });
   }
-  const AlbumsSubs = await getFoldersInAlbum('hapzea', userId);
-  const PhotoSubs = await getFoldersInPhoto('hapzea', userId);
-  res.status(200).json({
-    status: 'success',
-    data: {
-      album: AlbumsSubs,
-      photo: PhotoSubs
-    }
-  });
 });
+// ###########################################################################
+export const getPublic_Files = CatchAsync(async (req, res, next) => {
+  try {
+    const userId = req.query._id;
+    const user = await Client.findById(userId);
+    if (!userId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'User ID is required in the query parameters.'
+      });
+    }
+
+    let AlbumsSubs, PhotoSubs;
+
+    try {
+      AlbumsSubs = await getFoldersInAlbum('hapzea', userId);
+    } catch (error) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve albums data.',
+        error: error.message
+      });
+    }
+
+    try {
+      PhotoSubs = await getFoldersInPhoto('hapzea', userId);
+    } catch (error) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve photos data.',
+        error: error.message
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        album: AlbumsSubs,
+        photo: PhotoSubs
+      },
+      user
+    });
+  } catch (error) {
+    // This catches any unexpected errors
+    return res.status(500).json({
+      status: 'error',
+      message: 'An unexpected error occurred.',
+      error: error.message
+    });
+  }
+});
+
 
 
 // ###########################################################################
@@ -1286,4 +1369,75 @@ export const downloadFile = CatchAsync(async (req, res, next) => {
     console.error('Error downloading file:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+
+
+async function uploadSinglePhoto(bucketName, userId, subfolderName, photoPath) {
+  try {
+    console.log('called uploadSinglePhoto');
+    const bucket = storage.bucket(bucketName);
+
+    // Construct the destination path based on userID and subfolder
+    let destinationPath = `${userId}/`;
+    if (subfolderName) {
+      destinationPath += `${subfolderName}/`;
+    }
+
+    const photoName = path.basename(photoPath); // Extract the photo name using path module
+    const file = bucket.file(`${destinationPath}${photoName}`);
+
+    // Create a write stream to upload the file
+    const stream = file.createWriteStream({
+      metadata: {
+        contentType: 'image/jpeg', // Change this based on your file type
+      },
+    });
+
+    // Handle stream events (success, error)
+    stream.on('error', (err) => {
+      console.error(`Error uploading photo ${photoName}:`, err);
+    });
+
+    stream.on('finish', () => {
+      console.log(`Photo ${photoName} uploaded to '${destinationPath}'.`);
+      // You can perform further processing or store the uploaded file information as needed
+      fs.unlinkSync(photoPath);
+      console.log(`Deleted ${photoPath}`);
+    });
+
+    // Pipe the file into the write stream
+    const readStream = fs.createReadStream(photoPath);
+    readStream.pipe(stream);
+
+    console.log('Photo uploaded successfully.');
+  } catch (error) {
+    console.error('Error uploading photo:', error);
+  }
+}
+
+
+export const uploadCoverPhoto = CatchAsync(async (req, res, next) => {
+  console.log('calling uploadCoverPhoto');
+  console.log(req);
+  console.log(req.query.id); 
+  const coverPhotoPath = req.file.path;
+  const id = req.query.id;
+
+  await uploadSinglePhoto('hapzea', id, 'cover', coverPhotoPath);
+
+  res.status(200).json({ 
+    status: 'success',
+  });
+});
+
+export const uploadResponsiveCoverPhoto = CatchAsync(async (req, res, next) => {
+  const responsiveCoverPhotoPath = req.file.path;
+  const id = req.query.id;
+
+  await uploadSinglePhoto('hapzea', id, 'responsive-cover', responsiveCoverPhotoPath);
+
+  res.status(200).json({
+    status: 'success',
+  });
 });
