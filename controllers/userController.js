@@ -239,10 +239,6 @@ export const createClient = CatchAsync(async (req, res, next) => {
 });
 
 
-const extractUsernameFromEmail = async (email) => {
-  const EMAI = await email.split('@')[0];
-  return EMAI;
-}
 
 
 
@@ -303,66 +299,59 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
 
 
 // ###########################################################################
-export const validateLink = CatchAsync(async (req, res, next) => {
-  console.log(req.body.type);
-  console.log('tttttty');
-  logtail.info('validation');
-  logtail.info(req.body)
-  const Type = req.body.type
-  const clients = await Client.find({ _id: req.body.id });
-  console.log(req.body.id);
-  console.log(clients);
+const extractUsernameFromEmail = async (email) => {
+  return email.split('@')[0];
+};
 
-  if (clients.length === 0) {
-    // Handle case where no matching client is found
+export const validateLink = CatchAsync(async (req, res, next) => {
+  const { type, id, businessName, EventName } = req.body;
+
+  logtail.info('validation');
+  logtail.info(req.body);
+
+  const clients = await Client.findById(id);
+  if (!clients) {
     return res.status(404).json({
       status: 'fail',
-      message: 'Client not found', 
+      message: 'Client not found',
     });
   }
-  const user = await User.findOne({ _id: clients[0].userId });
-  console.log('link validation');
-  console.log(user);
 
+  const user = await User.findById(clients.userId);
+  if (!user) {
+    return res.status(404).json({
+      status: 'fail',
+      message: 'User not found',
+    });
+  }
+
+  const extractedUsername = await extractUsernameFromEmail(user.email);
   let linkStatus;
 
-  // Extracting username from email
-  const userEmail = user.email;
-  console.log('User Email:', userEmail);
+  logtail.info({ extractedUsername, reqBodyBusinessName: businessName, userBusinessName: user.businessName });
 
-  const extractedUsername = await extractUsernameFromEmail(userEmail);
-  console.log('Extracted Username:', extractedUsername);
-
-  if (Type === 'media') {
-    if ((req.body.businessName === req.body.businessName) || (extractedUsername === req.body.businessName)) {
-    logtail.info({ extractedUsername, reqBodyBusinessName: req.body.businessName, userBusinessName: user.businessName });
-    if ((user.businessName === req.body.businessName) || (extractedUsername === req.body.businessName)) {
-      logtail.info("Allow Access");
-      linkStatus = 'Allow Access';
-    } else {
-      logtail.info("Deny Access");
-      linkStatus = 'Deny Access';
-    }
+  if (type === 'media') {
+    linkStatus = (user.businessName === businessName || extractedUsername === businessName) ? 'Allow Access' : 'Deny Access';
   } else {
-    logtail.info(extractedUsername,req.body.businessName,user.businessName);
-    logtail.info(clients[0].EventName,req.body.EventName,user.businessName);
-    if ((clients[0].EventName === req.body.EventName) && ((user.businessName === req.body.businessName) || (extractedUsername === req.body.businessName))) {
-      logtail.info("Allow Access");
+    logtail.info({ eventName: clients.EventName, reqEventName: EventName });
+    if (clients.EventName === EventName && (user.businessName === businessName || extractedUsername === businessName)) {
       linkStatus = 'Allow Access';
     } else {
-      logtail.info("Deny Access");
       linkStatus = 'Deny Access';
     }
   }
+
+  logtail.info(linkStatus);
 
   res.status(200).json({
     status: 'success',
     data: {
       linkStatus,
-      client: clients[0]
+      client: clients,
     },
   });
-}});
+});
+
 
 
 
