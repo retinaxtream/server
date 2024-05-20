@@ -301,7 +301,7 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
   });
 });
 
-
+ 
 // ###########################################################################
 export const validateLink = CatchAsync(async (req, res, next) => {
   console.log(req.body.type);
@@ -363,9 +363,6 @@ export const validateLink = CatchAsync(async (req, res, next) => {
     },
   });
 }});
-
-
-
 
 
 // ###########################################################################
