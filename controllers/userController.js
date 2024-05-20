@@ -297,7 +297,7 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
   });
 });
 
-
+ 
 // ###########################################################################
 const extractUsernameFromEmail = async (email) => {
   return email.split('@')[0];
@@ -351,9 +351,6 @@ export const validateLink = CatchAsync(async (req, res, next) => {
     },
   });
 });
-
-
-
 
 
 
