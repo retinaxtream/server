@@ -953,7 +953,7 @@ export const getClientById = CatchAsync(async (req, res, next) => {
       client,
     },
   });
-});
+}); 
 
 export const fetch_Photos = CatchAsync(async (req, res, next) => {
   console.log('fetch photos called from server');
@@ -1370,7 +1370,7 @@ async function uploadSinglePhoto(bucketName, userId, subfolderName, photoPath) {
     // Construct the destination path based on userID and subfolder
     let destinationPath = `${userId}/`;
     if (subfolderName) {
-      destinationPath += `${subfolderName}/`;
+      destinationPath += `${subfolderName}/`; 
     }
 
     const photoName = path.basename(photoPath); // Extract the photo name using path module
@@ -1405,6 +1405,40 @@ async function uploadSinglePhoto(bucketName, userId, subfolderName, photoPath) {
   }
 }
 
+export const uploadProfilePhoto = CatchAsync(async (req, res, next) => {
+  console.log('calling uploadProfile');
+  console.log('Request body:', req.file);
+  console.log('Request query:', req.query);
+
+  // Find the user by ID
+  const user = await User.findById(req.query.id);
+
+  if (!user) {
+    return res.status(404).json({
+      status: 'fail',
+      message: 'User not found',
+    });
+  }
+
+  // Update the user's photo field
+  console.log('Current user photo:', user.photo);
+  user.photo = req.file.filename;
+  console.log('Updated user photo:', user.photo);
+
+  // Save the updated user document
+  await user.save();
+
+  // Log the user object to confirm the photo is set
+  console.log('Updated user:', user);
+
+  // Respond with success
+  res.status(200).json({
+    status: 'success',
+    data: {
+      user,
+    },
+  });
+});
 
 export const uploadCoverPhoto = CatchAsync(async (req, res, next) => {
   console.log('calling uploadCoverPhoto');

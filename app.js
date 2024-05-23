@@ -32,7 +32,7 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use('/api/v1/user', userroute);
+app.use('/api/v1/user', userroute); 
 
 // Catch-all for unhandled routes 
 app.all('*', (req, res, next) => {

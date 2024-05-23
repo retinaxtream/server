@@ -57,10 +57,31 @@ const storageOne = multer.diskStorage({
         cb(null, file.originalname);
     }
 });
-const cover = multer({ storage: storageOne });
-  
 
+const storageProfile = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'profile/'); 
+    },
+    filename: function (req, file, cb) {
+        const ext = file.mimetype.split('/')[1];
+        cb(null, `user-${req.query.id}-${Date.now()}.${ext}`);
+    }
+});
+
+const ProfileFilter =(req,file,cb)=>{
+   if(file.mimetype.startsWith('image')){
+    cb(null,true)
+   }else{
+    cb('Not an image! Please upload only images',false)
+   }
+}
+
+const cover = multer({ storage: storageOne });
 const free = multer({ storage: storageTwo });
+const profile = multer({ storage: storageProfile, fileFilter:ProfileFilter });
+
+
+
 // router.get('/', userController.home);
 router.post('/signup', authController.signup);
 router.post('/login', authController.login);
@@ -74,6 +95,7 @@ router.get('/getpublicfiles', userController.getPublic_Files);
 router.post('/createfolder', auth.protect, userController.createFolder_Bucket);
 router.get('/fetchMedia',  userController.fetch_Photos);
 router.post('/upload', auth.protect, upload.array('photos'), userController.upload);
+router.post('/profile_upload', auth.protect, profile.single('photos'), userController.uploadProfilePhoto);
 router.post("/googlesignIn",authController.googleAuth);
 router.post('/sendUrl', userController.sendPublic_url);
 router.post('/sendMedia', userController.sendMedia_Files);
