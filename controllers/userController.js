@@ -6,6 +6,9 @@ import { Storage } from '@google-cloud/storage';
 import User from '../models/UserModel.js';
 import nodemailer from "nodemailer";
 import fs from 'fs';
+import { promisify } from 'util';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 // import sharp from 'sharp';
 
 import { log } from 'console';
@@ -797,7 +800,7 @@ async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoP
   try {
     console.log('called uploadPhotos');
     const bucket = storage.bucket(bucketName);
-
+console.log(bucketName, userId, albumName, subfolderName, photoPaths);
     // Construct the destination path based on userID, album, folder, and subfolder
     let destinationPath = `${userId}/`;
     if (albumName) {
@@ -805,7 +808,7 @@ async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoP
     }
     if (subfolderName) {
       destinationPath += `${subfolderName}/`;
-    }
+    } 
 
     // Upload each photo to the specified subfolder
     for (const photoPath of photoPaths) {
@@ -838,7 +841,7 @@ async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoP
 
     console.log('All photos uploaded successfully.');
   } catch (error) {
-    console.error('Error uploading photos:', error);
+    console.error('Error uploading photos:', error); 
   }
 }
 
@@ -1405,11 +1408,74 @@ async function uploadSinglePhoto(bucketName, userId, subfolderName, photoPath) {
   }
 }
 
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const mkdir = promisify(fs.mkdir);
+const unlink = promisify(fs.unlink);
+
+async function uploadImageToGCS(bucketName, userId, photoPath) {
+  try {
+    console.log('called uploadProfilePhoto');
+    const bucket = storage.bucket(bucketName);
+    console.log(bucketName, userId, photoPath);
+ 
+    // Construct the destination path based on userID
+    const destinationPath = `users/${userId}/profile/`;  
+
+    // Create the directory if it doesn't exist
+    const localDir = path.join(__dirname, `../uploads/${destinationPath}`);
+    if (!fs.existsSync(localDir)) {
+      await mkdir(localDir, { recursive: true });
+    }
+
+    // Extract the photo name using path module
+    const photoName = path.basename(photoPath);
+    const localPhotoPath = path.join(localDir, photoName);
+
+    // Move the file to the local directory
+    fs.renameSync(photoPath, localPhotoPath);
+
+    const file = bucket.file(`${destinationPath}${photoName}`);
+
+    // Create a write stream to upload the file to GCS
+    const stream = file.createWriteStream({
+      metadata: {
+        contentType: 'image/jpeg', // Change this based on your file type
+      },
+    });
+
+    // Handle stream events (success, error)
+    stream.on('error', (err) => {
+      console.error(`Error uploading photo ${photoName}:`, err);
+    });
+
+    stream.on('finish', async () => {
+      console.log(`Photo ${photoName} uploaded to '${destinationPath}'.`);
+      // You can perform further processing or store the uploaded file information as needed
+      await unlink(localPhotoPath);
+      console.log(`Deleted ${localPhotoPath}`);
+    });
+
+    // Pipe the file into the write stream
+    const readStream = fs.createReadStream(localPhotoPath);
+    readStream.pipe(stream);
+
+    console.log('Profile photo uploaded successfully.');
+  } catch (error) {
+    console.error('Error uploading profile photo:', error);
+  }
+}
+
 export const uploadProfilePhoto = CatchAsync(async (req, res, next) => {
   console.log('calling uploadProfile');
-  console.log('Request body:', req.file);
+  console.log('Request file:', req.file);
+  console.log('Request files:', req.files);
   console.log('Request query:', req.query);
 
+  // Check if req.files is an array or if req.file exists for a single file
+  const photoPaths = req.files ? req.files.map(file => file.path) : [req.file.path];
+console.log(req.file.path);
   // Find the user by ID
   const user = await User.findById(req.query.id);
 
@@ -1422,11 +1488,18 @@ export const uploadProfilePhoto = CatchAsync(async (req, res, next) => {
 
   // Update the user's photo field
   console.log('Current user photo:', user.photo);
-  user.photo = req.file.filename;
+  user.photo = req.file ? req.file.filename : req.files[0].filename;
   console.log('Updated user photo:', user.photo);
 
   // Save the updated user document
   await user.save();
+
+  // Upload the image to GCS
+  // await uploadPhotos('hapzea', '66464345b891e85686ef92f6', 'Album', 'Full Photos', photoPaths);
+  await uploadImageToGCS('hapzea', req.query.id, req.file.path);
+  // ('hapzea', req.query.id, req.file.path);
+  // await uploadImageToGCS(req.file, req.query.id);
+  console.log('Image uploaded to GCS successfully.');
 
   // Log the user object to confirm the photo is set
   console.log('Updated user:', user);
@@ -1439,6 +1512,7 @@ export const uploadProfilePhoto = CatchAsync(async (req, res, next) => {
     },
   });
 });
+
 
 export const uploadCoverPhoto = CatchAsync(async (req, res, next) => {
   console.log('calling uploadCoverPhoto');

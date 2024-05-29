@@ -4,6 +4,7 @@ import multer from 'multer';
 import * as authController from '../controllers/authController.js';
 import * as auth from '../controllers/auth.js';
 import { Logtail } from "@logtail/node";
+import path from 'path';
 
 
 
@@ -63,7 +64,12 @@ const storageProfile = multer.diskStorage({
         cb(null, 'profile/'); 
     },
     filename: function (req, file, cb) {
+        console.log(file);
         const ext = file.mimetype.split('/')[1];
+        console.log('mimetype');
+        console.log(file.mimetype);
+        console.log(ext);
+        // const extension = path.extname(file.originalname).toLowerCase().slice(1);
         cb(null, `user-${req.query.id}-${Date.now()}.${ext}`);
     }
 });
@@ -78,7 +84,7 @@ const ProfileFilter =(req,file,cb)=>{
 
 const cover = multer({ storage: storageOne });
 const free = multer({ storage: storageTwo });
-const profile = multer({ storage: storageProfile, fileFilter:ProfileFilter });
+const profile = multer({ storage: storageProfile });
 
 
 
