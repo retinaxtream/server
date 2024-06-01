@@ -28,7 +28,7 @@ const storage = multer.diskStorage({
     }
 });
 
-// const storageOne = multer.diskStorage({
+// const storageOne = multer.diskStorage({ 
 //     destination: function (req, file, cb) {
 //         cb(null, 'cover/'); 
 //     },
