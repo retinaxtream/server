@@ -100,6 +100,7 @@ router.get('/getfiles', auth.protect, userController.getFiles);
 router.get('/getpublicfiles', userController.getPublic_Files);
 router.post('/createfolder', auth.protect, userController.createFolder_Bucket);
 router.get('/fetchMedia',  userController.fetch_Photos);
+router.get('/fetchMedia_filer',  userController.fetch_Photos_filtered);
 router.post('/upload', auth.protect, upload.array('photos'), userController.upload);
 router.post('/profile_upload', auth.protect, profile.single('photos'), userController.uploadProfilePhoto);
 router.post("/googlesignIn",authController.googleAuth);
@@ -108,13 +109,14 @@ router.post('/sendMedia', userController.sendMedia_Files);
 router.post('/meta/:id', userController.folder_metadata);
 router.get('/metacheck/:id', userController.matchingFolders);
 router.get('/meta_selction_check/:id', auth.protect, userController.matchingFiles);
+router.get('/non_meta_files/:id', userController.UnSelected);
 router.get('/download-into-memory', userController.downloadFile); 
 router.post('/updateUser', auth.protect, userController.updateUserById);
 router.post('/uploadCoverPhoto', auth.protect, cover.single('photos'), userController.uploadCoverPhoto);
 router.post('/uploadResponsiveCoverPhoto', auth.protect, free.single('photos'), userController.uploadResponsiveCoverPhoto);
 router.post("/googlesignIn",authController.googleAuth);
  
- 
+    
 //Rohan
 router.get('/me', auth.protect, RhzuserController.getUserById);
 router.post('/decode-jwt',auth.protect, RhzuserController.decodeJwt);

@@ -225,7 +225,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
         EventCategory: req.body.Event_Category,
         EventName: req.body.Event_Name,
         Venue: req.body.Venue,
-        Source: req.body.Source,
+        Source: req.body.Source, 
       });
       await createFolder('hapzea', `${newClient._id}/`);
       magicLink = `http://localhost:3000/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
@@ -848,6 +848,7 @@ console.log(bucketName, userId, albumName, subfolderName, photoPaths);
 
 
 
+
 const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataValue) => {
   try {
     console.log('called getFoldersByMetadata');
@@ -887,6 +888,8 @@ const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataVal
     throw error;
   }
 };
+
+
 const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue, sub_Files) => {
   try {
     console.log('called getFilesByMetadata');
@@ -903,9 +906,9 @@ const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue
     const matchingFolders = files.filter((file) => {
       const metadata = file.metadata;
       console.log('%$%$%$');
-      console.log(file.metadata);
-      console.log(metadata);
-      console.log(file);
+      // console.log(file.metadata);
+      // console.log(metadata);
+      // console.log(file);
       // Check if the file has metadata
       if (metadata.metadata) {
         const nestedMetadata = metadata.metadata;
@@ -926,6 +929,48 @@ const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue
     return { sub_Files: sub_Files, folderNames: folderNames };
   } catch (error) {
     console.error('Error fetching folders by metadata:', error);
+    throw error;
+  }
+};
+
+
+
+const getFilesWithoutMetadata = async (bucketName, userId, metadataKey, metadataValue, sub_Files) => {
+  try {
+    console.log('called getFilesWithoutMetadata');
+    const bucket = storage.bucket(bucketName);
+    const folderPath = `${userId}/PhotoSelection/${sub_Files}/`;
+
+    const [files] = await bucket.getFiles({ prefix: folderPath });
+    console.log('files.........');
+    console.log(files);
+
+    const nonMatchingFolders = files.filter((file) => {
+      const metadata = file.metadata;
+      console.log('%$%$%$');
+      console.log(file.metadata);
+      console.log(metadata);
+      console.log(file);
+
+      // Check if the file does not have the specified metadata
+      if (metadata.metadata) {
+        const nestedMetadata = metadata.metadata;
+        return !nestedMetadata || nestedMetadata[metadataKey] !== metadataValue.toString();
+      }
+      return true; // If there's no metadata, it's considered non-matching
+    });
+
+    const folderNames = nonMatchingFolders.map((file) => {
+      const filePath = file.name;
+      const folderName = filePath.substring(folderPath.length);
+      console.log('folders');
+      console.log(folderName);
+      return folderName;
+    });
+
+    return { sub_Files: sub_Files, folderNames: folderNames };
+  } catch (error) {
+    console.error('Error fetching folders without metadata:', error);
     throw error;
   }
 };
@@ -964,7 +1009,7 @@ export const fetch_Photos = CatchAsync(async (req, res, next) => {
   // Extract parameters from the query string
   const main_folder = req.query.main_folder;
   const sub_folder = req.query.sub_folder;
-  const id = req.query.id;  // Assuming you want to extract it from the query string
+  const id = req.query.id;  
 
   // Use the extracted parameters in your fetchAllPhotos function
   const fetchedFiles = await fetchAllPhotos('hapzea', id, main_folder, sub_folder);
@@ -973,6 +1018,29 @@ export const fetch_Photos = CatchAsync(async (req, res, next) => {
     status: 'success',
     data: {
       files: fetchedFiles,
+    },
+  });
+});
+
+
+export const fetch_Photos_filtered = CatchAsync(async (req, res, next) => {
+  // Extract parameters from the query string
+  const main_folder = req.query.main_folder;
+  const sub_folder = req.query.sub_folder;
+  const id = req.query.id; 
+  console.log('$%^&*()'); 
+
+  // Use the extracted parameters in your fetchAllPhotos function
+  const fetchedFiles = await fetchAllPhotos('hapzea', id, main_folder, sub_folder);
+
+  // Filter out files that have no metadata
+  const filesWithoutMetadata = fetchedFiles.filter(file => !file.metadata || Object.keys(file.metadata).length === 0);
+
+  // Send the response
+  res.status(200).json({
+    status: 'success',
+    data: {
+      files: filesWithoutMetadata,
     },
   });
 });
@@ -1022,6 +1090,8 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
   const folders = req.body.selected;
   let subFolder;
   if (req.body.sub_folder) {
+    console.log('yes there');
+    // console.log(req.body.sub_folder);
     subFolder = req.body.sub_folder;
   }
   console.log(clientId);
@@ -1034,22 +1104,17 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     const prefix = `${clientId}/PhotoSelection/${subFolder}/`;
     const [files] = await bucket.getFiles({
       prefix: prefix,
-    });
+    }); 
 
     // for (const file of files) {
+    //   if (!file.name.endsWith('/')) {
     //     await file.setMetadata({ metadata: null });
     //     console.log(`Metadata removed for file ${file.name}`);
-
+    //   }
     // }
 
-    for (const file of files) {
-      if (!file.name.endsWith('/')) {
-        await file.setMetadata({ metadata: null });
-        console.log(`Metadata removed for file ${file.name}`);
-      }
-    }
-
     for (const item of folders) {
+      console.log('looping');
       const filePath = item.src;
       const fileName = filePath.split('/').pop();
       const folderPath = `${clientId}/PhotoSelection/${subFolder}/${fileName}`;
@@ -1069,18 +1134,17 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     async function removeMetadataFromFolders(bucket, prefix) {
       const [files] = await bucket.getFiles({
         prefix: prefix,
-        autoPaginate: false // Make sure to disable auto-pagination
+        autoPaginate: false 
       });
 
       for (const file of files) {
         if (file.name.endsWith('/')) {
-          // It's a folder, remove metadata and recursively call the function
           await file.setMetadata({ metadata: null });
           console.log(`Metadata removed for folder ${file.name}`);
           await removeMetadataFromFolders(bucket, `${prefix}${file.name}`);
         }
       }
-    }
+    } 
 
     await removeMetadataFromFolders(bucket, `${clientId}/PhotoSelection/`);
 
@@ -1088,7 +1152,7 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     for (const folder of folders) {
       const folderPath = `${clientId}/PhotoSelection/${folder}/`;
       await bucket.file(folderPath).setMetadata({
-        metadata: {
+        metadata: { 
           selected: false
         },
       });
@@ -1115,7 +1179,6 @@ export const matchingFolders = CatchAsync(async (req, res, next) => {
   }
 });
 
-
 export const matchingFiles = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
   let sub_Files;
@@ -1132,6 +1195,29 @@ export const matchingFiles = CatchAsync(async (req, res, next) => {
     });
   }
 });
+
+export const UnSelected = CatchAsync(async (req, res, next) => {
+  const clientId = req.params.id;
+  const sub_Files = req.query.subFiles;
+  console.log('*************');
+  console.log(sub_Files); 
+
+  const nonMatchingFiles = await getFilesWithoutMetadata("hapzea", clientId, "selected", true, sub_Files);
+
+  if (nonMatchingFiles) {
+    console.log('Files');
+    console.log('Non-matching Files');
+    console.log(nonMatchingFiles);
+    res.status(200).json({
+      status: 'success',
+      data: {
+        nonMatchingFiles: nonMatchingFiles
+      }
+    });
+  }
+});
+
+
 
 
 const sendURL = async (email, magic_url, company_name, event_name) => {
