@@ -1024,26 +1024,68 @@ export const fetch_Photos = CatchAsync(async (req, res, next) => {
 
 
 export const fetch_Photos_filtered = CatchAsync(async (req, res, next) => {
-  // Extract parameters from the query string
   const main_folder = req.query.main_folder;
   const sub_folder = req.query.sub_folder;
-  const id = req.query.id; 
-  console.log('$%^&*()'); 
+  const id = req.query.id;
+  console.log('$%^&*()');
 
-  // Use the extracted parameters in your fetchAllPhotos function
-  const fetchedFiles = await fetchAllPhotos('hapzea', id, main_folder, sub_folder);
+  // Fetch all photos using the fetchAllPhotos function
+  const fetchedFiles = await fetchAllPhotosFilter('hapzea', id, main_folder, sub_folder);
+  console.log(fetchedFiles);
 
-  // Filter out files that have no metadata
+  // Filter files that do not have metadata
   const filesWithoutMetadata = fetchedFiles.filter(file => !file.metadata || Object.keys(file.metadata).length === 0);
 
-  // Send the response
+
+  const urls = filesWithoutMetadata.map(file => {
+    const fileName = file.name;
+    console.log('File:', fileName);
+    return `https://storage.cloud.google.com/hapzea/${fileName}`;
+  });
+
+  // Send the response with URLs of files that do not have metadata
   res.status(200).json({
     status: 'success',
     data: {
-      files: filesWithoutMetadata,
+      files: urls,
     },
   });
 });
+
+  // Send the response with files that do not have metadata
+  // res.status(200).json({
+  //   status: 'success',
+  //   data: {
+  //     files: filesWithoutMetadata,
+  //   },
+  // });
+
+
+// Fetch all photos function
+const fetchAllPhotosFilter = async (bucketName, userId, main_folder, sub_folder) => {
+  try {
+    const bucket = storage.bucket(bucketName);
+    const folderPath = `${userId}/${main_folder}/${sub_folder}/`;
+
+    const [files] = await bucket.getFiles({
+      prefix: folderPath,
+    });
+
+    const fileDetails = await Promise.all(files.map(async file => {
+      const [metadata] = await file.getMetadata();
+      return {
+        name: file.name,
+        metadata: metadata.metadata,
+      };
+    }));
+
+    return fileDetails;
+  } catch (error) {
+    console.error('Error fetching photos:', error);
+    throw error;
+  }
+};
+
 
 
 export const upload = CatchAsync(async (req, res, next) => {
