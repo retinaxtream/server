@@ -9,6 +9,7 @@ import fs from 'fs';
 import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import AppError from '../Utils/AppError.js';
 // import sharp from 'sharp';
 
 import { log } from 'console';
@@ -906,10 +907,6 @@ const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue
     const matchingFolders = files.filter((file) => {
       const metadata = file.metadata;
       console.log('%$%$%$');
-      // console.log(file.metadata);
-      // console.log(metadata);
-      // console.log(file);
-      // Check if the file has metadata
       if (metadata.metadata) {
         const nestedMetadata = metadata.metadata;
         return nestedMetadata && nestedMetadata['selected'] === metadataValue.toString();
@@ -1052,14 +1049,7 @@ export const fetch_Photos_filtered = CatchAsync(async (req, res, next) => {
   });
 });
 
-  // Send the response with files that do not have metadata
-  // res.status(200).json({
-  //   status: 'success',
-  //   data: {
-  //     files: filesWithoutMetadata,
-  //   },
-  // });
-
+  
 
 // Fetch all photos function
 const fetchAllPhotosFilter = async (bucketName, userId, main_folder, sub_folder) => {
@@ -1207,6 +1197,80 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
   }
 });
 
+export const fileSelecting  = CatchAsync(async (req, res, next) => {
+  const clientId = req.params.id;
+  const folders = req.body.selected;
+  let subFolder;
+
+  if (req.body.sub_folder) {
+    console.log('yes there');
+    subFolder = req.body.sub_folder;
+  }
+  
+  console.log(clientId);
+  const bucketName = 'hapzea';
+  const bucket = storage.bucket(bucketName);
+
+  let [files] = [];
+
+  if (subFolder) {
+    const prefix = `${clientId}/PhotoSelection/${subFolder}/`;
+    const [files] = await bucket.getFiles({
+      prefix: prefix,
+    });
+
+    for (const item of folders) {
+      console.log('looping');
+      const filePath = item.src;
+      const fileName = filePath.split('/').pop();
+      const folderPath = `${clientId}/PhotoSelection/${subFolder}/${fileName}`;
+      await bucket.file(folderPath).setMetadata({
+        metadata: {
+          selecting: true,
+        },
+      });
+      console.log(`New metadata set for folder ${folderPath}`);
+    }
+
+    res.status(200).json({
+      status: 'success',
+    });
+  } else {
+
+    async function removeMetadataFromFolders(bucket, prefix) {
+      const [files] = await bucket.getFiles({
+        prefix: prefix,
+        autoPaginate: false,
+      });
+
+      for (const file of files) {
+        if (file.name.endsWith('/')) {
+          await file.setMetadata({ metadata: null });
+          console.log(`Metadata removed for folder ${file.name}`);
+          await removeMetadataFromFolders(bucket, `${prefix}${file.name}`);
+        }
+      }
+    }
+
+    await removeMetadataFromFolders(bucket, `${clientId}/PhotoSelection/`);
+
+    for (const folder of folders) {
+      const folderPath = `${clientId}/PhotoSelection/${folder}/`;
+      await bucket.file(folderPath).setMetadata({
+        metadata: {
+          selecting: true,
+        },
+      });
+      console.log(`New metadata set for folder ${folderPath}`);
+    }
+
+    res.status(200).json({
+      status: 'success',
+    });
+  }
+});
+
+
 
 export const matchingFolders = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
@@ -1238,29 +1302,39 @@ export const matchingFiles = CatchAsync(async (req, res, next) => {
   }
 });
 
-export const UnSelected = CatchAsync(async (req, res, next) => {
-  const clientId = req.params.id;
-  const sub_Files = req.query.subFiles;
-  console.log('*************');
-  console.log(sub_Files); 
 
-  const nonMatchingFiles = await getFilesWithoutMetadata("hapzea", clientId, "selected", true, sub_Files);
 
-  if (nonMatchingFiles) {
-    console.log('Files');
-    console.log('Non-matching Files');
-    console.log(nonMatchingFiles);
+export const deleteFiles = CatchAsync(async (req, res, next) => {
+  const id = req.params.id;
+  const { sub_folder, imageFiles,mainFile } = req.body;
+  console.log(req.body);
+
+  if (!id || !sub_folder || !imageFiles || !imageFiles.length) {
+    return next(new AppError('Invalid request parameters', 400));
+  }
+
+  const bucketName = 'hapzea';
+  const bucket = storage.bucket(bucketName);
+
+  const deletePromises = imageFiles.map(imageFile => {
+    const filePath = `${id}/${mainFile}/${sub_folder}/${imageFile}`;
+    const file = bucket.file(filePath);
+    return file.delete().catch(error => {
+      console.error(`Error deleting file ${filePath}:`, error);
+      throw new AppError(`Error deleting file ${filePath}`, 500);
+    });
+  });
+
+  try {
+    await Promise.all(deletePromises);
     res.status(200).json({
       status: 'success',
-      data: {
-        nonMatchingFiles: nonMatchingFiles
-      }
+      message: 'Images deleted successfully',
     });
+  } catch (error) {
+    next(error);
   }
 });
-
-
-
 
 const sendURL = async (email, magic_url, company_name, event_name) => {
   try {
@@ -1463,7 +1537,7 @@ export const downloadFile = CatchAsync(async (req, res, next) => {
 
     // Downloads the file into a buffer in memory.
     const contents = await storage.bucket(bucketName).file(fileName).download();
-
+ 
     console.log(
       `Contents of gs://${bucketName}/${fileName} are ${contents.toString()}.`
     );
