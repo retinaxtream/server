@@ -5,6 +5,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import connectDatabase from './config/mongodb.js';
+import globalErrorHandler from './controllers/errorController.js';
+
 
 dotenv.config({ path: './config.env' });
 connectDatabase();
@@ -39,7 +41,7 @@ app.all('*', (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
 
-
+app.use(globalErrorHandler);
 app.use((err, req, res, next) => { 
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
