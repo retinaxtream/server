@@ -1063,12 +1063,36 @@ export const sendPublic_url = CatchAsync(async (req, res, next) => {
 });
 
 export const sendMedia_Files = CatchAsync(async (req, res, next) => {
-  const { email, magic_url, company_name, event_name } = req.body;
+  const { email, magic_url, company_name, event_name, clientId } = req.body;
+  const folders = await getFoldersByMetadata("hapzea", clientId, "selected", false);
+  const trimmedFolderPaths = folders.map(path => path.replace(/\//g, ''));
+  console.log(trimmedFolderPaths);
+
+  const photoSubmission = {};
+  trimmedFolderPaths.forEach(path => {
+    photoSubmission[path] = false; 
+  });
+
+  const user = await Client.findOneAndUpdate(
+    { _id: clientId },
+    { PhotoSubmission: photoSubmission },
+    { new: true }
+  );
+  console.log(user);
+
+  if (!user) {
+    return res.status(404).json({
+      status: 'fail',
+      message: 'User not found'
+    });
+  }
+
   await sendMedia(email, magic_url, company_name, event_name);
   res.status(200).json({
     status: 'success',
   });
 });
+
 
 
 
@@ -1219,7 +1243,6 @@ export const matchingFolders = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
   const folders = await getFoldersByMetadata("hapzea", clientId, "selected", false);
   if (folders) {
-
     res.status(200).json({
       status: 'success',
       data: folders
@@ -1655,16 +1678,14 @@ export const uploadResponsiveCoverPhoto = CatchAsync(async (req, res, next) => {
 });
 
 
-
 export const updatePhotoSubmission = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
+  const select = req.body.select; // Assuming select is a string representing the folder name
   console.log('updatePhotoSubmission');
-  const user = await Client.findOneAndUpdate(
-    { _id: clientId },
-    { PhotoSubmission: true },
-    { new: true }
-  );
-  console.log(user);
+  console.log('Client ID:', clientId);
+  console.log('Select:', select);
+
+  const user = await Client.findById(clientId);
   if (!user) {
     return res.status(404).json({
       status: 'fail',
@@ -1672,8 +1693,31 @@ export const updatePhotoSubmission = CatchAsync(async (req, res, next) => {
     });
   }
 
+  const photoSubmission = user.PhotoSubmission || new Map();
+
+  // Ensure photoSubmission is a Map
+  if (!(photoSubmission instanceof Map)) {
+    return res.status(400).json({
+      status: 'fail',
+      message: 'PhotoSubmission is not a Map'
+    });
+  }
+
+  // Update the specific key in the photoSubmission Map
+  photoSubmission.set(select, true); // Set the value to true for the specified select string
+
+  console.log('Updated PhotoSubmission:', Array.from(photoSubmission.entries()));
+
+  const updatedUser = await Client.findByIdAndUpdate(
+    clientId,
+    { PhotoSubmission: photoSubmission },
+    { new: true }
+  );
+
+  console.log('Updated User:', updatedUser);
+
   res.status(200).json({
     status: 'success',
-    data: user
+    data: updatedUser
   });
 });
