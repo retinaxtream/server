@@ -49,7 +49,6 @@ export const userWelcome = CatchAsync(async (req, res) => {
 export const updateUserById = CatchAsync(async (req, res, next) => {
   try {
     const userId = req.user._id;
-    console.log('User ID:', userId);
     if (!userId) {
       return res.status(400).json({
         status: 'error',
@@ -59,7 +58,7 @@ export const updateUserById = CatchAsync(async (req, res, next) => {
 
     // Retrieve user from the database
     const user = await User.findById(userId);
-    console.log('User:', user);
+
 
     // Update user's information with data from the request body
     user.businessName = req.body.businessName || user.businessName;
@@ -100,7 +99,6 @@ export const updateUserById = CatchAsync(async (req, res, next) => {
 export const jwtcheck = CatchAsync(async (req, res) => {
   // logger.info("from protect router");
   logtail.info(req.headers);
-  console.log(req.headers);
   const cookieString = req.headers.cookie;
   // logger.info(cookieString);
   logtail.info('cookieString');
@@ -109,8 +107,6 @@ export const jwtcheck = CatchAsync(async (req, res) => {
 
   if (cookieString) {
     const cookies = cookieString.split("; ");
-    console.log('$$');
-    console.log(cookies);
     const cookieObj = cookies.reduce((prev, current) => {
       const [name, value] = current.split("=");
       prev[name] = value;
@@ -118,7 +114,6 @@ export const jwtcheck = CatchAsync(async (req, res) => {
     }, {});
     // console.log(cookieObj);
     const jwtToken = cookieObj.jwt || cookieObj.jwtToken;
-    console.log(jwtToken);
     res.status(200).json({
       status: "sucess",
       jwtToken,
@@ -181,7 +176,6 @@ export async function uploadImage(req, res) {
 
 // ###########################################################################
 export const createClient = CatchAsync(async (req, res, next) => {
-  console.log('%%%%%%%%%%%%%%');
   let newClient;
   let magicLink;
 
@@ -195,7 +189,6 @@ export const createClient = CatchAsync(async (req, res, next) => {
       }
     }
 
-    console.log(businessName);
     if (
       req.body.Event_Category === 'Wedding' ||
       req.body.Event_Category === 'Engagement' ||
@@ -233,8 +226,6 @@ export const createClient = CatchAsync(async (req, res, next) => {
     }
 
     await Client.findByIdAndUpdate(newClient._id, { $set: { magicLink } }, { new: true });
-
-    console.log(newClient);
 
     res.status(200).json({
       status: 'success',
@@ -364,10 +355,8 @@ async function listFilesInOne(bucketName, idFolderName) {
     const tankFolderPath = `${idFolderName}/Album/one`;
     const [files] = await storage.bucket(bucketName).getFiles({ prefix: tankFolderPath });
 
-    console.log('Files in "one" subdirectory:');
     files.forEach(file => {
       const relativePath = file.name.replace(tankFolderPath, '');
-      console.log(relativePath);
     });
     return files;
   } catch (error) {
@@ -445,7 +434,6 @@ async function getFoldersInAlbum(bucketName, idFolderName) {
 
     const foldersList = Array.from(foldersInAlbum);
 
-    console.log('Folders in Album:', foldersList);
 
     return foldersList;
   } catch (error) {
@@ -471,9 +459,6 @@ async function getFoldersInPhoto(bucketName, idFolderName) {
     }); 
 
     const foldersList = Array.from(foldersInAlbum);
-
-    console.log('Folders in Album:', foldersList);
-
     return foldersList;
   } catch (error) {
     console.error('Error getting folders in Album:', error);
@@ -554,7 +539,6 @@ async function createFolder(bucketName, userId) {
     await createSubfolder(bucket, photoSelectionFolderPath, 'Full Photos');
     await createSubfolder(bucket, photoSelectionFolderPath, 'Starred Photos');
 
-    console.log(`Default folders created inside "${userId}" folder.`);
   } catch (error) {
     console.error('Error creating folders:', error);
   }
@@ -567,7 +551,6 @@ async function createSubfolder(bucket, parentFolderName, subfolderName) {
   // Upload an empty buffer to create the subfolder object
   await folderObject.save(Buffer.from(''));
 
-  console.log(`Subfolder "${subfolderName}" created successfully.`);
 }
 
 // ###########################################################################
@@ -731,7 +714,6 @@ export const getPublic_Files = CatchAsync(async (req, res, next) => {
 
 async function fetchAllPhotos(bucketName, userId, albumName, folderName) {
   try {
-    console.log('called fetchAllPhotos');
     const bucket = storage.bucket(bucketName);
 
     // Construct the prefix based on userID, album, folder, and subfolder
@@ -751,7 +733,6 @@ async function fetchAllPhotos(bucketName, userId, albumName, folderName) {
     // Extract file names and transform them into URLs
     const urls = files.map(file => {
       const fileName = file.name;
-      console.log('File:', fileName);
       return `https://storage.cloud.google.com/${bucketName}/${fileName}`;
     });
 
@@ -801,7 +782,6 @@ async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoP
   try {
     console.log('called uploadPhotos');
     const bucket = storage.bucket(bucketName);
-console.log(bucketName, userId, albumName, subfolderName, photoPaths);
     // Construct the destination path based on userID, album, folder, and subfolder
     let destinationPath = `${userId}/`;
     if (albumName) {
@@ -829,10 +809,8 @@ console.log(bucketName, userId, albumName, subfolderName, photoPaths);
       });
 
       stream.on('finish', () => {
-        console.log(`Photo ${photoName} uploaded to '${destinationPath}'.`);
         // You can perform further processing or store the uploaded file information as needed
         fs.unlinkSync(photoPath);
-        console.log(`Deleted ${photoPath}`);
       });
 
       // Pipe the file into the write stream
@@ -860,8 +838,7 @@ const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataVal
     const [files] = await bucket.getFiles({
       prefix: folderPath,
     });
-    console.log('files.........');
-    // console.log(files);
+
 
     const matchingFolders = files.filter((file) => {
       const metadata = file.metadata;
@@ -878,8 +855,6 @@ const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataVal
     const folderNames = matchingFolders.map((file) => {
       const filePath = file.name; // Use 'name' property to get the file path
       const folderName = filePath.substring(folderPath.length); // Get the folder name relative to folderPath
-      console.log('folders');
-      console.log(folderName);
       return folderName;
     });
 
@@ -901,12 +876,11 @@ const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue
     const [files] = await bucket.getFiles({
       prefix: folderPath,
     });
-    console.log('files.........');
-    console.log(files);
+
 
     const matchingFolders = files.filter((file) => {
       const metadata = file.metadata;
-      console.log('%$%$%$');
+
       if (metadata.metadata) {
         const nestedMetadata = metadata.metadata;
         return nestedMetadata && nestedMetadata['selected'] === metadataValue.toString();
@@ -918,8 +892,6 @@ const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue
     const folderNames = matchingFolders.map((file) => {
       const filePath = file.name; // Use 'name' property to get the file path
       const folderName = filePath.substring(folderPath.length); // Get the folder name relative to folderPath
-      console.log('folders');
-      console.log(folderName);
       return folderName;
     });
 
@@ -934,20 +906,14 @@ const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue
 
 const getFilesWithoutMetadata = async (bucketName, userId, metadataKey, metadataValue, sub_Files) => {
   try {
-    console.log('called getFilesWithoutMetadata');
     const bucket = storage.bucket(bucketName);
     const folderPath = `${userId}/PhotoSelection/${sub_Files}/`;
 
     const [files] = await bucket.getFiles({ prefix: folderPath });
-    console.log('files.........');
-    console.log(files);
 
     const nonMatchingFolders = files.filter((file) => {
       const metadata = file.metadata;
-      console.log('%$%$%$');
-      console.log(file.metadata);
-      console.log(metadata);
-      console.log(file);
+
 
       // Check if the file does not have the specified metadata
       if (metadata.metadata) {
@@ -960,8 +926,6 @@ const getFilesWithoutMetadata = async (bucketName, userId, metadataKey, metadata
     const folderNames = nonMatchingFolders.map((file) => {
       const filePath = file.name;
       const folderName = filePath.substring(folderPath.length);
-      console.log('folders');
-      console.log(folderName);
       return folderName;
     });
 
@@ -985,7 +949,6 @@ export const getClientById = CatchAsync(async (req, res, next) => {
   }
   // Use the client ID to fetch the client from the database
   const client = await Client.findById(clientId);
-  // console.log(client);
   if (!client) {
     return res.status(404).json({
       status: 'fail',
@@ -1001,7 +964,6 @@ export const getClientById = CatchAsync(async (req, res, next) => {
 }); 
 
 export const fetch_Photos = CatchAsync(async (req, res, next) => {
-  console.log('fetch photos called from server');
 
   // Extract parameters from the query string
   const main_folder = req.query.main_folder;
@@ -1024,11 +986,9 @@ export const fetch_Photos_filtered = CatchAsync(async (req, res, next) => {
   const main_folder = req.query.main_folder;
   const sub_folder = req.query.sub_folder;
   const id = req.query.id;
-  console.log('$%^&*()');
 
   // Fetch all photos using the fetchAllPhotos function
   const fetchedFiles = await fetchAllPhotosFilter('hapzea', id, main_folder, sub_folder);
-  console.log(fetchedFiles);
 
   // Filter files that do not have metadata
   const filesWithoutMetadata = fetchedFiles.filter(file => !file.metadata || Object.keys(file.metadata).length === 0);
@@ -1036,7 +996,6 @@ export const fetch_Photos_filtered = CatchAsync(async (req, res, next) => {
 
   const urls = filesWithoutMetadata.map(file => {
     const fileName = file.name;
-    console.log('File:', fileName);
     return `https://storage.cloud.google.com/hapzea/${fileName}`;
   });
 
@@ -1080,7 +1039,6 @@ const fetchAllPhotosFilter = async (bucketName, userId, main_folder, sub_folder)
 
 export const upload = CatchAsync(async (req, res, next) => {
   const photoPaths = req.files.map(file => file.path);
-  console.log(photoPaths);
   const main_folder = req.query.main_folder;
   const sub_folder = req.query.sub_folder;
   const id = req.query.id;
@@ -1097,7 +1055,6 @@ export const upload = CatchAsync(async (req, res, next) => {
 
 export const sendPublic_url = CatchAsync(async (req, res, next) => {
   console.log('calling');
-  console.log(req.body);
   const { email, magic_url, company_name, event_name } = req.body;
   await sendURL(email, magic_url, company_name, event_name);
   res.status(200).json({
@@ -1107,7 +1064,6 @@ export const sendPublic_url = CatchAsync(async (req, res, next) => {
 
 export const sendMedia_Files = CatchAsync(async (req, res, next) => {
   const { email, magic_url, company_name, event_name } = req.body;
-  console.log('Media sharing');
   await sendMedia(email, magic_url, company_name, event_name);
   res.status(200).json({
     status: 'success',
@@ -1122,11 +1078,8 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
   const folders = req.body.selected;
   let subFolder;
   if (req.body.sub_folder) {
-    console.log('yes there');
-    // console.log(req.body.sub_folder);
     subFolder = req.body.sub_folder;
   }
-  console.log(clientId);
   const bucketName = 'hapzea';
   const bucket = storage.bucket(bucketName);
 
@@ -1146,7 +1099,6 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     // }
 
     for (const item of folders) {
-      console.log('looping');
       const filePath = item.src;
       const fileName = filePath.split('/').pop();
       const folderPath = `${clientId}/PhotoSelection/${subFolder}/${fileName}`;
@@ -1155,7 +1107,6 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
           selected: true
         },
       });
-      console.log(`New metadata set for folder ${folderPath}`);
     }
 
     res.status(200).json({
@@ -1172,7 +1123,6 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
       for (const file of files) {
         if (file.name.endsWith('/')) {
           await file.setMetadata({ metadata: null });
-          console.log(`Metadata removed for folder ${file.name}`);
           await removeMetadataFromFolders(bucket, `${prefix}${file.name}`);
         }
       }
@@ -1188,7 +1138,6 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
           selected: false
         },
       });
-      console.log(`New metadata set for folder ${folderPath}`);
     }
 
     res.status(200).json({
@@ -1203,11 +1152,9 @@ export const fileSelecting  = CatchAsync(async (req, res, next) => {
   let subFolder;
 
   if (req.body.sub_folder) {
-    console.log('yes there');
     subFolder = req.body.sub_folder;
   }
   
-  console.log(clientId);
   const bucketName = 'hapzea';
   const bucket = storage.bucket(bucketName);
 
@@ -1220,7 +1167,6 @@ export const fileSelecting  = CatchAsync(async (req, res, next) => {
     });
 
     for (const item of folders) {
-      console.log('looping');
       const filePath = item.src;
       const fileName = filePath.split('/').pop();
       const folderPath = `${clientId}/PhotoSelection/${subFolder}/${fileName}`;
@@ -1229,7 +1175,6 @@ export const fileSelecting  = CatchAsync(async (req, res, next) => {
           selecting: true,
         },
       });
-      console.log(`New metadata set for folder ${folderPath}`);
     }
 
     res.status(200).json({
@@ -1246,7 +1191,6 @@ export const fileSelecting  = CatchAsync(async (req, res, next) => {
       for (const file of files) {
         if (file.name.endsWith('/')) {
           await file.setMetadata({ metadata: null });
-          console.log(`Metadata removed for folder ${file.name}`);
           await removeMetadataFromFolders(bucket, `${prefix}${file.name}`);
         }
       }
@@ -1261,7 +1205,6 @@ export const fileSelecting  = CatchAsync(async (req, res, next) => {
           selecting: true,
         },
       });
-      console.log(`New metadata set for folder ${folderPath}`);
     }
 
     res.status(200).json({
@@ -1276,8 +1219,7 @@ export const matchingFolders = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
   const folders = await getFoldersByMetadata("hapzea", clientId, "selected", false);
   if (folders) {
-    console.log('from');
-    console.log(folders);
+
     res.status(200).json({
       status: 'success',
       data: folders
@@ -1289,12 +1231,8 @@ export const matchingFiles = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
   let sub_Files;
   sub_Files = req.query.subFiles; // Access query parameter from req.query
-  console.log('*************');
-  console.log(sub_Files); // Correctly log subFiles from req.query
   const Files = await getFilesByMetadata("hapzea", clientId, "selected", true, sub_Files);
   if (Files) {
-    console.log('Files');
-    console.log(Files);
     res.status(200).json({
       status: 'success',
       data: Files
@@ -1307,7 +1245,6 @@ export const matchingFiles = CatchAsync(async (req, res, next) => {
 export const deleteFiles = CatchAsync(async (req, res, next) => {
   const id = req.params.id;
   const { sub_folder, imageFiles,mainFile } = req.body;
-  console.log(req.body);
 
   if (!id || !sub_folder || !imageFiles || !imageFiles.length) {
     return next(new AppError('Invalid request parameters', 400));
@@ -1424,7 +1361,6 @@ const sendURL = async (email, magic_url, company_name, event_name) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent: " + info.response);
     return "send";
   } catch (error) {
     throw error;
@@ -1522,7 +1458,6 @@ const sendMedia = async (email, magic_url, company_name, event_name) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent: " + info.response);
     return "send";
   } catch (error) {
     throw error;
@@ -1537,10 +1472,7 @@ export const downloadFile = CatchAsync(async (req, res, next) => {
 
     // Downloads the file into a buffer in memory.
     const contents = await storage.bucket(bucketName).file(fileName).download();
- 
-    console.log(
-      `Contents of gs://${bucketName}/${fileName} are ${contents.toString()}.`
-    );
+
 
     // Get the file extension from the fileName
     const fileExtension = fileName.split('.').pop().toLowerCase();
@@ -1569,7 +1501,6 @@ export const downloadFile = CatchAsync(async (req, res, next) => {
 
 async function uploadSinglePhoto(bucketName, userId, subfolderName, photoPath) {
   try {
-    console.log('called uploadSinglePhoto');
     const bucket = storage.bucket(bucketName);
 
     // Construct the destination path based on userID and subfolder
@@ -1594,17 +1525,14 @@ async function uploadSinglePhoto(bucketName, userId, subfolderName, photoPath) {
     });
 
     stream.on('finish', () => {
-      console.log(`Photo ${photoName} uploaded to '${destinationPath}'.`);
       // You can perform further processing or store the uploaded file information as needed
       fs.unlinkSync(photoPath);
-      console.log(`Deleted ${photoPath}`);
     });
 
     // Pipe the file into the write stream
     const readStream = fs.createReadStream(photoPath);
     readStream.pipe(stream);
 
-    console.log('Photo uploaded successfully.');
   } catch (error) {
     console.error('Error uploading photo:', error);
   }
@@ -1618,9 +1546,7 @@ const unlink = promisify(fs.unlink);
 
 async function uploadImageToGCS(bucketName, userId, photoPath) {
   try {
-    console.log('called uploadProfilePhoto');
     const bucket = storage.bucket(bucketName);
-    console.log(bucketName, userId, photoPath);
  
     // Construct the destination path based on userID
     const destinationPath = `users/${userId}/profile/`;  
@@ -1653,31 +1579,24 @@ async function uploadImageToGCS(bucketName, userId, photoPath) {
     });
 
     stream.on('finish', async () => {
-      console.log(`Photo ${photoName} uploaded to '${destinationPath}'.`);
       // You can perform further processing or store the uploaded file information as needed
       await unlink(localPhotoPath);
-      console.log(`Deleted ${localPhotoPath}`);
     });
 
     // Pipe the file into the write stream
     const readStream = fs.createReadStream(localPhotoPath);
     readStream.pipe(stream);
 
-    console.log('Profile photo uploaded successfully.');
   } catch (error) {
     console.error('Error uploading profile photo:', error);
   }
 }
 
 export const uploadProfilePhoto = CatchAsync(async (req, res, next) => {
-  console.log('calling uploadProfile');
-  console.log('Request file:', req.file);
-  console.log('Request files:', req.files);
-  console.log('Request query:', req.query);
+
 
   // Check if req.files is an array or if req.file exists for a single file
   const photoPaths = req.files ? req.files.map(file => file.path) : [req.file.path];
-console.log(req.file.path);
   // Find the user by ID
   const user = await User.findById(req.query.id);
 
@@ -1689,9 +1608,7 @@ console.log(req.file.path);
   }
 
   // Update the user's photo field
-  console.log('Current user photo:', user.photo);
   user.photo = req.file ? req.file.filename : req.files[0].filename;
-  console.log('Updated user photo:', user.photo);
 
   // Save the updated user document
   await user.save();
@@ -1701,10 +1618,8 @@ console.log(req.file.path);
   await uploadImageToGCS('hapzea', req.query.id, req.file.path);
   // ('hapzea', req.query.id, req.file.path);
   // await uploadImageToGCS(req.file, req.query.id);
-  console.log('Image uploaded to GCS successfully.');
 
   // Log the user object to confirm the photo is set
-  console.log('Updated user:', user);
 
   // Respond with success
   res.status(200).json({
@@ -1717,9 +1632,7 @@ console.log(req.file.path);
 
 
 export const uploadCoverPhoto = CatchAsync(async (req, res, next) => {
-  console.log('calling uploadCoverPhoto');
-  console.log(req);
-  console.log(req.query.id); 
+
   const coverPhotoPath = req.file.path;
   const id = req.query.id;
 
@@ -1738,5 +1651,29 @@ export const uploadResponsiveCoverPhoto = CatchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: 'success',
+  });
+});
+
+
+
+export const updatePhotoSubmission = CatchAsync(async (req, res, next) => {
+  const clientId = req.params.id;
+  console.log('updatePhotoSubmission');
+  const user = await Client.findOneAndUpdate(
+    { _id: clientId },
+    { PhotoSubmission: true },
+    { new: true }
+  );
+  console.log(user);
+  if (!user) {
+    return res.status(404).json({
+      status: 'fail',
+      message: 'User not found'
+    });
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: user
   });
 });

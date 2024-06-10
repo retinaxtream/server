@@ -12,6 +12,10 @@ const clientSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please provide the event category']
   },
+  PhotoSubmission:{
+    type: Boolean,
+    default: false
+  },
   Groom: {
     type: String,     
   },
