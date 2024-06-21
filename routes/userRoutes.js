@@ -117,6 +117,7 @@ router.post('/updateUser', auth.protect, userController.updateUserById);
 router.post('/uploadCoverPhoto', auth.protect, cover.single('photos'), userController.uploadCoverPhoto);
 router.post('/uploadResponsiveCoverPhoto', auth.protect, free.single('photos'), userController.uploadResponsiveCoverPhoto);
 router.post("/googlesignIn",authController.googleAuth);
+router.post("/googlesignInDesktop",authController.googleAuthDesk);
 router.post('/updatePhotoSubmission/:id', userController.updatePhotoSubmission);
 
   
