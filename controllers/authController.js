@@ -244,3 +244,44 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
   }
 });
 
+export const googleAuthDesk = CatchAsync(async (req, res, next) => {
+  try {
+    let { email } = req.body;
+
+    if (!email) {
+      return res.status(401).json({ error: "Invalid Credentials" });
+    }
+
+    console.log(email);
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      console.log('User not found');
+      return res.status(401).json({ error: "User not authorized" });
+    }
+
+    console.log('Existing user:', user);
+    const token = await signToken(user._id);
+    res.cookie('jwtToken', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict'
+    });
+
+    return res.status(201).json({
+      status: 'success',
+      token: token,
+      data: {
+        user
+      }
+    });
+  } catch (error) {
+    // Log the error for debugging
+    console.error('Error in googleAuth middleware:', error);
+    // Return a detailed error response
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+
+
