@@ -1062,6 +1062,7 @@ export const sendPublic_url = CatchAsync(async (req, res, next) => {
   });
 });
 
+
 export const sendMedia_Files = CatchAsync(async (req, res, next) => {
   const { email, magic_url, company_name, event_name, clientId } = req.body;
   const folders = await getFoldersByMetadata("hapzea", clientId, "selected", false);
