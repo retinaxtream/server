@@ -164,7 +164,7 @@ export const protect = CatchAsync(async (req, res, next) => {
     if (req.user.tokenVersion !== decoded.tokenVersion) {
       // logger.info('Invalid token version');
       res.clearCookie("jwt", { path: "/" });
-      res.status(401);
+      res.status(401); 
       throw new Error('Not Authorized, Invalid token version');
     }
     if (!req.user.validating && !req.body.otp) {
@@ -179,17 +179,18 @@ export const protect = CatchAsync(async (req, res, next) => {
     res.status(401);
     console.log('In the catch');
     throw new Error('Not Authorized, token failed');
-  }
+  } 
 });
 
 
 export const googleAuth = CatchAsync(async (req, res, next) => {
   try {
+    console.log('called');
     let { email, id } = req.body;
     if (!id) {
       return res.status(401).json({ error: "Invalid Credentials" });
     }
-
+ 
     console.log(email, id);
     const user = await User.findOne({ email });
 
