@@ -25,5 +25,6 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     - run: npm ci
-    - run: mkdir -p free/cover
+    - run: mkdir -p free
+    - run: mkdir -p cover
     - run: pm2 restart app.js
