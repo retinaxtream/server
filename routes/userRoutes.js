@@ -28,14 +28,7 @@ const storage = multer.diskStorage({
     }
 });
 
-// const storageOne = multer.diskStorage({ 
-//     destination: function (req, file, cb) {
-//         cb(null, 'cover/'); 
-//     },
-//     filename: function (req, file, cb) {
-//         cb(null, file.originalname);
-//     }
-// });
+
 
 const storageTwo = multer.diskStorage({
     destination: function (req, file, cb) {
