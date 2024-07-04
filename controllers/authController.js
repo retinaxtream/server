@@ -133,7 +133,7 @@ export const logout = async (req, res) => {
 
 export const protect = CatchAsync(async (req, res, next) => {
   let token;
-  logtail.info('token is here')
+  logtail.info('token is here') 
   logtail.info(token)
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
@@ -180,13 +180,13 @@ export const protect = CatchAsync(async (req, res, next) => {
     console.log('In the catch');
     throw new Error('Not Authorized, token failed');
   } 
-});
+}); 
 
 
 export const googleAuth = CatchAsync(async (req, res, next) => {
   try {
     console.log('called');
-    let { email, id } = req.body;
+    let { email, id } = req.body; 
     if (!id) {
       return res.status(401).json({ error: "Invalid Credentials" });
     }
