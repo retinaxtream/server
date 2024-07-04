@@ -46,6 +46,31 @@ const storageTwo = multer.diskStorage({
     }
 });
 
+const storageclient = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'clientcover/'); 
+    },
+    filename: function (req, file, cb) {
+        cb(null, file.originalname);
+    }
+});
+
+// const storageclient = multer.diskStorage({
+//     destination: function (req, file, cb) {
+//         cb(null, 'clientcover/'); 
+//     },
+//     filename: function (req, file, cb) {
+//         console.log(file);
+//         const ext = file.mimetype.split('/')[1];
+//         console.log('mimetype');
+//         console.log(file.mimetype);
+//         console.log(ext);
+//         // const extension = path.extname(file.originalname).toLowerCase().slice(1);
+//         cb(null, `user-${req.query.id}-${Date.now()}.${ext}`);
+//     }
+// });
+
+
 
 const upload = multer({ storage: storage });
 
@@ -85,6 +110,7 @@ const ProfileFilter =(req,file,cb)=>{
 const cover = multer({ storage: storageOne });
 const free = multer({ storage: storageTwo });
 const profile = multer({ storage: storageProfile });
+const clientcover = multer({ storage: storageclient });
 
 
 
@@ -94,9 +120,9 @@ router.post('/login', authController.login);
 router.post('/validatingLink', userController.validateLink);
 router.post('/create/client', auth.protect, userController.createClient);
 router.get('/create/client', auth.protect, userController.getClients);
-router.get('/client/sorted', auth.protect, userController.clientSorted);
+router.get('/client/sorted', auth.protect, userController.clientSorted); 
 router.get('/client/:id', userController.getClientById);
-router.get('/getfiles', auth.protect, userController.getFiles);
+router.get('/getfiles', auth.protect, userController.getFiles);  
 router.get('/getpublicfiles', userController.getPublic_Files);
 router.post('/createfolder', auth.protect, userController.createFolder_Bucket);
 router.get('/fetchMedia',  userController.fetch_Photos);
@@ -120,8 +146,14 @@ router.post("/googlesignIn",authController.googleAuth);
 router.post("/googlesignInDesktop",authController.googleAuthDesk);
 router.post('/updatePhotoSubmission/:id', userController.updatePhotoSubmission);
 
-  
-   
+  // upload cover photo
+router.post('/uploadClientCoverPhoto', auth.protect, clientcover.single('photos'), userController.uploadClientCoverPhoto);
+router.get('/getClientCoverPhotoURL/:id', userController.getClientCoverPhotoURL);
+router.get('/clientcover/:photoName',  userController.getClientCoverPhoto);
+
+
+
+
 //Rohan
 router.get('/me', auth.protect, RhzuserController.getUserById);
 router.post('/decode-jwt',auth.protect, RhzuserController.decodeJwt);

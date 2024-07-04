@@ -1722,3 +1722,148 @@ export const updatePhotoSubmission = CatchAsync(async (req, res, next) => {
     data: updatedUser
   });
 });
+
+
+export const uploadClientCoverPhoto = async (req, res, next) => {
+  console.log('Received request to upload photo for user ID:', req.query._id);
+
+  if (!req.file) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'No file uploaded',
+    });
+  }
+
+  const responsiveCoverPhotoPath = req.file.path;
+  const id = req.query._id;
+
+  try {
+    const photoUrl = await uploadclientPhoto(bucketName, id, 'client-Cover', responsiveCoverPhotoPath);
+
+    
+    await User.findByIdAndUpdate(id, { coverPhoto: photoUrl });
+
+    res.status(200).json({
+      status: 'success',
+      photoUrl,
+    });
+  } catch (error) {
+    console.error('Error in uploadClientCoverPhoto:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Error uploading photo',
+    });
+  }
+};
+
+export const getClientCoverPhotoURL = async (req, res, next) => {
+  const userId = req.params.id;
+
+  try {
+    const user = await User.findById(userId).select('coverPhoto');
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found',
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      coverPhoto: user.coverPhoto,
+    });
+  } catch (error) {
+    console.error('Error fetching cover photo URL:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Error fetching cover photo URL',
+    });
+  }
+};
+
+async function uploadclientPhoto(bucketName, userId, subfolderName, photoPath) {
+  console.log('Uploading to bucket:', bucketName, 'User ID:', userId, 'Subfolder:', subfolderName, 'Photo path:', photoPath);
+
+  try {
+    const bucket = storage.bucket(bucketName);
+    subfolderName = subfolderName || 'default';
+    const destinationPath = `${userId}/${subfolderName}/`;
+    const photoName = path.basename(photoPath);
+    const file = bucket.file(`${destinationPath}${photoName}`);
+    const contentType = mime.lookup(photoPath) || 'application/octet-stream';
+
+    console.log('Destination path:', destinationPath);
+    console.log('Photo name:', photoName);
+    console.log('Content type:', contentType);
+
+    const stream = file.createWriteStream({
+      metadata: {
+        contentType: contentType,
+      },
+    });
+
+    stream.on('error', (err) => {
+      console.error(`Error uploading photo ${photoName}:`, err);
+    });
+
+    stream.on('finish', () => {
+      console.log(`Successfully uploaded photo ${photoName} to ${destinationPath}`);
+      try {
+        fs.unlinkSync(photoPath);
+        console.log(`Local file ${photoPath} deleted successfully.`);
+      } catch (err) {
+        console.error(`Error deleting local file ${photoPath}:`, err);
+      }
+    });
+
+    const readStream = fs.createReadStream(photoPath);
+    readStream.pipe(stream);
+
+    // Return the public URL of the uploaded file
+    return `https://storage.googleapis.com/${bucketName}/${destinationPath}${photoName}`;
+  } catch (error) {
+    console.error('Error uploading photo:', error);
+    throw error;
+  }
+}
+
+
+export const getClientCoverPhoto = async (req, res, next) => {
+  const userId = req.query.userId;
+  const photoName = req.params.photoName;
+  const subfolderName = 'client-Cover';
+
+  try {
+   
+    const filePath = `${userId}/${subfolderName}/${photoName}`;
+    const file = storage.bucket(bucketName).file(filePath);
+
+    
+    const [exists] = await file.exists();
+    if (!exists) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'File not found',
+      });
+    }
+
+    
+    const readStream = file.createReadStream();
+    readStream.on('error', (err) => {
+      console.error('Error reading file:', err);
+      res.status(500).json({
+        status: 'error',
+        message: 'Error reading file',
+      });
+    });
+
+    res.setHeader('Content-Type', 'image/jpeg'); 
+    readStream.pipe(res);
+  } catch (error) {
+    console.error('Error fetching cover photo:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Error fetching cover photo',
+    });
+  }
+};
