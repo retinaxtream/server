@@ -27,4 +27,5 @@ jobs:
     - run: npm ci
     - run: mkdir -p free
     - run: mkdir -p cover
+    - run: mkdir -p clientcover
     - run: pm2 restart app.js
