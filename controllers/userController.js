@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import AppError from '../Utils/AppError.js';
 // import sharp from 'sharp';
-
+import mime from 'mime-types';
 import { log } from 'console';
 import { Logtail } from "@logtail/node";
 
@@ -19,7 +19,7 @@ import { Logtail } from "@logtail/node";
 const logtail = new Logtail("wioUzMpsdSdWHrZeN5YSuKS3");
 
 
-const currentModuleUrl = new URL(import.meta.url);
+const currentModuleUrl = new URL(import.meta.url);  
 // const currentModuleDir = path.dirname(currentModuleUrl.pathname);
 // const serviceAccPath = path.resolve(currentModuleDir, '../credentials.json');
 const keyFilename = './credentials.json'
@@ -208,7 +208,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Source: req.body.Source,
       });
       await createFolder('hapzea', `${newClient._id}/`);
-      magicLink = `http://localhost:3000/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
+      magicLink = `https://hapzea.com/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
     } else {
       newClient = await Client.create({
         userId: req.user._id,
@@ -222,7 +222,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Source: req.body.Source, 
       });
       await createFolder('hapzea', `${newClient._id}/`);
-      magicLink = `http://localhost:3000/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
+      magicLink = `https://hapzea.com/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
     }
 
     await Client.findByIdAndUpdate(newClient._id, { $set: { magicLink } }, { new: true });
@@ -1724,6 +1724,24 @@ export const updatePhotoSubmission = CatchAsync(async (req, res, next) => {
 });
 
 
+
+const deleteExistingImage = async (userId) => {
+  const folderPrefix = `${userId}/client-Cover/`;
+  const bucket = new Storage().bucket(bucketName);
+
+  try {
+    const [files] = await bucket.getFiles({ prefix: folderPrefix });
+
+    if (files.length > 0) {
+      // If there are files, delete each file
+      await Promise.all(files.map(file => file.delete()));
+    }
+  } catch (error) {
+    console.error('Error deleting existing images:', error);
+    throw error; // Propagate the error to the caller
+  }
+};
+
 export const uploadClientCoverPhoto = async (req, res, next) => {
   console.log('Received request to upload photo for user ID:', req.query._id);
 
@@ -1734,15 +1752,20 @@ export const uploadClientCoverPhoto = async (req, res, next) => {
     });
   }
 
-  const responsiveCoverPhotoPath = req.file.path;
-  const id = req.query._id;
+  const responsiveCoverPhotoPath = req.file.path; 
+  const userId = req.query._id;
 
   try {
-    const photoUrl = await uploadclientPhoto(bucketName, id, 'client-Cover', responsiveCoverPhotoPath);
+    // Delete existing images before uploading new one
+    await deleteExistingImage(userId);
 
-    
-    await User.findByIdAndUpdate(id, { coverPhoto: photoUrl });
+    // Upload new image
+    const photoUrl = await uploadclientPhoto(bucketName, userId, 'client-Cover', responsiveCoverPhotoPath);
 
+    // Update user document with new cover photo URL
+    await User.findByIdAndUpdate(userId, { coverPhoto: photoUrl });
+
+    // Respond with success and new photo URL
     res.status(200).json({
       status: 'success',
       photoUrl,
@@ -1829,41 +1852,39 @@ async function uploadclientPhoto(bucketName, userId, subfolderName, photoPath) {
 
 
 export const getClientCoverPhoto = async (req, res, next) => {
-  const userId = req.query.userId;
-  const photoName = req.params.photoName;
-  const subfolderName = 'client-Cover';
+  const userId = req.query._id;
+
+  if (!userId) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'User ID is required',
+    });
+  }
+
+  const prefix = `${userId}/client-Cover/`;
+  const bucket = new Storage().bucket(bucketName);
 
   try {
-   
-    const filePath = `${userId}/${subfolderName}/${photoName}`;
-    const file = storage.bucket(bucketName).file(filePath);
+    const [files] = await bucket.getFiles({ prefix });
 
-    
-    const [exists] = await file.exists();
-    if (!exists) {
+    if (files.length === 0) {
       return res.status(404).json({
         status: 'error',
-        message: 'File not found',
+        message: 'No files found in the user folder',
       });
     }
 
-    
-    const readStream = file.createReadStream();
-    readStream.on('error', (err) => {
-      console.error('Error reading file:', err);
-      res.status(500).json({
-        status: 'error',
-        message: 'Error reading file',
-      });
-    });
+    const file = files[0];
+    const fileStream = file.createReadStream();
+    const contentType = mime.lookup(file.name) || 'application/octet-stream';
 
-    res.setHeader('Content-Type', 'image/jpeg'); 
-    readStream.pipe(res);
+    res.setHeader('Content-Type', contentType);
+    fileStream.pipe(res);
   } catch (error) {
-    console.error('Error fetching cover photo:', error);
+    console.error('Error retrieving photo:', error);
     res.status(500).json({
       status: 'error',
-      message: 'Error fetching cover photo',
+      message: 'Error retrieving photo',
     });
   }
 };
