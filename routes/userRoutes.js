@@ -138,8 +138,8 @@ router.post('/uploadResponsiveCoverPhoto', auth.protect, free.single('photos'), 
 router.post("/googlesignIn",authController.googleAuth);
 router.post("/googlesignInDesktop",authController.googleAuthDesk);
 router.post('/updatePhotoSubmission/:id', userController.updatePhotoSubmission);
-router.post('/uploadClientCoverPhoto',  clientcover.single('photos'), userController.uploadClientCoverPhoto);
-router.get('/getClientCoverPhoto', userController.getClientCoverPhoto);
+router.post('/uploadClientCoverPhoto',auth.protect,  clientcover.single('photos'), userController.uploadClientCoverPhoto);
+router.get('/getClientCoverPhoto',auth.protect, userController.getClientCoverPhoto);
 
   // upload cover photo     
 router.get('/getClientCoverPhotoURL/:id', userController.getClientCoverPhotoURL);
