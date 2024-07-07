@@ -43,7 +43,7 @@ const storageclient = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, 'clientcover/'); 
     },
-    filename: function (req, file, cb) {
+    filename: function (req, file, cb) { 
         cb(null, file.originalname);
     }
 });
@@ -138,14 +138,15 @@ router.post('/uploadResponsiveCoverPhoto', auth.protect, free.single('photos'), 
 router.post("/googlesignIn",authController.googleAuth);
 router.post("/googlesignInDesktop",authController.googleAuthDesk);
 router.post('/updatePhotoSubmission/:id', userController.updatePhotoSubmission);
+router.post('/uploadClientCoverPhoto',  clientcover.single('photos'), userController.uploadClientCoverPhoto);
+router.get('/getClientCoverPhoto', userController.getClientCoverPhoto);
 
-  // upload cover photo
-router.post('/uploadClientCoverPhoto', auth.protect, clientcover.single('photos'), userController.uploadClientCoverPhoto);
+  // upload cover photo     
 router.get('/getClientCoverPhotoURL/:id', userController.getClientCoverPhotoURL);
 router.get('/clientcover/:photoName',  userController.getClientCoverPhoto);
 
 
-
+ 
 
 //Rohan
 router.get('/me', auth.protect, RhzuserController.getUserById);
