@@ -14,6 +14,8 @@ export const protect = CatchAsync(async (req, res, next) => {
     const jwtCookie = cookies.find(cookie => cookie.trim().startsWith('jwtToken='));
   
     if (jwtCookie) {
+      console.log('YYYYES');
+      console.log(jwtCookie);
       token = jwtCookie.split('=')[1].trim();
     }      
   }
