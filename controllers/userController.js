@@ -1747,9 +1747,9 @@ export const uploadClientCoverPhoto = async (req, res, next) => {
 
   if (!req.file) {
     return res.status(400).json({
-      status: 'error',
+      status: 'error',  
       message: 'No file uploaded',
-    });
+    }); 
   }
 
   const responsiveCoverPhotoPath = req.file.path; 
@@ -1775,7 +1775,7 @@ export const uploadClientCoverPhoto = async (req, res, next) => {
     res.status(500).json({
       status: 'error',
       message: 'Error uploading photo',
-    });
+    }); 
   }
 };
 
@@ -1872,7 +1872,7 @@ export const getClientCoverPhoto = async (req, res, next) => {
         status: 'error',
         message: 'No files found in the user folder',
       });
-    }
+    } 
 
     const file = files[0];
     const fileStream = file.createReadStream();

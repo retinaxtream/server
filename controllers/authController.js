@@ -2,6 +2,7 @@ import User from '../models/UserModel.js';
 import { CatchAsync } from '../Utils/CatchAsync.js'
 import jwt from 'jsonwebtoken';
 import { Logtail } from "@logtail/node";
+import { validationResult } from 'express-validator';
 
 
 const logtail = new Logtail("f27qB9WwtTgD9srKQETiBVG7");
@@ -16,64 +17,58 @@ const signToken = id => {
 
 
 export const signup = CatchAsync(async (req, res, next) => {
-  try {
-    const { businessName, email, mobile, password, passwordConfirm, role } = req.body;
+  const { businessName, email, mobile, password, passwordConfirm, role } = req.body;
 
-    // Check for missing fields
-    if (!businessName || !email || !mobile || !password || !passwordConfirm) {
-      return res.status(400).json({
-        status: 'fail',
-        message: 'Please provide all required fields',
-      });
-    }
-
-    // Check if password and passwordConfirm match
-    if (password !== passwordConfirm) {
-      return res.status(400).json({
-        status: 'fail',
-        message: 'Passwords do not match',
-      });
-    }
-
-    // Normalize mobile number
-    const normalizedMobile = mobile.startsWith('+91') ? mobile : `+91${mobile}`;
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ $or: [{ email }, { mobile: normalizedMobile }] });
-    if (existingUser) {
-      return res.status(409).json({
-        status: 'fail',
-        message: 'User with this email already exists',
-      });
-    }
-
-    // Create new user
-    const newUser = await User.create({
-      businessName,
-      email,
-      mobile: normalizedMobile,
-      password,
-      passwordConfirm,
-      role,
-    });
-
-    const token = signToken(newUser._id);
-    res.status(201).json({
-      status: 'success',
-      token,
-      data: {
-        user: newUser,
-      },
-    });
-  } catch (error) {
-    console.error('Error in signup controller:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Internal server error',
+  if (!businessName || !email || !mobile || !password || !passwordConfirm) {
+    return res.status(400).json({
+      status: 'fail',
+      message: 'Please provide all required fields',
     });
   }
-});
 
+  if (password !== passwordConfirm) {
+    return res.status(400).json({
+      status: 'fail',
+      message: 'Passwords do not match',
+    });
+  }
+
+  const normalizedMobile = mobile.startsWith('+91') ? mobile : `+91${mobile}`;
+
+  const existingUser = await User.findOne({ $or: [{ email }, { mobile: normalizedMobile }] });
+  if (existingUser) {
+    return res.status(409).json({
+      status: 'fail',
+      message: 'User with this email or mobile already exists',
+    });
+  }
+
+  const newUser = await User.create({
+    businessName,
+    email,
+    mobile: normalizedMobile,
+    password,
+    passwordConfirm,
+    role,
+  });
+
+  const token = signToken(newUser._id);
+
+  res.cookie('jwtToken', token, {
+    expires: new Date(Date.now() + parseInt(process.env.JWT_EXPIRES_IN, 10) * 24 * 60 * 60 * 1000),
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict'
+  });
+
+  res.status(201).json({
+    status: 'success',
+    token,
+    data: {
+      user: newUser,
+    },
+  });
+});
 
 export const login = CatchAsync(async (req, res, next) => {
   const { email, password } = req.body;
@@ -85,7 +80,6 @@ export const login = CatchAsync(async (req, res, next) => {
     });
   }
 
-  // Check if the user exists based on the email
   const user = await User.findOne({ email }).select('+password');
   
   if (!user) {
@@ -95,7 +89,6 @@ export const login = CatchAsync(async (req, res, next) => {
     });
   }
 
-  // Check if the password is correct
   if (!(await user.correctPassword(password, user.password))) {
     return res.status(401).json({
       status: 'fail',
@@ -103,15 +96,24 @@ export const login = CatchAsync(async (req, res, next) => {
     });
   }
 
-  console.log('FROM LOGIN');
   const token = signToken(user._id);
-  console.log(token);
-  
-  res.cookie('jwtToken', token, {
-    httpOnly: true, 
-    secure: true,   
-    sameSite: 'strict' 
-  });
+
+  const jwtExpiresIn = parseInt(process.env.JWT_EXPIRES_IN, 10);
+  if (isNaN(jwtExpiresIn)) {
+    return res.status(500).json({
+      status: 'fail',
+      message: 'Server configuration error',
+    });
+  }
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict',
+    expires: new Date(Date.now() + jwtExpiresIn * 24 * 60 * 60 * 1000)
+  };
+
+  res.cookie('jwtToken', token, cookieOptions);
 
   res.status(200).json({
     status: 'success',
@@ -119,6 +121,7 @@ export const login = CatchAsync(async (req, res, next) => {
     user
   });
 });
+
 
 
 export const logout = async (req, res) => {
