@@ -1533,8 +1533,23 @@ async function uploadSinglePhoto(bucketName, userId, subfolderName, photoPath) {
       destinationPath += `${subfolderName}/`; 
     }
 
+
+    const [files] = await bucket.getFiles({ prefix: destinationPath });
+    for (const file of files) {
+      // Delete each file
+      await file.delete();
+      console.log(`Deleted old photo: ${file.name}`);
+    }
+
     const photoName = path.basename(photoPath); // Extract the photo name using path module
     const file = bucket.file(`${destinationPath}${photoName}`);
+
+    // const [exists] = await file.exists();
+    // if (exists) {
+    //   console.log('deleted');
+    //   await file.delete();
+    //   console.log(`Deleted old photo: ${destinationPath}${photoName}`);
+    // }
 
     // Create a write stream to upload the file
     const stream = file.createWriteStream({
@@ -1678,6 +1693,64 @@ export const uploadResponsiveCoverPhoto = CatchAsync(async (req, res, next) => {
   });
 });
 
+export const getCoverPhoto = async (req, res, next) => {
+  const userId = req.query._id;
+  const subfolder = 'responsive-cover'; 
+
+  if (!userId) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'User ID is required',
+    });
+  }
+
+  await gettingImageFn(userId, subfolder, res);
+};
+
+
+export const getCoverPhotoMob = async (req, res, next) => {
+  const userId = req.query._id;
+  const subfolder = 'cover'; 
+
+  if (!userId) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'User ID is required',
+    });
+  }
+
+  await gettingImageFn(userId, subfolder, res);
+};
+
+
+const gettingImageFn = async (userId, subfolder, res) => {
+  const prefix = `${userId}/${subfolder}/`;
+  const bucket = new Storage().bucket(bucketName);
+
+  try {
+    const [files] = await bucket.getFiles({ prefix });
+
+    if (files.length === 0) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'No files found in the user folder',
+      });
+    }
+
+    const file = files[0];
+    const fileStream = file.createReadStream();
+    const contentType = mime.lookup(file.name) || 'application/octet-stream';
+
+    res.setHeader('Content-Type', contentType);
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error('Error retrieving photo:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Error retrieving photo',
+    });
+  }
+};
 
 export const updatePhotoSubmission = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;

@@ -197,10 +197,10 @@ router.post('/upload', auth.protect, upload.array('photos'), userController.uplo
 router.post('/profile_upload', auth.protect, profile.single('photos'), userController.uploadProfilePhoto);
 router.post("/googlesignIn",authController.googleAuth);
 router.post('/sendUrl', userController.sendPublic_url);
-router.post('/sendMedia',auth.protect, userController.sendMedia_Files);
+router.post('/sendMedia',auth.protect, userController.sendMedia_Files); 
 router.post('/meta/:id', userController.folder_metadata);
 router.post('/meta_selecting/:id', userController.fileSelecting);
-router.get('/metacheck/:id', userController.matchingFolders);
+router.get('/metacheck/:id', userController.matchingFolders); 
 router.get('/meta_selction_check/:id', auth.protect, userController.matchingFiles);
 // router.get('/non_meta_files/:id', userController.UnSelected);
 router.post('/deleteImages/:id', userController.deleteFiles);            
@@ -208,12 +208,16 @@ router.get('/download-into-memory', userController.downloadFile);
 router.post('/updateUser', auth.protect, userController.updateUserById);
 router.post('/uploadCoverPhoto', auth.protect, cover.single('photos'), userController.uploadCoverPhoto);
 router.post('/uploadResponsiveCoverPhoto', auth.protect, free.single('photos'), userController.uploadResponsiveCoverPhoto);
+
+router.get('/getCoverPhoto', auth.protect, userController.getCoverPhoto);
+router.get('/getCoverPhotoMob', auth.protect, userController.getCoverPhotoMob);
+
 router.post("/googlesignIn",authController.googleAuth);
 router.post("/googlesignInDesktop",authController.googleAuthDesk);
 router.post('/updatePhotoSubmission/:id', userController.updatePhotoSubmission);
 router.post('/uploadClientCoverPhoto',auth.protect,  clientcover.single('photos'), userController.uploadClientCoverPhoto);
 router.get('/getClientCoverPhoto',auth.protect, userController.getClientCoverPhoto);
-
+   
   // upload cover photo     
 router.get('/getClientCoverPhotoURL/:id', userController.getClientCoverPhotoURL);
 router.get('/clientcover/:photoName',  userController.getClientCoverPhoto);
