@@ -1372,8 +1372,8 @@ const sendURL = async (email, magic_url, company_name, event_name) => {
           </div>
           <div class="content">
             <p>Hello,</p>
-            <p>We are sharing the public URL for you to invite your guest for ${event_name}.Please find the details below:</p>
-            <p>Click the button below to view more details of the event:</p>
+            <p>We are excited to invite you to ${event_name}!.It's going to be a fantastic event, and we can't wait to share the details with you.</p>
+            <p>Click the button below to learn more about the event and how you can join us:</p>
           </div>
           <div class="button">
             <a href="${magic_url}" target="_blank">View Event Details</a> <!-- Replace [Public URL] with the actual public URL sent from frontend -->
@@ -1407,7 +1407,7 @@ const sendMedia = async (email, magic_url, company_name, event_name) => {
     const mailOptions = {
       from: "retina@hapzea.com",
       to: email,
-      subject: "Meida Files",
+      subject: `Help Us Create the Perfect ${event_name} Album!`,
       html: `
       <!DOCTYPE html>
       <html lang="en">
@@ -1469,8 +1469,8 @@ const sendMedia = async (email, magic_url, company_name, event_name) => {
           </div>
           <div class="content"> 
             <p>Hello,</p>
-            <p>We are sharing the URL for accessing you to select photos which you need to put in the Album for ${event_name}.Please find the details below:</p>
-            <p>Click the button below to view more details.</p>
+            <p>We're thrilled to invite you to help create the ${event_name} album!.</p>
+            <p>Click the button below to check out the details and choose the photos you'd love to see included:</p>
           </div>
           <div class="button">
             <a href="${magic_url}" target="_blank">View Event Details</a> <!-- Replace [Public URL] with the actual public URL sent from frontend -->
