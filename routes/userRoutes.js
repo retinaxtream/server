@@ -177,12 +177,12 @@ const validateSignup = [
     },
   ];
 
-  
-
 
 // router.get('/', userController.home);
-router.post('/signup', validateSignup, authController.signup);
-router.post('/login', validateLogin, authController.login);
+// router.post('/signup', validateSignup, authController.signup);
+// router.post('/login', validateLogin, authController.login);
+router.post('/signup', authController.signup);
+router.post('/login',authController.login);
 router.post('/validatingLink', userController.validateLink);
 router.post('/create/client', auth.protect, userController.createClient);
 router.get('/create/client', auth.protect, userController.getClients);
@@ -223,8 +223,6 @@ router.get('/getClientCoverPhotoURL/:id', userController.getClientCoverPhotoURL)
 router.get('/clientcover/:photoName',  userController.getClientCoverPhoto);
 
 
- 
-
 //Rohan
 router.get('/me', auth.protect, RhzuserController.getUserById);
 router.post('/decode-jwt',auth.protect, RhzuserController.decodeJwt);
@@ -245,5 +243,7 @@ router
 router
     .route('/upload/images')
     .post(upload.array('images'), userController.uploadImage);
+
+
 
 export default router;
