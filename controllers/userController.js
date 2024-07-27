@@ -19,7 +19,7 @@ import { Logtail } from "@logtail/node";
 const logtail = new Logtail("wioUzMpsdSdWHrZeN5YSuKS3");
 
 
-const currentModuleUrl = new URL(import.meta.url);  
+const currentModuleUrl = new URL(import.meta.url);
 // const currentModuleDir = path.dirname(currentModuleUrl.pathname);
 // const serviceAccPath = path.resolve(currentModuleDir, '../credentials.json');
 const keyFilename = './credentials.json'
@@ -92,7 +92,7 @@ export const updateUserById = CatchAsync(async (req, res, next) => {
   }
 });
 
- 
+
 
 
 // ###########################################################################
@@ -219,7 +219,7 @@ export const createClient = CatchAsync(async (req, res, next) => {
         EventCategory: req.body.Event_Category,
         EventName: req.body.Event_Name,
         Venue: req.body.Venue,
-        Source: req.body.Source, 
+        Source: req.body.Source,
       });
       await createFolder('hapzea', `${newClient._id}/`);
       magicLink = `https://hapzea.com/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
@@ -292,7 +292,7 @@ export const clientSorted = CatchAsync(async (req, res, next) => {
   });
 });
 
- 
+
 // ###########################################################################
 const extractUsernameFromEmail = async (email) => {
   return email.split('@')[0];
@@ -456,7 +456,7 @@ async function getFoldersInPhoto(bucketName, idFolderName) {
       if (folderName) {
         foldersInAlbum.add(folderName);
       }
-    }); 
+    });
 
     const foldersList = Array.from(foldersInAlbum);
     return foldersList;
@@ -789,7 +789,7 @@ async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoP
     }
     if (subfolderName) {
       destinationPath += `${subfolderName}/`;
-    } 
+    }
 
     // Upload each photo to the specified subfolder
     for (const photoPath of photoPaths) {
@@ -820,7 +820,7 @@ async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoP
 
     console.log('All photos uploaded successfully.');
   } catch (error) {
-    console.error('Error uploading photos:', error); 
+    console.error('Error uploading photos:', error);
   }
 }
 
@@ -961,14 +961,14 @@ export const getClientById = CatchAsync(async (req, res, next) => {
       client,
     },
   });
-}); 
+});
 
 export const fetch_Photos = CatchAsync(async (req, res, next) => {
 
   // Extract parameters from the query string
   const main_folder = req.query.main_folder;
   const sub_folder = req.query.sub_folder;
-  const id = req.query.id;  
+  const id = req.query.id;
 
   // Use the extracted parameters in your fetchAllPhotos function
   const fetchedFiles = await fetchAllPhotos('hapzea', id, main_folder, sub_folder);
@@ -1008,7 +1008,7 @@ export const fetch_Photos_filtered = CatchAsync(async (req, res, next) => {
   });
 });
 
-  
+
 
 // Fetch all photos function
 const fetchAllPhotosFilter = async (bucketName, userId, main_folder, sub_folder) => {
@@ -1064,7 +1064,6 @@ export const sendPublic_url = CatchAsync(async (req, res, next) => {
 
 
 export const sendAlbum_url = CatchAsync(async (req, res, next) => {
-  console.log('calling');
   const { email, magic_url, company_name, event_name } = req.body;
   await sendAlbum(email, magic_url, company_name, event_name);
   res.status(200).json({
@@ -1081,7 +1080,7 @@ export const sendMedia_Files = CatchAsync(async (req, res, next) => {
 
   const photoSubmission = {};
   trimmedFolderPaths.forEach(path => {
-    photoSubmission[path] = false; 
+    photoSubmission[path] = false;
   });
 
   const user = await Client.findOneAndUpdate(
@@ -1124,7 +1123,7 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     const prefix = `${clientId}/PhotoSelection/${subFolder}/`;
     const [files] = await bucket.getFiles({
       prefix: prefix,
-    }); 
+    });
 
     // for (const file of files) {
     //   if (!file.name.endsWith('/')) {
@@ -1152,7 +1151,7 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     async function removeMetadataFromFolders(bucket, prefix) {
       const [files] = await bucket.getFiles({
         prefix: prefix,
-        autoPaginate: false 
+        autoPaginate: false
       });
 
       for (const file of files) {
@@ -1161,7 +1160,7 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
           await removeMetadataFromFolders(bucket, `${prefix}${file.name}`);
         }
       }
-    } 
+    }
 
     await removeMetadataFromFolders(bucket, `${clientId}/PhotoSelection/`);
 
@@ -1169,7 +1168,7 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     for (const folder of folders) {
       const folderPath = `${clientId}/PhotoSelection/${folder}/`;
       await bucket.file(folderPath).setMetadata({
-        metadata: { 
+        metadata: {
           selected: false
         },
       });
@@ -1181,7 +1180,7 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
   }
 });
 
-export const fileSelecting  = CatchAsync(async (req, res, next) => {
+export const fileSelecting = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
   const folders = req.body.selected;
   let subFolder;
@@ -1189,7 +1188,7 @@ export const fileSelecting  = CatchAsync(async (req, res, next) => {
   if (req.body.sub_folder) {
     subFolder = req.body.sub_folder;
   }
-  
+
   const bucketName = 'hapzea';
   const bucket = storage.bucket(bucketName);
 
@@ -1278,7 +1277,7 @@ export const matchingFiles = CatchAsync(async (req, res, next) => {
 
 export const deleteFiles = CatchAsync(async (req, res, next) => {
   const id = req.params.id;
-  const { sub_folder, imageFiles,mainFile } = req.body;
+  const { sub_folder, imageFiles, mainFile } = req.body;
 
   if (!id || !sub_folder || !imageFiles || !imageFiles.length) {
     return next(new AppError('Invalid request parameters', 400));
@@ -1413,7 +1412,7 @@ const sendAlbum = async (email, magic_url, company_name, event_name) => {
     const mailOptions = {
       from: "retina@hapzea.com",
       to: email,
-      subject: "Invitation",
+      subject: `The  ${event_name} Memories!`,
       html: `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1649,7 +1648,7 @@ async function uploadSinglePhoto(bucketName, userId, subfolderName, photoPath) {
     // Construct the destination path based on userID and subfolder
     let destinationPath = `${userId}/`;
     if (subfolderName) {
-      destinationPath += `${subfolderName}/`; 
+      destinationPath += `${subfolderName}/`;
     }
 
 
@@ -1705,9 +1704,9 @@ const unlink = promisify(fs.unlink);
 async function uploadImageToGCS(bucketName, userId, photoPath) {
   try {
     const bucket = storage.bucket(bucketName);
- 
+
     // Construct the destination path based on userID
-    const destinationPath = `users/${userId}/profile/`;  
+    const destinationPath = `users/${userId}/profile/`;
 
     // Create the directory if it doesn't exist
     const localDir = path.join(__dirname, `../uploads/${destinationPath}`);
@@ -1796,7 +1795,7 @@ export const uploadCoverPhoto = CatchAsync(async (req, res, next) => {
 
   await uploadSinglePhoto('hapzea', id, 'cover', coverPhotoPath);
 
-  res.status(200).json({ 
+  res.status(200).json({
     status: 'success',
   });
 });
@@ -1814,7 +1813,7 @@ export const uploadResponsiveCoverPhoto = CatchAsync(async (req, res, next) => {
 
 export const getCoverPhoto = async (req, res, next) => {
   const userId = req.query._id;
-  const subfolder = 'responsive-cover'; 
+  const subfolder = 'responsive-cover';
 
   if (!userId) {
     return res.status(400).json({
@@ -1829,7 +1828,7 @@ export const getCoverPhoto = async (req, res, next) => {
 
 export const getCoverPhotoMob = async (req, res, next) => {
   const userId = req.query._id;
-  const subfolder = 'cover'; 
+  const subfolder = 'cover';
 
   if (!userId) {
     return res.status(400).json({
@@ -1939,12 +1938,12 @@ export const uploadClientCoverPhoto = async (req, res, next) => {
 
   if (!req.file) {
     return res.status(400).json({
-      status: 'error',  
+      status: 'error',
       message: 'No file uploaded',
-    }); 
+    });
   }
 
-  const responsiveCoverPhotoPath = req.file.path; 
+  const responsiveCoverPhotoPath = req.file.path;
   const userId = req.query._id;
 
   try {
@@ -1967,7 +1966,7 @@ export const uploadClientCoverPhoto = async (req, res, next) => {
     res.status(500).json({
       status: 'error',
       message: 'Error uploading photo',
-    }); 
+    });
   }
 };
 
@@ -2064,7 +2063,7 @@ export const getClientCoverPhoto = async (req, res, next) => {
         status: 'error',
         message: 'No files found in the user folder',
       });
-    } 
+    }
 
     const file = files[0];
     const fileStream = file.createReadStream();
