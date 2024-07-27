@@ -197,6 +197,7 @@ router.post('/upload', auth.protect, upload.array('photos'), userController.uplo
 router.post('/profile_upload', auth.protect, profile.single('photos'), userController.uploadProfilePhoto);
 router.post("/googlesignIn",authController.googleAuth);
 router.post('/sendUrl', userController.sendPublic_url);
+router.post('/sendAlbumUrl', userController.sendAlbum_url);
 router.post('/sendMedia',auth.protect, userController.sendMedia_Files); 
 router.post('/meta/:id', userController.folder_metadata);
 router.post('/meta_selecting/:id', userController.fileSelecting);

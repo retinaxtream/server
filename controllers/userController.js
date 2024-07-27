@@ -1063,6 +1063,16 @@ export const sendPublic_url = CatchAsync(async (req, res, next) => {
 });
 
 
+export const sendAlbum_url = CatchAsync(async (req, res, next) => {
+  console.log('calling');
+  const { email, magic_url, company_name, event_name } = req.body;
+  await sendAlbum(email, magic_url, company_name, event_name);
+  res.status(200).json({
+    status: 'success',
+  });
+});
+
+
 export const sendMedia_Files = CatchAsync(async (req, res, next) => {
   const { email, magic_url, company_name, event_name, clientId } = req.body;
   const folders = await getFoldersByMetadata("hapzea", clientId, "selected", false);
@@ -1382,6 +1392,115 @@ const sendURL = async (email, magic_url, company_name, event_name) => {
       </body>
       </html>      
       `,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    return "send";
+  } catch (error) {
+    throw error;
+  }
+};
+const sendAlbum = async (email, magic_url, company_name, event_name) => {
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "retina@hapzea.com",
+        pass: "nkhz kfjz nvri tkny", // Provide the correct password
+      },
+    });
+
+    const mailOptions = {
+      from: "retina@hapzea.com",
+      to: email,
+      subject: "Invitation",
+      html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title> ${event_name} Album</title>
+<style>
+  /* CSS styles for the email template */
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+  }
+  .container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    color: #333333;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  .header h1 {
+    color: #3498db;
+    margin: 0;
+  }
+  .header p {
+    color: #888888;
+    margin: 5px 0 0;
+  }
+  .content {
+    margin-bottom: 30px;
+  }
+  .content p {
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0 0 10px;
+  }
+  .button {
+    text-align: center;
+    margin-top: 30px;
+  }
+  .button a {
+    display: inline-block;
+    background-color: #3498db;
+    color: #ffffff;
+    text-decoration: none;
+    padding: 12px 25px;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: background-color 0.3s;
+  }
+  .button a:hover {
+    background-color: #2980b9;
+  }
+  .footer {
+    text-align: center;
+    font-size: 12px;
+    color: #888888;
+    margin-top: 30px;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1> ${event_name} Album</h1>
+      <p>Love from ${company_name}</p>
+    </div>
+    <div class="content">
+      <p>Hello,</p>
+      <p>We're excited to share with you the  ${event_name} album! Click the button below to check out your favourite memories:</p>
+    </div>
+    <div class="button">
+      <a href="${magic_url}" target="_blank">View Event Details</a>
+    </div>
+    <div class="footer">
+      <small>Thank you for being a part of our special memories!</small>
+    </div>
+  </div>
+</body>
+</html>`
     };
 
     const info = await transporter.sendMail(mailOptions);
