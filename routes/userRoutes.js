@@ -202,11 +202,11 @@ router.post('/sendMedia',auth.protect, userController.sendMedia_Files);
 router.post('/meta/:id', userController.folder_metadata);
 router.post('/meta_selecting/:id', userController.fileSelecting);
 router.get('/metacheck/:id', userController.matchingFolders); 
-router.get('/meta_selction_check/:id', userController.matchingFiles);
+router.get('/meta_selction_check/:id', auth.protect, userController.matchingFiles);
 // router.get('/non_meta_files/:id', userController.UnSelected);
 router.post('/deleteImages/:id', userController.deleteFiles);            
 router.get('/download-into-memory', userController.downloadFile); 
-router.post('/updateUser', auth.protect, userController.updateUserById);
+router.post('/updateUser', auth.protect, userController.updateUserById); 
 router.post('/uploadCoverPhoto', auth.protect, cover.single('photos'), userController.uploadCoverPhoto);
 router.post('/uploadResponsiveCoverPhoto', auth.protect, free.single('photos'), userController.uploadResponsiveCoverPhoto);
 

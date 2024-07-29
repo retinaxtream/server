@@ -841,6 +841,8 @@ const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataVal
 
 
     const matchingFolders = files.filter((file) => {
+      console.log('FILE FROM METACHECK');
+      console.log(file);
       const metadata = file.metadata;
       // Check if the file has metadata
       if (metadata.metadata) {
@@ -1107,9 +1109,91 @@ export const sendMedia_Files = CatchAsync(async (req, res, next) => {
 
 
 
+// export const folder_metadata = CatchAsync(async (req, res, next) => {
+//   const clientId = req.params.id;
+//   const folders = req.body.selected;
+//   console.log('$$$$$ %%%%%');
+//   console.log(clientId,folders);
+//   let subFolder;
+//   if (req.body.sub_folder) {
+//     subFolder = req.body.sub_folder;
+//   }
+//   const bucketName = 'hapzea';
+//   const bucket = storage.bucket(bucketName);
+
+//   let [files] = [];
+
+//   if (subFolder) {
+//     console.log('SUB');
+//     const prefix = `${clientId}/PhotoSelection/${subFolder}/`;
+//     const [files] = await bucket.getFiles({
+//       prefix: prefix,
+//     });
+
+//     // for (const file of files) {
+//     //   if (!file.name.endsWith('/')) {
+//     //     await file.setMetadata({ metadata: null });
+//     //     console.log(`Metadata removed for file ${file.name}`);
+//     //   }
+//     // }
+
+//     for (const item of folders) {
+//       console.log('ITEM');
+//       console.log(item);
+//       const filePath = item.src;
+//       const fileName = filePath.split('/').pop();
+//       const folderPath = `${clientId}/PhotoSelection/${subFolder}/${fileName}`;
+//       await bucket.file(folderPath).setMetadata({
+//         metadata: {
+//           selected: true
+//         },
+//       });
+//     }
+
+//     res.status(200).json({
+//       status: 'success',
+//     });
+//   } else {
+
+//     async function removeMetadataFromFolders(bucket, prefix) {
+//       const [files] = await bucket.getFiles({
+//         prefix: prefix,
+//         autoPaginate: false
+//       });
+
+//       for (const file of files) {
+//         if (file.name.endsWith('/')) {
+//           await file.setMetadata({ metadata: null });
+//           await removeMetadataFromFolders(bucket, `${prefix}${file.name}`);
+//         }
+//       }
+//     }
+
+//     await removeMetadataFromFolders(bucket, `${clientId}/PhotoSelection/`);
+
+
+//     for (const folder of folders) {
+//       console.log('Here IT IS');                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+//       const folderPath = `${clientId}/PhotoSelection/${folder}/`;
+//       await bucket.file(folderPath).setMetadata({
+//         metadata: {
+//           selected: false
+//         },
+//       });
+//     }
+
+//     res.status(200).json({
+//       status: 'success',
+//     });
+//   }
+// });
+
+
 export const folder_metadata = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
   const folders = req.body.selected;
+  console.log('$$$$$ %%%%%');
+  console.log(clientId, folders);
   let subFolder;
   if (req.body.sub_folder) {
     subFolder = req.body.sub_folder;
@@ -1120,6 +1204,7 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
   let [files] = [];
 
   if (subFolder) {
+    console.log('SUB');
     const prefix = `${clientId}/PhotoSelection/${subFolder}/`;
     const [files] = await bucket.getFiles({
       prefix: prefix,
@@ -1133,6 +1218,8 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     // }
 
     for (const item of folders) {
+      console.log('ITEM');
+      console.log(item);
       const filePath = item.src;
       const fileName = filePath.split('/').pop();
       const folderPath = `${clientId}/PhotoSelection/${subFolder}/${fileName}`;
@@ -1164,14 +1251,20 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
 
     await removeMetadataFromFolders(bucket, `${clientId}/PhotoSelection/`);
 
-
     for (const folder of folders) {
+      console.log('Here IT IS');
       const folderPath = `${clientId}/PhotoSelection/${folder}/`;
-      await bucket.file(folderPath).setMetadata({
-        metadata: {
-          selected: false
-        },
-      });
+      console.log(`Updating metadata for folder: ${folderPath}`);
+      try {
+        await bucket.file(folderPath).setMetadata({
+          metadata: {
+            selected: false
+          },
+        });
+        console.log(`Metadata updated successfully for ${folderPath}`);
+      } catch (error) {
+        console.error(`Error updating metadata for ${folderPath}:`, error);
+      }
     }
 
     res.status(200).json({
