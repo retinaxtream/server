@@ -13,11 +13,11 @@ import AppError from '../Utils/AppError.js';
 // import sharp from 'sharp';
 import mime from 'mime-types';
 import { log } from 'console';
-import { Logtail } from "@logtail/node";
+import { logger } from "@logger/node";
+import logger from '../Utils/pino.js';
 
-
-// const logtail = new Logtail("wioUzMpsdSdWHrZeN5YSuKS3");
-const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa");
+// const logger = new logger("wioUzMpsdSdWHrZeN5YSuKS3");
+const logger = new logger("5FHQ4tHsSCTJTyY71B1kLYoa");
 
 
 const currentModuleUrl = new URL(import.meta.url);
@@ -99,11 +99,11 @@ export const updateUserById = CatchAsync(async (req, res, next) => {
 // ###########################################################################
 export const jwtcheck = CatchAsync(async (req, res) => {
   // logger.info("from protect router");
-  logtail.info(req.headers);
+  logger.info(req.headers);
   const cookieString = req.headers.cookie;
   // logger.info(cookieString);
-  logtail.info('cookieString');
-  logtail.info(req.headers.cookie);
+  logger.info('cookieString');
+  logger.info(req.headers.cookie);
 
 
   if (cookieString) {
@@ -302,8 +302,8 @@ const extractUsernameFromEmail = async (email) => {
 export const validateLink = CatchAsync(async (req, res, next) => {
   const { type, id, businessName, EventName } = req.body;
 
-  logtail.info('validation');
-  logtail.info(req.body);
+  logger.info('validation');
+  logger.info(req.body);
 
   const clients = await Client.findById(id);
   if (!clients) {
@@ -324,12 +324,12 @@ export const validateLink = CatchAsync(async (req, res, next) => {
   const extractedUsername = await extractUsernameFromEmail(user.email);
   let linkStatus;
 
-  logtail.info({ extractedUsername, reqBodyBusinessName: businessName, userBusinessName: user.businessName });
+  logger.info({ extractedUsername, reqBodyBusinessName: businessName, userBusinessName: user.businessName });
 
   if (type === 'media') {
     linkStatus = (user.businessName === businessName || extractedUsername === businessName) ? 'Allow Access' : 'Deny Access';
   } else {
-    logtail.info({ eventName: clients.EventName, reqEventName: EventName });
+    logger.info({ eventName: clients.EventName, reqEventName: EventName });
     if (clients.EventName === EventName && (user.businessName === businessName || extractedUsername === businessName)) {
       linkStatus = 'Allow Access';
     } else {
@@ -337,7 +337,7 @@ export const validateLink = CatchAsync(async (req, res, next) => {
     }
   }
 
-  logtail.info(linkStatus);
+  logger.info(linkStatus);
 
   res.status(200).json({
     status: 'success',
@@ -1231,9 +1231,9 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
             selected: true
           },
         });
-        logtail.info(`Metadata updated for file: ${folderPath}`);
+        logger.info(`Metadata updated for file: ${folderPath}`);
       } catch (error) {
-        logtail.error(`Error updating metadata for file ${folderPath}: ${error.message}`);
+        logger.error(`Error updating metadata for file ${folderPath}: ${error.message}`);
       }
     }
 
@@ -1252,7 +1252,7 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
         if (file.name.endsWith('/')) {
           await file.setMetadata({ metadata: null });
           await removeMetadataFromFolders(bucket, `${prefix}${file.name}`);
-          logtail.info('removeMetadataFromFolders')
+          logger.info('removeMetadataFromFolders')
         }
       }
     }
@@ -1260,25 +1260,25 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     try {
       await removeMetadataFromFolders(bucket, `${clientId}/PhotoSelection/`);
     } catch (error) {
-      logtail.error(`Error removing metadata: ${error.message}`);
+      logger.error(`Error removing metadata: ${error.message}`);
     }
 
     for (const folder of folders) {
       console.log('Here IT IS');
-      logtail.info('Here IT IS')
+      logger.info('Here IT IS')
       const folderPath = `${clientId}/PhotoSelection/${folder}/`;
       console.log(`Updating metadata for folder: ${folderPath}`);
-      logtail.info(`Updating metadata for folder: ${folderPath}`)
+      logger.info(`Updating metadata for folder: ${folderPath}`)
       try {
         await bucket.file(folderPath).setMetadata({
           metadata: {
             selected: false
           },
         });
-        logtail.info(`Metadata updated successfully for ${folderPath}`);
+        logger.info(`Metadata updated successfully for ${folderPath}`);
         console.log(`Metadata updated successfully for ${folderPath}`);
       } catch (error) {
-        logtail.error(`Error updating metadata for ${folderPath}: ${error.message}`);
+        logger.error(`Error updating metadata for ${folderPath}: ${error.message}`);
         console.error(`Error updating metadata for ${folderPath}:`, error);
       }
     }
