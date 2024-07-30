@@ -1190,6 +1190,7 @@ export const sendMedia_Files = CatchAsync(async (req, res, next) => {
 // });
 
 
+
 export const folder_metadata = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
   const folders = req.body.selected;
@@ -1224,11 +1225,16 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
       const filePath = item.src;
       const fileName = filePath.split('/').pop();
       const folderPath = `${clientId}/PhotoSelection/${subFolder}/${fileName}`;
-      await bucket.file(folderPath).setMetadata({
-        metadata: {
-          selected: true
-        },
-      });
+      try {
+        await bucket.file(folderPath).setMetadata({
+          metadata: {
+            selected: true
+          },
+        });
+        logtail.info(`Metadata updated for file: ${folderPath}`);
+      } catch (error) {
+        logtail.error(`Error updating metadata for file ${folderPath}: ${error.message}`);
+      }
     }
 
     res.status(200).json({
@@ -1251,7 +1257,11 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
       }
     }
 
-    await removeMetadataFromFolders(bucket, `${clientId}/PhotoSelection/`);
+    try {
+      await removeMetadataFromFolders(bucket, `${clientId}/PhotoSelection/`);
+    } catch (error) {
+      logtail.error(`Error removing metadata: ${error.message}`);
+    }
 
     for (const folder of folders) {
       console.log('Here IT IS');
@@ -1265,10 +1275,10 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
             selected: false
           },
         });
-        logtail.info(`Metadata updated successfully for ${folderPath}`)
+        logtail.info(`Metadata updated successfully for ${folderPath}`);
         console.log(`Metadata updated successfully for ${folderPath}`);
       } catch (error) {
-        logtail.info(`Error updating metadata for ${folderPath}:`, error)
+        logtail.error(`Error updating metadata for ${folderPath}: ${error.message}`);
         console.error(`Error updating metadata for ${folderPath}:`, error);
       }
     }
