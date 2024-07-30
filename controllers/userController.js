@@ -1245,6 +1245,7 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
         if (file.name.endsWith('/')) {
           await file.setMetadata({ metadata: null });
           await removeMetadataFromFolders(bucket, `${prefix}${file.name}`);
+          logtail.info('removeMetadataFromFolders')
         }
       }
     }
@@ -1253,16 +1254,20 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
 
     for (const folder of folders) {
       console.log('Here IT IS');
+      logtail.info('Here IT IS')
       const folderPath = `${clientId}/PhotoSelection/${folder}/`;
       console.log(`Updating metadata for folder: ${folderPath}`);
+      logtail.info(`Updating metadata for folder: ${folderPath}`)
       try {
         await bucket.file(folderPath).setMetadata({
           metadata: {
             selected: false
           },
         });
+        logtail.info(`Metadata updated successfully for ${folderPath}`)
         console.log(`Metadata updated successfully for ${folderPath}`);
       } catch (error) {
+        logtail.info(`Error updating metadata for ${folderPath}:`, error)
         console.error(`Error updating metadata for ${folderPath}:`, error);
       }
     }
