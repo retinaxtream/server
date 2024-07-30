@@ -13,11 +13,11 @@ import AppError from '../Utils/AppError.js';
 // import sharp from 'sharp';
 import mime from 'mime-types';
 import { log } from 'console';
-import { logger } from "@logger/node";
+// import { logger } from "@logger/node"; 
 import logger from '../Utils/pino.js';
 
 // const logger = new logger("wioUzMpsdSdWHrZeN5YSuKS3");
-const logger = new logger("5FHQ4tHsSCTJTyY71B1kLYoa");
+// const logger = new logger("5FHQ4tHsSCTJTyY71B1kLYoa");
 
 
 const currentModuleUrl = new URL(import.meta.url);
