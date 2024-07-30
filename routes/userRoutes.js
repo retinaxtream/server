@@ -9,7 +9,7 @@ import { body, validationResult } from 'express-validator';
  
 
 
-const logtail = new Logtail("f27qB9WwtTgD9srKQETiBVG7");
+const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa");
 
 import * as RhzuserController from '../controllers/RhzuserController.js';
 

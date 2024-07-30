@@ -16,7 +16,8 @@ import { log } from 'console';
 import { Logtail } from "@logtail/node";
 
 
-const logtail = new Logtail("wioUzMpsdSdWHrZeN5YSuKS3");
+// const logtail = new Logtail("wioUzMpsdSdWHrZeN5YSuKS3");
+const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa");
 
 
 const currentModuleUrl = new URL(import.meta.url);
