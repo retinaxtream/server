@@ -4,6 +4,7 @@ import userroute from './routes/userRoutes.js';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import AppError from './Utils/AppError.js';
 import connectDatabase from './config/mongodb.js';
 import globalErrorHandler from './controllers/errorController.js';
 import rateLimit from 'express-rate-limit';
@@ -22,7 +23,7 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser()); 
 
-console.log(process.env.NODE_ENV);
+
 
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
@@ -49,7 +50,8 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use('/api/v1/user', userroute);  
+
+app.use('/api/v1/user', userroute);    
 
 app.all('*', (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404)); 
@@ -59,7 +61,7 @@ app.use(globalErrorHandler);
 app.use((err, req, res, next) => { 
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
-  res.status(err.statusCode).json({ 
+  res.status(err.statusCode).json({  
     status: err.status,
     message: err.message,
     error: err, 

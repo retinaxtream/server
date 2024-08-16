@@ -140,9 +140,7 @@ export const protect = CatchAsync(async (req, res, next) => {
   logtail.info(token)
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
-    console.log(token);
-    console.log(req.headers);
-    console.log(req.headers.authorization);
+
   } else if (req.cookies.jwt) {
     token = req.cookies.jwt;
   } else if (req.query.token) {
@@ -151,7 +149,6 @@ export const protect = CatchAsync(async (req, res, next) => {
 
   try {
     if (!token) {
-      console.log('##### No token found #######');
       // logger.info('No token found');
       res.status(401);
       throw new Error('Not Authorized, no token');
@@ -160,9 +157,6 @@ export const protect = CatchAsync(async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     req.user = await User.findById(decoded.id).select('-password');
-    console.log('FROM PROTECT *****************');
-    console.log(req.user);
-    console.log(req.user._id);
     const user = await User.findById(decoded.id).select('-password');
     if (req.user.tokenVersion !== decoded.tokenVersion) {
       // logger.info('Invalid token version');
@@ -180,7 +174,7 @@ export const protect = CatchAsync(async (req, res, next) => {
   } catch (error) {
     // logger.error(error);
     res.status(401);
-    console.log('In the catch');
+
     throw new Error('Not Authorized, token failed');
   } 
 }); 
@@ -188,17 +182,15 @@ export const protect = CatchAsync(async (req, res, next) => {
 
 export const googleAuth = CatchAsync(async (req, res, next) => {
   try {
-    console.log('called');
+
     let { email, id } = req.body; 
     if (!id) {
       return res.status(401).json({ error: "Invalid Credentials" });
     }
  
-    console.log(email, id);
     const user = await User.findOne({ email });
 
     if (!user) {
-      console.log('User not found, creating a new user');
       const newUser = await User.create({
         email,
         password: "Asdfghjklqwer2",
@@ -206,7 +198,6 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
         validating: true,
       });
 
-      console.log('New user created:', newUser);
       const token = await signToken(newUser._id);
       res.cookie('jwtToken', token, {
         httpOnly: true,
@@ -222,7 +213,6 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
         }
       });
     } else if (user) { 
-      console.log('existing user');
       const token = await signToken(user._id);
       res.cookie('jwtToken', token, {
         httpOnly: true,
@@ -256,15 +246,12 @@ export const googleAuthDesk = CatchAsync(async (req, res, next) => {
       return res.status(401).json({ error: "Invalid Credentials" });
     }
 
-    console.log(email);
     const user = await User.findOne({ email });
 
     if (!user) {
-      console.log('User not found');
       return res.status(401).json({ error: "User not authorized" });
     }
 
-    console.log('Existing user:', user);
     const token = await signToken(user._id);
     res.cookie('jwtToken', token, {
       httpOnly: true,

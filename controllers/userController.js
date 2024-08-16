@@ -113,7 +113,6 @@ export const jwtcheck = CatchAsync(async (req, res) => {
       prev[name] = value;
       return prev;
     }, {});
-    // console.log(cookieObj);
     const jwtToken = cookieObj.jwt || cookieObj.jwtToken;
     res.status(200).json({
       status: "sucess",
@@ -781,7 +780,6 @@ export const createFolder_Bucket = CatchAsync(async (req, res, next) => {
 // ###########################################################################
 async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoPaths) {
   try {
-    console.log('called uploadPhotos');
     const bucket = storage.bucket(bucketName);
     // Construct the destination path based on userID, album, folder, and subfolder
     let destinationPath = `${userId}/`;
@@ -819,7 +817,6 @@ async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoP
       readStream.pipe(stream);
     }
 
-    console.log('All photos uploaded successfully.');
   } catch (error) {
     console.error('Error uploading photos:', error);
   }
@@ -831,7 +828,6 @@ async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoP
 
 const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataValue) => {
   try {
-    console.log('called getFoldersByMetadata');
     const bucket = storage.bucket(bucketName);
 
     const folderPath = `${userId}/PhotoSelection`;
@@ -842,8 +838,6 @@ const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataVal
 
 
     const matchingFolders = files.filter((file) => {
-      console.log('FILE FROM METACHECK');
-      console.log(file);
       const metadata = file.metadata;
       // Check if the file has metadata
       if (metadata.metadata) {
@@ -871,7 +865,6 @@ const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataVal
 
 const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue, sub_Files) => {
   try {
-    console.log('called getFilesByMetadata');
     const bucket = storage.bucket(bucketName);
 
     const folderPath = `${userId}/PhotoSelection/${sub_Files}/`;
@@ -1048,7 +1041,6 @@ export const upload = CatchAsync(async (req, res, next) => {
   // Use your uploadPhotos function to handle the photo upload
   await uploadPhotos('hapzea', id, main_folder, sub_folder, photoPaths);
 
-  console.log('frrafsefsdf');
   res.status(200).json({
     status: 'success',
   });
@@ -1056,8 +1048,36 @@ export const upload = CatchAsync(async (req, res, next) => {
 
 
 
+export const signedUrl = CatchAsync(async (req, res, next) => {
+  const { id, main_folder, sub_folder, fileName, fileType } = req.query;
+
+  if (!id || !main_folder || !sub_folder || !fileName || !fileType) {
+    return res.status(400).send('Missing required parameters');
+  }
+
+  const options = {
+    version: 'v4',
+    action: 'write',
+    expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+    contentType: fileType,
+  };
+
+  try {
+    const [signedUrl] = await storage
+      .bucket('hapzea')
+      .file(`${id}/${main_folder}/${sub_folder}/${fileName}`)
+      .getSignedUrl(options);
+
+    const publicUrl = `https://storage.googleapis.com/hapzea/${id}/${main_folder}/${sub_folder}/${fileName}`;
+    res.json({ signedUrl, publicUrl });
+  } catch (error) {
+    res.status(500).send('Error generating signed URL');
+  }
+});
+
+
+
 export const sendPublic_url = CatchAsync(async (req, res, next) => {
-  console.log('calling');
   const { email, magic_url, company_name, event_name } = req.body;
   await sendURL(email, magic_url, company_name, event_name);
   res.status(200).json({
@@ -1079,7 +1099,6 @@ export const sendMedia_Files = CatchAsync(async (req, res, next) => {
   const { email, magic_url, company_name, event_name, clientId } = req.body;
   const folders = await getFoldersByMetadata("hapzea", clientId, "selected", false);
   const trimmedFolderPaths = folders.map(path => path.replace(/\//g, ''));
-  console.log(trimmedFolderPaths);
 
   const photoSubmission = {};
   trimmedFolderPaths.forEach(path => {
@@ -1091,7 +1110,6 @@ export const sendMedia_Files = CatchAsync(async (req, res, next) => {
     { PhotoSubmission: photoSubmission },
     { new: true }
   );
-  console.log(user);
 
   if (!user) {
     return res.status(404).json({
@@ -1194,8 +1212,6 @@ export const sendMedia_Files = CatchAsync(async (req, res, next) => {
 export const folder_metadata = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
   const folders = req.body.selected;
-  console.log('$$$$$ %%%%%');
-  console.log(clientId, folders);
   let subFolder;
   if (req.body.sub_folder) {
     subFolder = req.body.sub_folder;
@@ -1206,7 +1222,6 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
   let [files] = [];
 
   if (subFolder) {
-    console.log('SUB');
     const prefix = `${clientId}/PhotoSelection/${subFolder}/`;
     const [files] = await bucket.getFiles({
       prefix: prefix,
@@ -1220,8 +1235,6 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     // }
 
     for (const item of folders) {
-      console.log('ITEM');
-      console.log(item);
       const filePath = item.src;
       const fileName = filePath.split('/').pop();
       const folderPath = `${clientId}/PhotoSelection/${subFolder}/${fileName}`;
@@ -1264,10 +1277,7 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     }
 
     for (const folder of folders) {
-      console.log('Here IT IS');
-      logger.info('Here IT IS')
       const folderPath = `${clientId}/PhotoSelection/${folder}/`;
-      console.log(`Updating metadata for folder: ${folderPath}`);
       logger.info(`Updating metadata for folder: ${folderPath}`)
       try {
         await bucket.file(folderPath).setMetadata({
@@ -1276,7 +1286,6 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
           },
         });
         logger.info(`Metadata updated successfully for ${folderPath}`);
-        console.log(`Metadata updated successfully for ${folderPath}`);
       } catch (error) {
         logger.error(`Error updating metadata for ${folderPath}: ${error.message}`);
         console.error(`Error updating metadata for ${folderPath}:`, error);
@@ -1765,7 +1774,6 @@ async function uploadSinglePhoto(bucketName, userId, subfolderName, photoPath) {
     for (const file of files) {
       // Delete each file
       await file.delete();
-      console.log(`Deleted old photo: ${file.name}`);
     }
 
     const photoName = path.basename(photoPath); // Extract the photo name using path module
@@ -1982,9 +1990,6 @@ const gettingImageFn = async (userId, subfolder, res) => {
 export const updatePhotoSubmission = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
   const select = req.body.select; // Assuming select is a string representing the folder name
-  console.log('updatePhotoSubmission');
-  console.log('Client ID:', clientId);
-  console.log('Select:', select);
 
   const user = await Client.findById(clientId);
   if (!user) {
@@ -2007,7 +2012,6 @@ export const updatePhotoSubmission = CatchAsync(async (req, res, next) => {
   // Update the specific key in the photoSubmission Map
   photoSubmission.set(select, true); // Set the value to true for the specified select string
 
-  console.log('Updated PhotoSubmission:', Array.from(photoSubmission.entries()));
 
   const updatedUser = await Client.findByIdAndUpdate(
     clientId,
@@ -2015,7 +2019,6 @@ export const updatePhotoSubmission = CatchAsync(async (req, res, next) => {
     { new: true }
   );
 
-  console.log('Updated User:', updatedUser);
 
   res.status(200).json({
     status: 'success',
@@ -2043,7 +2046,6 @@ const deleteExistingImage = async (userId) => {
 };
 
 export const uploadClientCoverPhoto = async (req, res, next) => {
-  console.log('Received request to upload photo for user ID:', req.query._id);
 
   if (!req.file) {
     return res.status(400).json({
@@ -2105,8 +2107,6 @@ export const getClientCoverPhotoURL = async (req, res, next) => {
 };
 
 async function uploadclientPhoto(bucketName, userId, subfolderName, photoPath) {
-  console.log('Uploading to bucket:', bucketName, 'User ID:', userId, 'Subfolder:', subfolderName, 'Photo path:', photoPath);
-
   try {
     const bucket = storage.bucket(bucketName);
     subfolderName = subfolderName || 'default';
@@ -2115,9 +2115,6 @@ async function uploadclientPhoto(bucketName, userId, subfolderName, photoPath) {
     const file = bucket.file(`${destinationPath}${photoName}`);
     const contentType = mime.lookup(photoPath) || 'application/octet-stream';
 
-    console.log('Destination path:', destinationPath);
-    console.log('Photo name:', photoName);
-    console.log('Content type:', contentType);
 
     const stream = file.createWriteStream({
       metadata: {
@@ -2130,10 +2127,8 @@ async function uploadclientPhoto(bucketName, userId, subfolderName, photoPath) {
     });
 
     stream.on('finish', () => {
-      console.log(`Successfully uploaded photo ${photoName} to ${destinationPath}`);
       try {
         fs.unlinkSync(photoPath);
-        console.log(`Local file ${photoPath} deleted successfully.`);
       } catch (err) {
         console.error(`Error deleting local file ${photoPath}:`, err);
       }

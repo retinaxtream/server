@@ -83,11 +83,8 @@ const storageProfile = multer.diskStorage({
         cb(null, 'profile/'); 
     },
     filename: function (req, file, cb) {
-        console.log(file);
         const ext = file.mimetype.split('/')[1];
-        console.log('mimetype');
-        console.log(file.mimetype);
-        console.log(ext);
+
         // const extension = path.extname(file.originalname).toLowerCase().slice(1);
         cb(null, `user-${req.query.id}-${Date.now()}.${ext}`);
     }
@@ -194,13 +191,14 @@ router.post('/createfolder', auth.protect, userController.createFolder_Bucket);
 router.get('/fetchMedia',  userController.fetch_Photos);
 router.get('/fetchMedia_filer',  userController.fetch_Photos_filtered);
 router.post('/upload', auth.protect, upload.array('photos'), userController.upload);
+router.get('/generate-signed-url', auth.protect, userController.signedUrl);
 router.post('/profile_upload', auth.protect, profile.single('photos'), userController.uploadProfilePhoto);
 router.post("/googlesignIn",authController.googleAuth);
 router.post('/sendUrl', userController.sendPublic_url);
 router.post('/sendAlbumUrl', userController.sendAlbum_url);
 router.post('/sendMedia',auth.protect, userController.sendMedia_Files); 
-router.post('/meta/:id', userController.folder_metadata);
-router.post('/meta_selecting/:id', userController.fileSelecting);
+router.post('/meta/:id', userController.folder_metadata);  
+router.post('/meta_selecting/:id', userController.fileSelecting);  
 router.get('/metacheck/:id', userController.matchingFolders); 
 router.get('/meta_selction_check/:id', auth.protect, userController.matchingFiles);
 // router.get('/non_meta_files/:id', userController.UnSelected);
