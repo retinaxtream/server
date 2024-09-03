@@ -4,6 +4,7 @@ import multer from 'multer';
 import * as authController from '../controllers/authController.js';
 import * as auth from '../controllers/auth.js';
 import { Logtail } from "@logtail/node";
+import { CatchAsync } from '../Utils/CatchAsync.js'
 import path from 'path';
 import { body, validationResult } from 'express-validator';
  
@@ -178,8 +179,13 @@ const validateSignup = [
 // router.get('/', userController.home);
 // router.post('/signup', validateSignup, authController.signup);
 // router.post('/login', validateLogin, authController.login);
-router.post('/signup', authController.signup);
-router.post('/login',authController.login);
+// router.post('/signup', authController.signup);
+// router.post('/login',authController.login);
+
+router.post('/login', CatchAsync(authController.login));
+router.post('/signup', CatchAsync(authController.signup));
+
+
 router.post('/validatingLink', userController.validateLink);
 router.post('/create/client', auth.protect, userController.createClient);
 router.get('/create/client', auth.protect, userController.getClients);
@@ -193,6 +199,7 @@ router.get('/fetchMedia_filer',  userController.fetch_Photos_filtered);
 router.post('/upload', auth.protect, upload.array('photos'), userController.upload);
 router.get('/generate-signed-url', auth.protect, userController.signedUrl);
 router.post('/profile_upload', auth.protect, profile.single('photos'), userController.uploadProfilePhoto);
+router.get('/profile_upload', auth.protect, userController.getProfilePhotoFromGCS);
 router.post("/googlesignIn",authController.googleAuth);
 router.post('/sendUrl', userController.sendPublic_url);
 router.post('/sendAlbumUrl', userController.sendAlbum_url);

@@ -1,10 +1,7 @@
-export const CatchAsync = fn => {
-    return async (req, res, next) => {
-        try {
-            await fn(req, res, next);
-        } catch (error) {
-            res.status(500).json({ error: 'An error occurred' });
-            next(error); // Call next with the error to pass it to the error handler
-        }
+export const CatchAsync = (fn) => {
+    return (req, res, next) => {
+      // Ensure fn is a promise
+      Promise.resolve(fn(req, res, next)).catch(next);
     };
-};
+  };
+  

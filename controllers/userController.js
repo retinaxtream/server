@@ -1818,26 +1818,75 @@ const __dirname = dirname(__filename);
 const mkdir = promisify(fs.mkdir);
 const unlink = promisify(fs.unlink);
 
+
+
+export const getProfilePhotoFromGCS = CatchAsync(async (req, res, next) => {
+  try {
+    const userId = req.query.id;
+
+    // Validate the ID format
+    // if (!mongoose.Types.ObjectId.isValid(userId)) {
+    //   return res.status(400).json({
+    //     status: 'fail',
+    //     message: 'Invalid user ID format',
+    //   });
+    // }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'User not found',
+      });
+    }
+
+    // Assuming the file is stored in the GCS bucket with this structure
+    const bucketName = 'your-gcs-bucket-name';
+    const filePath = `users/${userId}/profile/${path.basename(user.photo)}`; // Construct the file path in GCS
+
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(filePath);
+
+    // Option 1: Get a signed URL (expires after a set time)
+    const [signedUrl] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'read',
+      expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+    });
+
+    // Option 2: Get a public URL (assuming the file is publicly accessible)
+    // const publicUrl = `https://storage.googleapis.com/${bucketName}/${filePath}`;
+
+    // Respond with the photo URL
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        photoUrl: signedUrl, // or publicUrl if using public access
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching profile photo from GCS:', error);
+
+    if (!res.headersSent) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Internal Server Error',
+      });
+    } else {
+      console.error('Cannot send response after headers have been sent.');
+    }
+  }
+});
+
+
 async function uploadImageToGCS(bucketName, userId, photoPath) {
   try {
     const bucket = storage.bucket(bucketName);
 
     // Construct the destination path based on userID
     const destinationPath = `users/${userId}/profile/`;
-
-    // Create the directory if it doesn't exist
-    const localDir = path.join(__dirname, `../uploads/${destinationPath}`);
-    if (!fs.existsSync(localDir)) {
-      await mkdir(localDir, { recursive: true });
-    }
-
-    // Extract the photo name using path module
     const photoName = path.basename(photoPath);
-    const localPhotoPath = path.join(localDir, photoName);
-
-    // Move the file to the local directory
-    fs.renameSync(photoPath, localPhotoPath);
-
     const file = bucket.file(`${destinationPath}${photoName}`);
 
     // Create a write stream to upload the file to GCS
@@ -1847,64 +1896,74 @@ async function uploadImageToGCS(bucketName, userId, photoPath) {
       },
     });
 
-    // Handle stream events (success, error)
-    stream.on('error', (err) => {
-      console.error(`Error uploading photo ${photoName}:`, err);
+    await new Promise((resolve, reject) => {
+      stream.on('error', reject);
+      stream.on('finish', resolve);
+
+      // Pipe the file into the write stream
+      const readStream = fs.createReadStream(photoPath);
+      readStream.pipe(stream);
     });
 
-    stream.on('finish', async () => {
-      // You can perform further processing or store the uploaded file information as needed
-      await unlink(localPhotoPath);
-    });
+    // After uploading, remove the local file
+    await unlink(photoPath);
 
-    // Pipe the file into the write stream
-    const readStream = fs.createReadStream(localPhotoPath);
-    readStream.pipe(stream);
+    // Generate a public URL
+    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
+    return publicUrl;
 
   } catch (error) {
     console.error('Error uploading profile photo:', error);
+    throw new Error('Failed to upload image to GCS');
   }
 }
 
+
 export const uploadProfilePhoto = CatchAsync(async (req, res, next) => {
+  try {
+    console.log('User ID received:', req.query.id);
 
+    const user = await User.findById(req.query.id);
 
-  // Check if req.files is an array or if req.file exists for a single file
-  const photoPaths = req.files ? req.files.map(file => file.path) : [req.file.path];
-  // Find the user by ID
-  const user = await User.findById(req.query.id);
+    if (!user) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'User not found',
+      });
+    }
 
-  if (!user) {
-    return res.status(404).json({
-      status: 'fail',
-      message: 'User not found',
+    console.log('User found:', user);
+
+    // Upload the image to GCS and get the public URL
+    const gcsUrl = await uploadImageToGCS('hapzea', req.query.id, req.file.path);
+
+    // Update the user's photo field with the GCS URL
+    user.photo = gcsUrl;
+    await user.save();
+
+    // Respond with success
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        user,
+        photoUrl: gcsUrl,  // Return the URL for immediate use
+      },
     });
+  } catch (error) {
+    console.error('Error during profile photo upload:', error);
+
+    if (!res.headersSent) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Internal Server Error',
+      });
+    } else {
+      console.error('Cannot send response after headers have been sent.');
+    }
   }
-
-  // Update the user's photo field
-  user.photo = req.file ? req.file.filename : req.files[0].filename;
-
-  // Save the updated user document
-  await user.save();
-
-  // Upload the image to GCS
-  // await uploadPhotos('hapzea', '66464345b891e85686ef92f6', 'Album', 'Full Photos', photoPaths);
-  await uploadImageToGCS('hapzea', req.query.id, req.file.path);
-  // ('hapzea', req.query.id, req.file.path);
-  // await uploadImageToGCS(req.file, req.query.id);
-
-  // Log the user object to confirm the photo is set
-
-  // Respond with success
-  res.status(200).json({
-    status: 'success',
-    data: {
-      user,
-    },
-  });
 });
-
-
+  
+ 
 export const uploadCoverPhoto = CatchAsync(async (req, res, next) => {
 
   const coverPhotoPath = req.file.path;
@@ -1927,6 +1986,7 @@ export const uploadResponsiveCoverPhoto = CatchAsync(async (req, res, next) => {
     status: 'success',
   });
 });
+
 
 export const getCoverPhoto = async (req, res, next) => {
   const userId = req.query._id;
