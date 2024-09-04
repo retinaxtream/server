@@ -2243,3 +2243,5 @@ export const getClientCoverPhoto = async (req, res, next) => {
     });
   }
 };
+
+

@@ -7,6 +7,8 @@ import { Logtail } from "@logtail/node";
 import { CatchAsync } from '../Utils/CatchAsync.js'
 import path from 'path';
 import { body, validationResult } from 'express-validator';
+
+import * as rekognitionController from '../controllers/rekognitionController.js';
  
 
 
@@ -19,6 +21,9 @@ import * as RhzuserController from '../controllers/RhzuserController.js';
 const multerStorage = multer.memoryStorage();
 // const upload = multer({ storage: multerStorage });
 const router = express.Router();
+
+const memoryStorage = multer.memoryStorage();
+const upload_ai = multer({ storage: memoryStorage });
 
 
 const storage = multer.diskStorage({
@@ -223,6 +228,12 @@ router.post("/googlesignInDesktop",authController.googleAuthDesk);
 router.post('/updatePhotoSubmission/:id', userController.updatePhotoSubmission);
 router.post('/uploadClientCoverPhoto',auth.protect,  clientcover.single('photos'), userController.uploadClientCoverPhoto);
 router.get('/getClientCoverPhoto',auth.protect, userController.getClientCoverPhoto);
+
+// Example route for uploading multiple images for face indexing in an event
+router.post('/upload-images', upload_ai.array('images'), rekognitionController.uploadImages);
+// Example route for searching a face in an event
+router.post('/search-face', upload_ai.single('photo'), rekognitionController.searchFace);
+
    
   // upload cover photo     
 router.get('/getClientCoverPhotoURL/:id', userController.getClientCoverPhotoURL);
