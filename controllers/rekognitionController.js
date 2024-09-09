@@ -66,6 +66,7 @@ export const uploadImages = async (req, res) => {
                 Bucket: process.env.S3_BUCKET_NAME,
                 Key: s3Key,
                 Body: resizedImageBuffer,
+                ACL: 'public-read',
             };
             await s3Client.send(new PutObjectCommand(uploadParams));
             console.log(`Image uploaded to S3: ${s3Key}`);

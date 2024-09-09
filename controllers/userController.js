@@ -189,6 +189,8 @@ export const createClient = CatchAsync(async (req, res, next) => {
       }
     }
 
+    const eventNameOrCategory = req.body.Event_Name || req.body.Event_Category; // Fallback to Event Category if Event Name is missing
+
     if (
       req.body.Event_Category === 'Wedding' ||
       req.body.Event_Category === 'Engagement' ||
@@ -201,14 +203,13 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Phone: req.body.Phone,
         Date: req.body.Date,
         EventCategory: req.body.Event_Category,
-        EventName: req.body.Event_Name,
+        EventName: req.body.Event_Name, // Event Name might be empty, handle accordingly in the database schema if necessary
         Groom: req.body.Groom,
         Bride: req.body.Bride,
         Venue: req.body.Venue,
         Source: req.body.Source,
       });
       await createFolder('hapzea', `${newClient._id}/`);
-      magicLink = `https://hapzea.com/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
     } else {
       newClient = await Client.create({
         userId: req.user._id,
@@ -217,13 +218,15 @@ export const createClient = CatchAsync(async (req, res, next) => {
         Phone: req.body.Phone,
         Date: req.body.Date,
         EventCategory: req.body.Event_Category,
-        EventName: req.body.Event_Name,
+        EventName: req.body.Event_Name, // Event Name might be empty, handle accordingly in the database schema if necessary
         Venue: req.body.Venue,
         Source: req.body.Source,
       });
       await createFolder('hapzea', `${newClient._id}/`);
-      magicLink = `https://hapzea.com/invitation/${businessName}/${req.body.Event_Name}/${newClient._id}`;
     }
+
+    // Generate magicLink based on EventName or EventCategory
+    magicLink = `https://hapzea.com/invitation/${businessName}/${eventNameOrCategory}/${newClient._id}`;
 
     await Client.findByIdAndUpdate(newClient._id, { $set: { magicLink } }, { new: true });
 
@@ -244,8 +247,8 @@ export const getClients = CatchAsync(async (req, res, next) => {
     status: 'success',
     data: {
       clients,
-    },
-  });
+    }, 
+  });    
 });
 
 
