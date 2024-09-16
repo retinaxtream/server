@@ -1,6 +1,6 @@
 // controllers/rekognitionController.js
 
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import {
   RekognitionClient,
   CreateCollectionCommand,
@@ -49,9 +49,9 @@ const createCollection = async (collectionId) => {
 
 // Controller for uploading multiple images
 export const uploadImages = async (req, res) => {
-  const { eventId, socketId } = req.body;
+  const { eventId, socketId } = req.query; // Extract eventId and socketId from query params
   const files = req.files;
-  const collectionId = `event-${eventId}`;
+  const collectionId = `event-${eventId}`; // Collection ID for Rekognition
 
   if (!files || files.length === 0) {
     return res.status(400).json({ message: 'No files uploaded' });
@@ -65,7 +65,7 @@ export const uploadImages = async (req, res) => {
   }
 
   try {
-    // Check if collection exists
+    // Check if collection exists for the event (Rekognition)
     const exists = await collectionExists(collectionId);
     if (!exists) {
       await createCollection(collectionId);
@@ -75,26 +75,25 @@ export const uploadImages = async (req, res) => {
     let processedCount = 0;
 
     for (const file of files) {
-      // Generate unique UUID for externalImageId
-      const uniqueId = uuidv4(); // e.g., 'a6c117fe-0c0b-4263-8196-e39f5b8ebc16'
+      // Generate unique UUID for the filename
+      const uniqueId = uuidv4();
 
       // Sanitize the original filename
       const sanitizedFilename = sanitizeFilename(file.originalname);
 
-      // Construct S3 key
-      const s3Key = `${uniqueId}-${sanitizedFilename}`;
+      // Construct S3 key with eventId as folder name
+      const s3Key = `${eventId}/${uniqueId}-${sanitizedFilename}`;
 
-      // Resize the image
+      // Resize the image (optional)
       const resizedImageBuffer = await sharp(file.buffer)
         .resize(1024, 1024, { fit: 'inside' })
         .toBuffer();
 
-      // Upload image to S3
+      // Upload image to S3 under the eventId folder
       const uploadParams = {
         Bucket: process.env.S3_BUCKET_NAME,
         Key: s3Key,
         Body: resizedImageBuffer,
-        // ACL: 'public-read', // Removed to comply with bucket settings
       };
       await s3Client.send(new PutObjectCommand(uploadParams));
 
@@ -106,11 +105,11 @@ export const uploadImages = async (req, res) => {
       console.log(`Emitting progress: ${uploadProgress}%`);
       io.to(socketId).emit('uploadProgress', { progress: uploadProgress });
 
-      // Index faces in Rekognition
+      // Index faces in AWS Rekognition
       const indexCommand = new IndexFacesCommand({
         CollectionId: collectionId,
         Image: { Bytes: resizedImageBuffer },
-        ExternalImageId: uniqueId, // Use only the UUID, conforming to the pattern
+        ExternalImageId: uniqueId, // Use uniqueId for external image identification
         DetectionAttributes: ['ALL'],
       });
 
@@ -128,7 +127,7 @@ export const uploadImages = async (req, res) => {
             Item: {
               EventId: { S: eventId },
               FaceId: { S: faceId },
-              ImageUrl: { S: s3Key },
+              ImageUrl: { S: s3Key }, // Store the S3 key with eventId folder
               BoundingBox: {
                 M: {
                   Left: { N: faceRecord.Face.BoundingBox.Left.toString() },
@@ -149,9 +148,6 @@ export const uploadImages = async (req, res) => {
           }
         }
       }
-
-      // Optionally, emit progress after Rekognition indexing
-      // io.to(socketId).emit('uploadProgress', { progress: uploadProgress });
     }
 
     // After all files are processed, emit completion event
@@ -159,15 +155,15 @@ export const uploadImages = async (req, res) => {
 
     res.status(200).json({ message: 'Images uploaded and faces indexed' });
   } catch (error) {
-    console.error(`Error indexing faces: ${error.message}`);
+    console.error(`Error uploading and indexing images: ${error.message}`);
     io.to(socketId).emit('uploadError', { message: 'Failed to process images' });
     res.status(500).json({ error: 'Failed to process images' });
   }
-}; 
+};
 
 // Controller for searching faces in an event
 export const searchFace = async (req, res) => {
-  const { eventId } = req.body;
+  const { eventId } = req.query; // Get eventId from query params
   const file = req.file;
 
   if (!file) {
@@ -233,36 +229,30 @@ export const searchFace = async (req, res) => {
   }
 };
 
-
-
+// Controller for getting all event images
 export const getEventImages = async (req, res) => {
-  const eventId = req.query.eventId;
+  const { eventId } = req.query;
 
   if (!eventId) {
     return res.status(400).json({ message: 'No event ID provided' });
   }
 
   try {
-    // Query DynamoDB for all items with the given eventId
-    const queryParams = {
-      TableName: process.env.DYNAMODB_TABLE,
-      KeyConditionExpression: 'EventId = :eventId',
-      ExpressionAttributeValues: {
-        ':eventId': { S: eventId },
-      },
+    // List objects in the S3 bucket under the eventId prefix
+    const listParams = {
+      Bucket: process.env.S3_BUCKET_NAME,
+      Prefix: `${eventId}/`,
     };
 
-    const queryResponse = await dynamoDBClient.send(new QueryCommand(queryParams));
+    const listedObjects = await s3Client.send(new ListObjectsV2Command(listParams));
 
-    const items = queryResponse.Items;
-
-    if (items.length === 0) {
+    if (!listedObjects.Contents || listedObjects.Contents.length === 0) {
       return res.status(200).json({ images: [] });
     }
 
-    // Map items to image URLs
-    const images = items.map(item => {
-      const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/${item.ImageUrl.S}`;
+    // Map S3 objects to image URLs
+    const images = listedObjects.Contents.map((item) => {
+      const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/${item.Key}`;
       return imageUrl;
     });
 
