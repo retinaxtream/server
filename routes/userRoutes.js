@@ -9,8 +9,10 @@ import { Logtail } from "@logtail/node";
 import { CatchAsync } from '../Utils/CatchAsync.js';
 import path from 'path';
 import { body, validationResult } from 'express-validator';
+// import { storeGuestDetails } from '../controllers/GuestController.js';
 
 import * as rekognitionController from '../controllers/rekognitionController.js';
+import * as GuestController from '../controllers/GuestController.js';
 
 const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa");
 
@@ -21,6 +23,21 @@ const router = express.Router();
 
 const memoryStorage = multer.memoryStorage();
 const upload_ai = multer({ storage: memoryStorage });
+
+const guestImageStorage = multer.memoryStorage();
+const uploadGuestImage = multer({
+  storage: guestImageStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size to 5MB
+  fileFilter: (req, file, cb) => {
+    console.log('Incoming file:', file.originalname, file.mimetype); // Log file details
+    // Accept only image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only images are allowed.'));
+    }
+  },
+});
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -201,6 +218,21 @@ router.post('/upload-images', upload_ai.array('images'), (req, res, next) => {
   req.eventId = req.query.eventId;
   next();
 }, rekognitionController.uploadImages);
+
+
+router.post(
+  '/register-guest',
+  auth.protect, // Protect the route if authentication is required; remove if not needed
+  uploadGuestImage.single('guestImage'), // 'guestImage' is the field name in the form-data
+  GuestController.storeGuestDetails
+);
+
+router.get(
+  '/get-guest-details',
+  auth.protect, // Protect the route to ensure only authenticated users can access
+  GuestController.getGuestDetails
+);
+
 
 // Example route for searching a face in an event
 router.post('/search-face',auth.protect, upload_ai.single('photo'), rekognitionController.searchFace);

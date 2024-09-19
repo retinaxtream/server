@@ -60,6 +60,36 @@ app.use(
 
 app.use('/api/v1/user', userRoutes);
 
+app.use((err, req, res, next) => {
+  console.error('Error:', err.message);
+  console.error('Stack:', err.stack);
+
+  // Set default status code and message
+  let statusCode = 500;
+  let message = 'Internal Server Error';
+
+  // Handle Multer errors
+  if (err instanceof multer.MulterError) {
+    statusCode = 400;
+    message = err.message;
+  } else if (err.message === 'Invalid file type. Only images are allowed.') {
+    statusCode = 400;
+    message = err.message;
+  } else if (err.message === 'DYNAMODB_TABLE_NAME environment variable is not set.') {
+    statusCode = 500;
+    message = err.message;
+  }
+
+  res.status(statusCode).json({
+    error: {
+      message,
+      storageErrors: [], // Populate as needed
+      statusCode,
+      status: statusCode >= 500 ? 'error' : 'fail',
+    },
+  });
+});
+
 app.all('*', (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });

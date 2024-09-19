@@ -162,7 +162,7 @@ export const uploadImages = async (req, res) => {
 };
 
 // Controller for searching faces in an event
-export const searchFace = async (req, res) => {
+export const searchFace = async (req, res) => {  
   const { eventId } = req.query; // Get eventId from query params
   const file = req.file;
 
