@@ -2,7 +2,7 @@
 
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
 
@@ -69,11 +69,11 @@ export const storeGuestDetails = async (req, res, next) => {
 
     // Prepare the item to be stored in DynamoDB
     const putParams = {
-      TableName: process.env.DYNAMODB_TABLE_NAME, // Ensure this environment variable is set
+      TableName: process.env.DYNAMODB_TABLE_NAME, // Use the correct environment variable
       Item: {
         EventId: eventId,
         GuestId: guestId,
-        Name: name, 
+        Name: name,
         Mobile: mobile,
         ImageUrl: imageUrl, // Store the full S3 URL
         ScannedAt: new Date().toISOString(),
@@ -100,20 +100,20 @@ export const getGuestDetails = async (req, res) => {
     if (!eventId) {
       return res.status(400).json({ message: 'EventId is required.' });
     }
-  
-    try {
-      // Define parameters for DynamoDB Query
-      const queryParams = {
-        TableName: process.env.DYNAMODB_GUESTS_TABLE, // Ensure this environment variable is set
-        KeyConditionExpression: 'EventId = :eventId',
-        ExpressionAttributeValues: {
-          ':eventId': { S: eventId },
-        },
-      };
    
+    try { 
+      // Define parameters for DynamoDB Query using DynamoDBDocumentClient
+      const queryParams = {
+          TableName: process.env.DYNAMODB_TABLE_NAME, // Ensure this environment variable is set
+          IndexName: 'EventIdIndex', // Name of the GSI
+          KeyConditionExpression: 'EventId = :eventId',
+          ExpressionAttributeValues: {   
+              ':eventId': eventId, // Directly pass the value without specifying type
+          },
+      };
 
-      // Execute the QueryCommand
-      const data = await dynamoDBClient.send(new QueryCommand(queryParams));
+      // Execute the QueryCommand using DynamoDBDocumentClient
+      const data = await dynamoDBDocClient.send(new QueryCommand(queryParams));
   
       // Check if any guests are found
       if (!data.Items || data.Items.length === 0) {
@@ -122,11 +122,11 @@ export const getGuestDetails = async (req, res) => {
   
       // Map DynamoDB items to a more readable format
       const guests = data.Items.map((item) => ({
-        guestId: item.GuestId.S,
-        name: item.Name.S,
-        mobile: item.Mobile.S,
-        imageUrl: getS3Url(item.ImageUrl.S),
-        scannedAt: item.ScannedAt.S,
+        guestId: item.GuestId,
+        name: item.Name,
+        mobile: item.Mobile,
+        imageUrl: item.ImageUrl, // Assuming ImageUrl is already a full URL
+        scannedAt: item.ScannedAt,
       }));
   
       // Respond with the guest details
@@ -135,4 +135,76 @@ export const getGuestDetails = async (req, res) => {
       console.error(`Error fetching guest details: ${error.message}`);
       res.status(500).json({ error: 'Failed to fetch guest details.' });
     }
-  };
+};  
+
+
+
+
+
+
+
+
+
+
+
+
+// export const storeGuestDetails = async (req, res, next) => {
+//     const { eventId } = req.query; 
+//     const { name, mobile } = req.body;
+//     const file = req.file;
+  
+  
+//     if (!eventId || !name || !mobile || !file) {
+//       return res.status(400).json({
+//         error: {
+//           message: 'Missing required fields: eventId, name, mobile, or image.',
+//           storageErrors: [],
+//           statusCode: 400,
+//           status: 'fail',
+//         },
+//       });
+//     }
+  
+//     try {
+//       const guestId = uuidv4();
+  
+//       const sanitizedFilename = sanitizeFilename(file.originalname);
+  
+//       const s3Key = `${eventId}/guests/${guestId}-${sanitizedFilename}`;
+  
+//       const resizedImageBuffer = await sharp(file.buffer)
+//         .resize(1024, 1024, { fit: 'inside' })
+//         .toBuffer();
+  
+//       const uploadParams = {
+//         Bucket: process.env.S3_BUCKET_NAME,
+//         Key: s3Key,
+//         Body: resizedImageBuffer,
+//         ContentType: file.mimetype, 
+//       };
+//       await s3Client.send(new PutObjectCommand(uploadParams));
+//       console.log(`Guest image uploaded to S3: ${s3Key}`);
+  
+//       const imageUrl = getS3Url(s3Key);
+  
+//       const putParams = {
+//         TableName: process.env.DYNAMODB_TABLE_NAME, 
+//         Item: {
+//           EventId: eventId,
+//           GuestId: guestId,
+//           Name: name, 
+//           Mobile: mobile,
+//           ImageUrl: imageUrl, 
+//           ScannedAt: new Date().toISOString(),
+//         },
+//       };
+  
+//       await dynamoDBDocClient.send(new PutCommand(putParams));
+//       console.log(`Guest details stored in DynamoDB: ${guestId}`);
+  
+//       res.status(200).json({ message: 'Guest details stored successfully', guestId });
+//     } catch (error) {
+//       console.error(`Error storing guest details: ${error.message}`);
+//       next(error); 
+//     }
+//   };
