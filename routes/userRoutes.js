@@ -1,5 +1,4 @@
 // routes/userRoute.js
-
 import express from 'express';
 import * as userController from '../controllers/userController.js';
 import multer from 'multer';
@@ -170,7 +169,7 @@ const validateLogin = [
 // Authentication routes
 router.post('/login', CatchAsync(authController.login));
 router.post('/signup', CatchAsync(authController.signup));
-
+ 
 // Other routes
 router.post('/validatingLink', userController.validateLink);
 router.post('/create/client', auth.protect, userController.createClient);
@@ -231,6 +230,12 @@ router.get(
   '/get-guest-details',
   auth.protect, // Protect the route to ensure only authenticated users can access
   GuestController.getGuestDetails
+);
+
+router.post(
+  '/compare-guest-faces',
+  auth.protect, // Middleware to protect the route
+  rekognitionController.compareGuestFaces // Controller function handling the logic
 );
 
 

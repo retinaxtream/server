@@ -1,21 +1,25 @@
 // controllers/rekognitionController.js
 
-import { S3Client, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, ListObjectsV2Command,GetObjectCommand  } from '@aws-sdk/client-s3';
 import {
   RekognitionClient,
   CreateCollectionCommand,
   IndexFacesCommand,
+  SearchFacesCommand,
   ListCollectionsCommand,
   SearchFacesByImageCommand
 } from '@aws-sdk/client-rekognition';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { DynamoDBClient, PutItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
+import { Readable } from 'stream';
 import sharp from 'sharp';
 
 // Initialize AWS clients
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
 const rekognitionClient = new RekognitionClient({ region: process.env.AWS_REGION });
 const dynamoDBClient = new DynamoDBClient({ region: process.env.AWS_REGION });
+const dynamoDBDocClient = DynamoDBDocumentClient.from(dynamoDBClient);
 
 // Helper function to sanitize filenames
 const sanitizeFilename = (filename) => {
@@ -260,5 +264,221 @@ export const getEventImages = async (req, res) => {
   } catch (error) {
     console.error(`Error fetching event images: ${error.message}`);
     res.status(500).json({ error: 'Failed to fetch event images' });
+  }
+};
+
+
+
+// Helper function to get image buffer from S3
+const getImageBuffer = async (s3Key) => {
+  try {
+    const command = new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: s3Key,
+    });
+    const response = await s3Client.send(command);
+    const stream = response.Body;
+    const chunks = [];
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
+  } catch (error) {
+    console.error(`Error fetching image from S3: ${error.message}`);
+    throw error;
+  }
+};
+
+// Function to ensure Rekognition collection exists
+const ensureCollectionExists = async (collectionId) => {
+  try {
+    const createCollectionCommand = new CreateCollectionCommand({ CollectionId: collectionId });
+    const response = await rekognitionClient.send(createCollectionCommand);
+    console.log(`Collection ${collectionId} created with ARN: ${response.CollectionArn}`);
+  } catch (error) {
+    if (error.name === 'ResourceAlreadyExistsException') {
+      console.log(`Collection ${collectionId} already exists.`);
+    } else {
+      console.error(`Error creating collection ${collectionId}: ${error.message}`);
+      throw error;
+    }
+  }
+};
+
+// Controller to compare guest faces and find matches
+export const compareGuestFaces = async (req, res) => {
+  const { eventId } = req.query; // Assuming eventId is passed as a query parameter
+
+  // Validate that eventId is provided
+  if (!eventId) {
+    return res.status(400).json({ message: 'EventId is required.' });
+  }
+
+  // Define Rekognition collection name
+  const collectionId = `event-${eventId}-collection`;
+
+  try {
+    // Step 1: Ensure Rekognition collection exists
+    await ensureCollectionExists(collectionId);
+
+    // Step 2: Retrieve all guest details for the event
+    const queryParams = {
+      TableName: process.env.DYNAMODB_TABLE_NAME,
+      IndexName: 'EventIdIndex', // Ensure you have a GSI on EventId
+      KeyConditionExpression: 'EventId = :eventId',
+      ExpressionAttributeValues: {
+        ':eventId': eventId,
+      },
+    };
+
+    const data = await dynamoDBDocClient.send(new QueryCommand(queryParams));
+
+    if (!data.Items || data.Items.length === 0) {
+      return res.status(200).json({ message: 'No guests found for this event.', matches: [] });
+    }
+
+    const guests = data.Items;
+
+    // Step 3: Index all guest faces into Rekognition collection with concurrency control
+    const limit = pLimit(5); // Limit concurrency to 5
+
+    const indexPromises = guests.map((guest) => limit(async () => {
+      const { GuestId, ImageUrl } = guest;
+
+      // Check if the face is already indexed by storing FaceIds in DynamoDB
+      if (guest.FaceId) {
+        console.log(`Guest ${GuestId} already has a FaceId: ${guest.FaceId}`);
+        return;
+      }
+
+      // Extract the S3 key from ImageUrl
+      const s3Key = ImageUrl.replace(`https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/`, '');
+
+      // Get image buffer from S3
+      const imageBuffer = await getImageBuffer(s3Key);
+
+      // Resize the image using sharp (optional)
+      const resizedImageBuffer = await sharp(imageBuffer)
+        .resize(1024, 1024, { fit: 'inside' })
+        .toBuffer();
+
+      // Index face into Rekognition collection
+      const indexParams = {
+        CollectionId: collectionId,
+        Image: { Bytes: resizedImageBuffer },
+        ExternalImageId: GuestId, // Use GuestId as ExternalImageId
+        DetectionAttributes: ['DEFAULT'],
+      };
+
+      try {
+        const indexResponse = await rekognitionClient.send(new IndexFacesCommand(indexParams));
+        if (indexResponse.FaceRecords && indexResponse.FaceRecords.length > 0) {
+          const faceId = indexResponse.FaceRecords[0].Face.FaceId;
+          console.log(`Indexed face for GuestId ${GuestId}: FaceId ${faceId}`);
+
+          // Update DynamoDB with FaceId
+          const updateParams = {
+            TableName: process.env.DYNAMODB_TABLE_NAME,
+            Key: {
+              EventId: eventId,
+              GuestId: GuestId,
+            },
+            UpdateExpression: 'set FaceId = :f',
+            ExpressionAttributeValues: {
+              ':f': faceId,
+            },
+          };
+
+          await dynamoDBDocClient.send(new PutCommand(updateParams));
+        } else {
+          console.warn(`No faces detected for GuestId ${GuestId}.`);
+        }
+      } catch (indexError) {
+        console.error(`Error indexing face for GuestId ${GuestId}: ${indexError.message}`);
+      }
+    }));
+
+    await Promise.all(indexPromises);
+    console.log('Completed indexing all guest faces.');
+
+    // Refresh the guests array to include updated FaceIds
+    const refreshedData = await dynamoDBDocClient.send(new QueryCommand(queryParams));
+    const refreshedGuests = refreshedData.Items;
+
+    // Step 4: Compare each guest face with others to find matches
+    const matches = [];
+
+    for (const guest of refreshedGuests) {
+      const { GuestId, FaceId, Name, Mobile, ImageUrl } = guest;
+
+      // Skip guests without a FaceId
+      if (!FaceId) {
+        console.warn(`GuestId ${GuestId} does not have a FaceId. Skipping comparison.`);
+        continue;
+      }
+
+      // Search for matching faces in the collection
+      const searchParams = {
+        CollectionId: collectionId,
+        FaceId: FaceId,
+        FaceMatchThreshold: 80, // Adjust threshold as needed
+        MaxFaces: 10, // Adjust based on expected number of matches
+      };
+
+      try {
+        const searchResponse = await rekognitionClient.send(new SearchFacesCommand(searchParams));
+        const faceMatches = searchResponse.FaceMatches;
+
+        if (faceMatches && faceMatches.length > 0) {
+          for (const match of faceMatches) {
+            const matchedFaceId = match.Face.FaceId;
+            const similarity = match.Similarity;
+
+            // Avoid matching the face with itself
+            if (matchedFaceId === FaceId) continue;
+
+            // Find the matched guest's details
+            const matchedGuest = refreshedGuests.find(g => g.FaceId === matchedFaceId);
+
+            if (matchedGuest) {
+              matches.push({
+                guest: {
+                  guestId: GuestId,
+                  name: Name,
+                  mobile: Mobile,
+                  imageUrl: ImageUrl,
+                },
+                matchedGuest: {
+                  guestId: matchedGuest.GuestId,
+                  name: matchedGuest.Name,
+                  mobile: matchedGuest.Mobile,
+                  imageUrl: matchedGuest.ImageUrl,
+                },
+                similarity: similarity,
+              });
+            }
+          }
+        }
+      } catch (searchError) {
+        console.error(`Error searching faces for GuestId ${GuestId}: ${searchError.message}`);
+      }
+    }
+
+    // Remove duplicate matches (e.g., A matches B and B matches A)
+    const uniqueMatches = [];
+    const seenPairs = new Set();
+
+    for (const match of matches) {
+      const pairKey = [match.guest.guestId, match.matchedGuest.guestId].sort().join('-');
+      if (!seenPairs.has(pairKey)) {
+        seenPairs.add(pairKey);
+        uniqueMatches.push(match);
+      }
+    }
+
+    res.status(200).json({ matches: uniqueMatches });
+  } catch (error) {
+    console.error(`Error comparing guest faces: ${error.message}`);
+    res.status(500).json({ error: 'Failed to compare guest faces.' });
   }
 };
