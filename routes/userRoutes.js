@@ -223,7 +223,7 @@ router.post('/upload-images', upload_ai.array('images'), (req, res, next) => {
 
 router.post(
   '/register-guest',
-  auth.protect, // Protect the route if authentication is required; remove if not needed
+   // Protect the route if authentication is required; remove if not needed
   uploadGuestImage.single('guestImage'), // 'guestImage' is the field name in the form-data
   GuestController.storeGuestDetails
 );

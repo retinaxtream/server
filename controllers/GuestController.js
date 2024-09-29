@@ -32,6 +32,7 @@ const getS3Url = (s3Key) => {
 
 // Function to store guest details
 export const storeGuestDetails = async (req, res, next) => {
+  logger.info("calling registering guest");
   const { eventId } = req.query; // Assuming eventId is passed as a query parameter
   const { name, mobile } = req.body;
   const file = req.file;
