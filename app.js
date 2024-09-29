@@ -9,7 +9,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import mongoSanitize from 'express-mongo-sanitize';
 import xss from 'xss-clean';
-import loggerPromise from './Utils/logger.js'; // Ensure the correct path and .js extension
+import logger from './Utils/logger.js'; // Direct import of the initialized logger
 import userRoutes from './routes/userRoutes.js';
 import connectDatabase from './config/mongodb.js';
 import globalErrorHandler from './controllers/errorController.js';
@@ -87,26 +87,24 @@ app.all('*', (req, res, next) => {
 });
 
 // ===========================
-// 5. Initialize Logger and Start Server
+// 5. Initialize Server and Socket.IO
 // ===========================
 
-const initializeServer = async () => {
+const initializeServer = () => {
   try {
-    const logger = await loggerPromise;
-
-    // Attach logger to app locals for access in routes/middleware if needed
-    app.locals.logger = logger; 
+    // Attach logger to app locals for backward compatibility
+    app.locals.logger = logger;
 
     // Create an HTTP server from the Express app
-    const server = http.createServer(app); 
+    const server = http.createServer(app);
 
     // Initialize Socket.IO server
     const io = new SocketIOServer(server, {
       cors: {
         origin: [
-          'https://hapzea.com', 
+          'https://hapzea.com',
           'http://hapzea.com',
-          'http://localhost:3000', 
+          'http://localhost:3000',
         ],
         methods: ['GET', 'POST'],
         allowedHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options'],
@@ -114,9 +112,9 @@ const initializeServer = async () => {
       },
     });
 
-    // Handle Socket.IO connections  
+    // Handle Socket.IO connections
     io.on('connection', (socket) => {
-      logger.info(`Client connected: ${socket.id}`); 
+      logger.info(`Client connected: ${socket.id}`);
 
       // Optional: Handle custom events from the client if needed
       // socket.on('customEvent', (data) => { /* Handle event */ });
@@ -142,8 +140,8 @@ const initializeServer = async () => {
       logger.info(`App running on port ${port} in ${process.env.NODE_ENV} mode`);
     });
   } catch (error) {
-    console.error('Failed to initialize logger:', error);
-    process.exit(1); // Exit the application if logger fails to initialize
+    logger.error('Failed to initialize server:', error);
+    process.exit(1); // Exit the application if server initialization fails
   }
 };
 

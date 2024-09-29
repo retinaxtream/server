@@ -1,6 +1,7 @@
 // controllers/errorController.js
 
 import AppError from "../Utils/AppError.js";
+import logger from '../Utils/logger.js'; // Direct import of the logger
 
 // Handle MongoDB CastError (invalid ObjectId)
 const handleCastErrorDB = (err) => {
@@ -23,7 +24,7 @@ const handleValidationErrorDB = (err) => {
 };
 
 // Send error response during development
-const sendErrorDev = (err, res, logger) => {
+const sendErrorDev = (err, res) => {
   // Log the error details using Winston
   logger.error('Error:', {
     message: err.message,
@@ -40,7 +41,7 @@ const sendErrorDev = (err, res, logger) => {
 };
 
 // Send error response during production
-const sendErrorProd = (err, res, logger) => {
+const sendErrorProd = (err, res) => {
   if (err.isOperational) {
     // Log operational errors as warnings
     logger.warn('Operational error:', {
@@ -74,11 +75,8 @@ const globalErrorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
-  // Access the logger from app locals
-  const logger = req.app.locals.logger;
-
   if (process.env.NODE_ENV === 'development') {
-    sendErrorDev(err, res, logger);
+    sendErrorDev(err, res);
   } else if (process.env.NODE_ENV === 'production') {
     let error = { ...err };
     error.message = err.message;
@@ -88,7 +86,7 @@ const globalErrorHandler = (err, req, res, next) => {
     if (error.code === 11000) error = handleDuplicateFieldsDB(error);
     if (error.name === 'ValidationError') error = handleValidationErrorDB(error);
 
-    sendErrorProd(error, res, logger);
+    sendErrorProd(error, res);
   }
 };
 

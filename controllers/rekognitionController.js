@@ -1,6 +1,7 @@
 // controllers/rekognitionController.js
 
-import { S3Client, PutObjectCommand, ListObjectsV2Command,GetObjectCommand  } from '@aws-sdk/client-s3';
+import logger from '../Utils/logger.js'; // Import the logger
+import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 import {
   RekognitionClient,
   CreateCollectionCommand,
@@ -9,11 +10,13 @@ import {
   ListCollectionsCommand,
   SearchFacesByImageCommand
 } from '@aws-sdk/client-rekognition';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { DynamoDBClient, PutItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, PutCommand as DocPutCommand } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
-import { Readable } from 'stream';
 import sharp from 'sharp';
+import pLimit from 'p-limit'; // Ensure p-limit is installed
+import AppError from '../Utils/AppError.js'; // Assuming you have an AppError utility
+
 
 // Initialize AWS clients
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
@@ -31,10 +34,10 @@ const collectionExists = async (collectionId) => {
   try {
     const listCollectionsCommand = new ListCollectionsCommand({});
     const collectionsResponse = await rekognitionClient.send(listCollectionsCommand);
-    console.log(`Collections found: ${JSON.stringify(collectionsResponse.CollectionIds)}`);
+    logger.info(`Collections found: ${JSON.stringify(collectionsResponse.CollectionIds)}`, { collectionId });
     return collectionsResponse.CollectionIds.includes(collectionId);
   } catch (error) {
-    console.error(`Error listing collections: ${error.message}`);
+    logger.error(`Error listing collections: ${error.message}`, { collectionId, error });
     throw error;
   }
 };
@@ -44,9 +47,9 @@ const createCollection = async (collectionId) => {
   try {
     const createCollectionCommand = new CreateCollectionCommand({ CollectionId: collectionId });
     await rekognitionClient.send(createCollectionCommand);
-    console.log(`Collection ${collectionId} created successfully`);
+    logger.info(`Collection ${collectionId} created successfully`, { collectionId });
   } catch (error) {
-    console.error(`Error creating collection ${collectionId}: ${error.message}`);
+    logger.error(`Error creating collection ${collectionId}: ${error.message}`, { collectionId, error });
     throw error;
   }
 };
@@ -58,6 +61,7 @@ export const uploadImages = async (req, res) => {
   const collectionId = `event-${eventId}`; // Collection ID for Rekognition
 
   if (!files || files.length === 0) {
+    logger.warn('No files uploaded', { eventId });
     return res.status(400).json({ message: 'No files uploaded' });
   }
 
@@ -65,6 +69,7 @@ export const uploadImages = async (req, res) => {
   const io = req.app.get('socketio');
 
   if (!socketId) {
+    logger.warn('No socket ID provided', { eventId });
     return res.status(400).json({ message: 'No socket ID provided' });
   }
 
@@ -101,12 +106,12 @@ export const uploadImages = async (req, res) => {
       };
       await s3Client.send(new PutObjectCommand(uploadParams));
 
-      console.log(`Image uploaded to S3: ${s3Key}`);
+      logger.info(`Image uploaded to S3: ${s3Key}`, { eventId, s3Key });
 
       // Emit progress update after S3 upload
       processedCount++;
       const uploadProgress = Math.round((processedCount / totalFiles) * 100);
-      console.log(`Emitting progress: ${uploadProgress}%`);
+      logger.info(`Emitting progress: ${uploadProgress}%`, { eventId, socketId, uploadProgress });
       io.to(socketId).emit('uploadProgress', { progress: uploadProgress });
 
       // Index faces in AWS Rekognition
@@ -119,36 +124,34 @@ export const uploadImages = async (req, res) => {
 
       const indexResponse = await rekognitionClient.send(indexCommand);
       if (indexResponse.FaceRecords.length === 0) {
-        console.warn(`No faces indexed in image: ${s3Key}`);
+        logger.warn(`No faces indexed in image: ${s3Key}`, { eventId, s3Key });
       } else {
         for (const faceRecord of indexResponse.FaceRecords) {
           const faceId = faceRecord.Face.FaceId;
-          console.log(`Face indexed with ID: ${faceId}`);
+          logger.info(`Face indexed with ID: ${faceId}`, { eventId, faceId });
 
           // Store face metadata in DynamoDB
           const putParams = {
             TableName: process.env.DYNAMODB_TABLE,
             Item: {
-              EventId: { S: eventId },
-              FaceId: { S: faceId },
-              ImageUrl: { S: s3Key }, // Store the S3 key with eventId folder
+              EventId: eventId,
+              FaceId: faceId,
+              ImageUrl: s3Key, // Store the S3 key with eventId folder
               BoundingBox: {
-                M: {
-                  Left: { N: faceRecord.Face.BoundingBox.Left.toString() },
-                  Top: { N: faceRecord.Face.BoundingBox.Top.toString() },
-                  Width: { N: faceRecord.Face.BoundingBox.Width.toString() },
-                  Height: { N: faceRecord.Face.BoundingBox.Height.toString() },
-                }
+                Left: faceRecord.Face.BoundingBox.Left,
+                Top: faceRecord.Face.BoundingBox.Top,
+                Width: faceRecord.Face.BoundingBox.Width,
+                Height: faceRecord.Face.BoundingBox.Height,
               },
-              Confidence: { N: faceRecord.Face.Confidence.toString() }
+              Confidence: faceRecord.Face.Confidence,
             }
           };
 
           try {
-            const dynamoResponse = await dynamoDBClient.send(new PutItemCommand(putParams));
-            console.log(`DynamoDB response: ${JSON.stringify(dynamoResponse)}`);
+            const dynamoResponse = await dynamoDBDocClient.send(new PutCommand(putParams));
+            logger.info(`DynamoDB response: ${JSON.stringify(dynamoResponse)}`, { eventId, faceId });
           } catch (dbError) {
-            console.error(`Error storing FaceId ${faceId} in DynamoDB: ${dbError.message}`);
+            logger.error(`Error storing FaceId ${faceId} in DynamoDB: ${dbError.message}`, { eventId, faceId, dbError });
           }
         }
       }
@@ -156,10 +159,11 @@ export const uploadImages = async (req, res) => {
 
     // After all files are processed, emit completion event
     io.to(socketId).emit('uploadComplete', { message: 'All images processed successfully' });
+    logger.info('All images processed successfully', { eventId, socketId });
 
     res.status(200).json({ message: 'Images uploaded and faces indexed' });
   } catch (error) {
-    console.error(`Error uploading and indexing images: ${error.message}`);
+    logger.error(`Error uploading and indexing images: ${error.message}`, { eventId, error });
     io.to(socketId).emit('uploadError', { message: 'Failed to process images' });
     res.status(500).json({ error: 'Failed to process images' });
   }
@@ -171,6 +175,7 @@ export const searchFace = async (req, res) => {
   const file = req.file;
 
   if (!file) {
+    logger.warn('No file uploaded for face search', { eventId });
     return res.status(400).json({ message: 'No file uploaded' });
   }
 
@@ -189,46 +194,47 @@ export const searchFace = async (req, res) => {
     });
 
     const searchResponse = await rekognitionClient.send(searchCommand);
-    console.log(`Search response: ${JSON.stringify(searchResponse, null, 2)}`);
+    logger.info(`Search response: ${JSON.stringify(searchResponse, null, 2)}`, { eventId });
 
     const faceMatches = searchResponse.FaceMatches;
 
     if (faceMatches.length === 0) {
-      console.warn(`No matching faces found for event: ${eventId}`);
+      logger.warn(`No matching faces found for event: ${eventId}`, { eventId });
       return res.status(200).json({ matchedImages: [] });
     }
 
     const matchedImages = [];
     for (const match of faceMatches) {
       const faceId = match.Face.FaceId;
-      console.log(`Matched face with FaceId: ${faceId} (Confidence: ${match.Face.Confidence})`);
+      logger.info(`Matched face with FaceId: ${faceId} (Confidence: ${match.Face.Confidence})`, { eventId, faceId, confidence: match.Face.Confidence });
 
       // Query DynamoDB for matching face IDs and get their corresponding image URLs
       const queryParams = {
         TableName: process.env.DYNAMODB_TABLE,
         KeyConditionExpression: 'EventId = :eventId and FaceId = :faceId',
         ExpressionAttributeValues: {
-          ':eventId': { S: eventId },
-          ':faceId': { S: faceId },
+          ':eventId': eventId,
+          ':faceId': faceId,
         },
       };
 
-      const queryResponse = await dynamoDBClient.send(new QueryCommand(queryParams));
-      console.log(`DynamoDB query response: ${JSON.stringify(queryResponse, null, 2)}`);
+      const queryResponse = await dynamoDBDocClient.send(new QueryCommand(queryParams));
+      logger.info(`DynamoDB query response: ${JSON.stringify(queryResponse, null, 2)}`, { eventId, faceId });
 
       if (queryResponse.Items.length === 0) {
-        console.warn(`No corresponding image found in DynamoDB for FaceId: ${faceId}`);
+        logger.warn(`No corresponding image found in DynamoDB for FaceId: ${faceId}`, { eventId, faceId });
       } else {
         for (const item of queryResponse.Items) {
-          matchedImages.push(`https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/${item.ImageUrl.S}`);
-          console.log(`Matched image URL: https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/${item.ImageUrl.S}`);
+          const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/${item.ImageUrl}`;
+          matchedImages.push(imageUrl);
+          logger.info(`Matched image URL: ${imageUrl}`, { eventId, faceId, imageUrl });
         }
       }
     }
 
     res.status(200).json({ matchedImages });
   } catch (error) {
-    console.error(`Error searching faces: ${error.message}`);
+    logger.error(`Error searching faces: ${error.message}`, { eventId, error });
     res.status(500).json({ error: 'Failed to search for faces' });
   }
 };
@@ -238,6 +244,7 @@ export const getEventImages = async (req, res) => {
   const { eventId } = req.query;
 
   if (!eventId) {
+    logger.warn('No event ID provided for fetching images');
     return res.status(400).json({ message: 'No event ID provided' });
   }
 
@@ -251,23 +258,23 @@ export const getEventImages = async (req, res) => {
     const listedObjects = await s3Client.send(new ListObjectsV2Command(listParams));
 
     if (!listedObjects.Contents || listedObjects.Contents.length === 0) {
+      logger.info('No images found for event', { eventId });
       return res.status(200).json({ images: [] });
     }
 
     // Map S3 objects to image URLs
     const images = listedObjects.Contents.map((item) => {
       const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/${item.Key}`;
+      logger.info(`Fetched image URL: ${imageUrl}`, { eventId, key: item.Key });
       return imageUrl;
     });
 
     res.status(200).json({ images });
   } catch (error) {
-    console.error(`Error fetching event images: ${error.message}`);
+    logger.error(`Error fetching event images: ${error.message}`, { eventId, error });
     res.status(500).json({ error: 'Failed to fetch event images' });
   }
 };
-
-
 
 // Helper function to get image buffer from S3
 const getImageBuffer = async (s3Key) => {
@@ -282,9 +289,11 @@ const getImageBuffer = async (s3Key) => {
     for await (const chunk of stream) {
       chunks.push(chunk);
     }
-    return Buffer.concat(chunks);
+    const buffer = Buffer.concat(chunks);
+    logger.info(`Fetched image buffer from S3: ${s3Key}`, { s3Key });
+    return buffer;
   } catch (error) {
-    console.error(`Error fetching image from S3: ${error.message}`);
+    logger.error(`Error fetching image from S3: ${error.message}`, { s3Key, error });
     throw error;
   }
 };
@@ -294,12 +303,12 @@ const ensureCollectionExists = async (collectionId) => {
   try {
     const createCollectionCommand = new CreateCollectionCommand({ CollectionId: collectionId });
     const response = await rekognitionClient.send(createCollectionCommand);
-    console.log(`Collection ${collectionId} created with ARN: ${response.CollectionArn}`);
+    logger.info(`Collection ${collectionId} created with ARN: ${response.CollectionArn}`, { collectionId });
   } catch (error) {
     if (error.name === 'ResourceAlreadyExistsException') {
-      console.log(`Collection ${collectionId} already exists.`);
+      logger.info(`Collection ${collectionId} already exists.`, { collectionId });
     } else {
-      console.error(`Error creating collection ${collectionId}: ${error.message}`);
+      logger.error(`Error creating collection ${collectionId}: ${error.message}`, { collectionId, error });
       throw error;
     }
   }
@@ -311,6 +320,7 @@ export const compareGuestFaces = async (req, res) => {
 
   // Validate that eventId is provided
   if (!eventId) {
+    logger.warn('EventId is required for comparing guest faces');
     return res.status(400).json({ message: 'EventId is required.' });
   }
  
@@ -334,10 +344,12 @@ export const compareGuestFaces = async (req, res) => {
     const data = await dynamoDBDocClient.send(new QueryCommand(queryParams));
 
     if (!data.Items || data.Items.length === 0) {
+      logger.info('No guests found for this event.', { eventId });
       return res.status(200).json({ message: 'No guests found for this event.', matches: [] });
     }
 
     const guests = data.Items;
+    logger.info(`Retrieved ${guests.length} guests for event.`, { eventId, guestCount: guests.length });
 
     // Step 3: Index all guest faces into Rekognition collection with concurrency control
     const limit = pLimit(5); // Limit concurrency to 5
@@ -347,12 +359,12 @@ export const compareGuestFaces = async (req, res) => {
 
       // Check if the face is already indexed by storing FaceIds in DynamoDB
       if (guest.FaceId) {
-        console.log(`Guest ${GuestId} already has a FaceId: ${guest.FaceId}`);
+        logger.info(`Guest ${GuestId} already has a FaceId: ${guest.FaceId}`, { eventId, GuestId, FaceId: guest.FaceId });
         return;
       }
 
       // Extract the S3 key from ImageUrl
-      const s3Key = ImageUrl.replace(`https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/`, '');
+      const s3Key = ImageUrl.replace(`https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/`, '');
 
       // Get image buffer from S3
       const imageBuffer = await getImageBuffer(s3Key);
@@ -374,7 +386,7 @@ export const compareGuestFaces = async (req, res) => {
         const indexResponse = await rekognitionClient.send(new IndexFacesCommand(indexParams));
         if (indexResponse.FaceRecords && indexResponse.FaceRecords.length > 0) {
           const faceId = indexResponse.FaceRecords[0].Face.FaceId;
-          console.log(`Indexed face for GuestId ${GuestId}: FaceId ${faceId}`);
+          logger.info(`Indexed face for GuestId ${GuestId}: FaceId ${faceId}`, { eventId, GuestId, FaceId: faceId });
 
           // Update DynamoDB with FaceId
           const updateParams = {
@@ -390,20 +402,22 @@ export const compareGuestFaces = async (req, res) => {
           };
 
           await dynamoDBDocClient.send(new PutCommand(updateParams));
+          logger.info(`Updated DynamoDB with FaceId ${faceId} for GuestId ${GuestId}`, { eventId, GuestId, FaceId: faceId });
         } else {
-          console.warn(`No faces detected for GuestId ${GuestId}.`);
+          logger.warn(`No faces detected for GuestId ${GuestId}.`, { eventId, GuestId });
         }
       } catch (indexError) {
-        console.error(`Error indexing face for GuestId ${GuestId}: ${indexError.message}`);
+        logger.error(`Error indexing face for GuestId ${GuestId}: ${indexError.message}`, { eventId, GuestId, error: indexError });
       }
     }));
 
     await Promise.all(indexPromises);
-    console.log('Completed indexing all guest faces.');
+    logger.info('Completed indexing all guest faces.', { eventId });
 
     // Refresh the guests array to include updated FaceIds
     const refreshedData = await dynamoDBDocClient.send(new QueryCommand(queryParams));
     const refreshedGuests = refreshedData.Items;
+    logger.info('Refreshed guest data with FaceIds.', { eventId });
 
     // Step 4: Compare each guest face with others to find matches
     const matches = [];
@@ -413,7 +427,7 @@ export const compareGuestFaces = async (req, res) => {
 
       // Skip guests without a FaceId
       if (!FaceId) {
-        console.warn(`GuestId ${GuestId} does not have a FaceId. Skipping comparison.`);
+        logger.warn(`GuestId ${GuestId} does not have a FaceId. Skipping comparison.`, { eventId, GuestId });
         continue;
       }
 
@@ -456,11 +470,12 @@ export const compareGuestFaces = async (req, res) => {
                 },
                 similarity: similarity,
               });
+              logger.info(`Found match between GuestId ${GuestId} and GuestId ${matchedGuest.GuestId} with similarity ${similarity}`, { eventId, GuestId, matchedGuestId: matchedGuest.GuestId, similarity });
             }
           }
         }
       } catch (searchError) {
-        console.error(`Error searching faces for GuestId ${GuestId}: ${searchError.message}`);
+        logger.error(`Error searching faces for GuestId ${GuestId}: ${searchError.message}`, { eventId, GuestId, error: searchError });
       }
     }
 
@@ -474,11 +489,13 @@ export const compareGuestFaces = async (req, res) => {
         seenPairs.add(pairKey);
         uniqueMatches.push(match);
       }
-    }
+    }  
 
+    logger.info(`Found ${uniqueMatches.length} unique matches.`, { eventId });
     res.status(200).json({ matches: uniqueMatches });
   } catch (error) {
-    console.error(`Error comparing guest faces: ${error.message}`);
+    logger.error(`Error comparing guest faces: ${error.message}`, { eventId, error });
     res.status(500).json({ error: 'Failed to compare guest faces.' });
   }
 };
+            
