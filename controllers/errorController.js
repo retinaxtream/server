@@ -1,3 +1,5 @@
+// controllers/errorController.js
+
 import AppError from "../Utils/AppError.js";
 
 // Handle MongoDB CastError (invalid ObjectId)
@@ -21,7 +23,14 @@ const handleValidationErrorDB = (err) => {
 };
 
 // Send error response during development
-const sendErrorDev = (err, res) => {
+const sendErrorDev = (err, res, logger) => {
+  // Log the error details using Winston
+  logger.error('Error:', {
+    message: err.message,
+    stack: err.stack,
+    error: err,
+  });
+
   res.status(err.statusCode).json({
     status: err.status,
     error: err,
@@ -31,14 +40,27 @@ const sendErrorDev = (err, res) => {
 };
 
 // Send error response during production
-const sendErrorProd = (err, res) => {
+const sendErrorProd = (err, res, logger) => {
   if (err.isOperational) {
+    // Log operational errors as warnings
+    logger.warn('Operational error:', {
+      message: err.message,
+      statusCode: err.statusCode,
+      status: err.status,
+    });
+
     res.status(err.statusCode).json({
       status: err.status,
       message: err.message,
     });
   } else {
-    console.error('ERROR 💥', err);
+    // Log programming or other unknown errors as errors
+    logger.error('ERROR 💥:', {
+      message: err.message,
+      stack: err.stack,
+      error: err,
+    });
+
     res.status(500).json({
       status: 'error',
       message: 'Something went very wrong!',
@@ -47,12 +69,16 @@ const sendErrorProd = (err, res) => {
 };
 
 // Global error handling middleware
-export default (err, req, res, next) => {
+const globalErrorHandler = (err, req, res, next) => {
+  // Set default values if not set
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
+  // Access the logger from app locals
+  const logger = req.app.locals.logger;
+
   if (process.env.NODE_ENV === 'development') {
-    sendErrorDev(err, res);
+    sendErrorDev(err, res, logger);
   } else if (process.env.NODE_ENV === 'production') {
     let error = { ...err };
     error.message = err.message;
@@ -62,6 +88,8 @@ export default (err, req, res, next) => {
     if (error.code === 11000) error = handleDuplicateFieldsDB(error);
     if (error.name === 'ValidationError') error = handleValidationErrorDB(error);
 
-    sendErrorProd(error, res);
+    sendErrorProd(error, res, logger);
   }
 };
+
+export default globalErrorHandler;

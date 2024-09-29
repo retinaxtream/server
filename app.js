@@ -9,7 +9,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import mongoSanitize from 'express-mongo-sanitize';
 import xss from 'xss-clean';
-
+import loggerPromise from './Utils/logger.js'; // Ensure the correct path and .js extension
 import userRoutes from './routes/userRoutes.js';
 import connectDatabase from './config/mongodb.js';
 import globalErrorHandler from './controllers/errorController.js';
@@ -18,33 +18,50 @@ import AppError from './Utils/AppError.js';
 import http from 'http'; // Import HTTP module to create an HTTP server
 import { Server as SocketIOServer } from 'socket.io'; // Import Socket.IO server
 
+// ===========================
+// 1. Initialize Environment Variables and Database
+// ===========================
+
 dotenv.config({ path: './config.env' });
 connectDatabase();
 
+// ===========================
+// 2. Create Express App
+// ===========================
+
 const app = express();
+
+// ===========================
+// 3. Configure Middleware
+// ===========================
 
 // Set security HTTP headers
 // app.use(helmet());
 
 // Rate limiting to prevent brute force attacks
-// const limiter = rateLimit({
-//   max: 100,
-//   windowMs: 60 * 60 * 1000,
-//   message: 'Too many requests from this IP, please try again in an hour!',
-// });
-// app.use('/api', limiter);  
+const limiter = rateLimit({
+  max: 100, // Maximum number of requests
+  windowMs: 60 * 60 * 1000, // 1 hour
+  message: 'Too many requests from this IP, please try again in an hour!',
+});
+app.use('/api', limiter);
 
-// Data sanitization against NoSQL query injection and XSS 
+// Data sanitization against NoSQL query injection and XSS
 // app.use(mongoSanitize());
 // app.use(xss());
 
-app.use(express.json()); 
+// Body parser, reading data from body into req.body
+app.use(express.json());
+
+// Cookie parser
 app.use(cookieParser());
 
+// Development logging
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+// CORS configuration
 app.use(
   cors({
     origin: [
@@ -58,86 +75,83 @@ app.use(
   })
 );
 
+// ===========================
+// 4. Define Routes
+// ===========================
+
 app.use('/api/v1/user', userRoutes);
 
-app.use((err, req, res, next) => {
-  console.error('Error:', err.message);
-  console.error('Stack:', err.stack);
-
-  // Set default status code and message
-  let statusCode = 500;
-  let message = 'Internal Server Error';
-
-  // Handle Multer errors
-  if (err instanceof multer.MulterError) {
-    statusCode = 400;
-    message = err.message;
-  } else if (err.message === 'Invalid file type. Only images are allowed.') {
-    statusCode = 400;
-    message = err.message;
-  } else if (err.message === 'DYNAMODB_TABLE_NAME environment variable is not set.') {
-    statusCode = 500;
-    message = err.message;
-  }
-
-  res.status(statusCode).json({
-    error: {
-      message,
-      storageErrors: [], // Populate as needed
-      statusCode,
-      status: statusCode >= 500 ? 'error' : 'fail',
-    },
-  });
-});
-
+// Catch-all route for undefined endpoints
 app.all('*', (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
 
-app.use(globalErrorHandler);
-
 // ===========================
-// 6. Socket.IO Integration
+// 5. Initialize Logger and Start Server
 // ===========================
 
-// Create an HTTP server from the Express app
-const server = http.createServer(app); 
+const initializeServer = async () => {
+  try {
+    const logger = await loggerPromise;
 
-// Initialize Socket.IO server
-const io = new SocketIOServer(server, {
-  cors: {
-    origin: [
-      'https://hapzea.com',
-      'http://hapzea.com',
-      'http://localhost:3000', 
-    ],
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options'],
-    credentials: true,
-  },
-});
+    // Attach logger to app locals for access in routes/middleware if needed
+    app.locals.logger = logger; 
 
-// Handle Socket.IO connections  
-io.on('connection', (socket) => {
-  console.log(`Client connected: ${socket.id}`); 
+    // Create an HTTP server from the Express app
+    const server = http.createServer(app); 
 
-  // Optional: Handle custom events from the client if needed
-  // socket.on('customEvent', (data) => { /* Handle event */ });
+    // Initialize Socket.IO server
+    const io = new SocketIOServer(server, {
+      cors: {
+        origin: [
+          'https://hapzea.com', 
+          'http://hapzea.com',
+          'http://localhost:3000', 
+        ],
+        methods: ['GET', 'POST'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options'],
+        credentials: true,
+      },
+    });
 
-  socket.on('disconnect', () => {
-    console.log(`Client disconnected: ${socket.id}`);
-  });
-});
+    // Handle Socket.IO connections  
+    io.on('connection', (socket) => {
+      logger.info(`Client connected: ${socket.id}`); 
 
-// Make Socket.IO accessible to other parts of the app (like controllers)
-app.set('socketio', io);
+      // Optional: Handle custom events from the client if needed
+      // socket.on('customEvent', (data) => { /* Handle event */ });
+
+      socket.on('disconnect', () => {
+        logger.info(`Client disconnected: ${socket.id}`);
+      });
+    });
+
+    // Make Socket.IO accessible to other parts of the app (like controllers)
+    app.set('socketio', io);
+
+    // ===========================
+    // 6. Global Error Handling Middleware
+    // ===========================
+
+    // Place the global error handler after all routes and middleware
+    app.use(globalErrorHandler);
+
+    // Start listening
+    const port = process.env.PORT || 3000;
+    server.listen(port, () => {
+      logger.info(`App running on port ${port} in ${process.env.NODE_ENV} mode`);
+    });
+  } catch (error) {
+    console.error('Failed to initialize logger:', error);
+    process.exit(1); // Exit the application if logger fails to initialize
+  }
+};
+
+// Initialize the server
+initializeServer();
 
 // ===========================
-// 7. Start the Server
+// 7. Error Handling Middleware
 // ===========================
 
-const port = process.env.PORT || 3000;
-server.listen(port, () => {
-  console.log(`App running on port ${port}`);
-});
-   
+// Already handled in initializeServer with globalErrorHandler

@@ -313,7 +313,7 @@ export const compareGuestFaces = async (req, res) => {
   if (!eventId) {
     return res.status(400).json({ message: 'EventId is required.' });
   }
-
+ 
   // Define Rekognition collection name
   const collectionId = `event-${eventId}-collection`;
 

@@ -9,9 +9,11 @@ import { CatchAsync } from '../Utils/CatchAsync.js';
 import path from 'path';
 import { body, validationResult } from 'express-validator';
 // import { storeGuestDetails } from '../controllers/GuestController.js';
-
+import { emptyEventFaces, emptyGuestsTable } from '../controllers/dynamoController.js';
 import * as rekognitionController from '../controllers/rekognitionController.js';
 import * as GuestController from '../controllers/GuestController.js';
+
+
 
 const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa");
 
@@ -238,6 +240,19 @@ router.post(
   rekognitionController.compareGuestFaces // Controller function handling the logic
 );
 
+
+router.delete(
+  '/empty-event-faces',
+  auth.protect, // Protect the route to ensure only authenticated users can perform this action
+  CatchAsync(emptyEventFaces)
+);
+
+// Route to empty the GuestsTable
+router.delete(
+  '/empty-guests-table',
+  auth.protect, // Protect the route to ensure only authenticated users can perform this action
+  CatchAsync(emptyGuestsTable)
+);
 
 // Example route for searching a face in an event
 router.post('/search-face',auth.protect, upload_ai.single('photo'), rekognitionController.searchFace);
