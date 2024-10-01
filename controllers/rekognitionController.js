@@ -34,7 +34,7 @@ const collectionExists = async (collectionId) => {
   try {
     const listCollectionsCommand = new ListCollectionsCommand({});
     const collectionsResponse = await rekognitionClient.send(listCollectionsCommand);
-    logger.info(`Collections found: ${JSON.stringify(collectionsResponse.CollectionIds)}`, { collectionId });
+    logger.info(`Collections found: ${collectionsResponse.CollectionIds.length}`, { collectionId });
     return collectionsResponse.CollectionIds.includes(collectionId);
   } catch (error) {
     logger.error(`Error listing collections: ${error.message}`, { collectionId, error });
@@ -46,14 +46,17 @@ const collectionExists = async (collectionId) => {
 const createCollection = async (collectionId) => {
   try {
     const createCollectionCommand = new CreateCollectionCommand({ CollectionId: collectionId });
-    await rekognitionClient.send(createCollectionCommand);
-    logger.info(`Collection ${collectionId} created successfully`, { collectionId });
+    const response = await rekognitionClient.send(createCollectionCommand);
+    logger.info(`Collection ${collectionId} created successfully with ARN: ${response.CollectionArn}`, { collectionId });
   } catch (error) {
-    logger.error(`Error creating collection ${collectionId}: ${error.message}`, { collectionId, error });
-    throw error;
+    if (error.name === 'ResourceAlreadyExistsException') {
+      logger.info(`Collection ${collectionId} already exists.`, { collectionId });
+    } else {
+      logger.error(`Error creating collection ${collectionId}: ${error.message}`, { collectionId, error });
+      throw error;
+    }
   }
 };
-
 // Controller for uploading multiple images
 export const uploadImages = async (req, res) => {
   const { eventId, socketId } = req.query; // Extract eventId and socketId from query params
@@ -318,28 +321,39 @@ const ensureCollectionExists = async (collectionId) => {
 export const compareGuestFaces = async (req, res) => {
   const { eventId } = req.query; // Assuming eventId is passed as a query parameter
 
-  // Validate that eventId is provided
+  // Validate that eventId is provided 
   if (!eventId) {
     logger.warn('EventId is required for comparing guest faces');
     return res.status(400).json({ message: 'EventId is required.' });
   }
- 
+
   // Define Rekognition collection name
   const collectionId = `event-${eventId}-collection`;
 
   try {
-    // Step 1: Ensure Rekognition collection exists
-    await ensureCollectionExists(collectionId);
+    logger.info('Starting compareGuestFaces function', { eventId });
+
+    // Ensure DynamoDB_TABLE_NAME is set
+    if (!process.env.DYNAMODB_TABLE_NAME) {
+      logger.error('DYNAMODB_TABLE_NAME environment variable is not set.');
+      throw new AppError('Server configuration error: DynamoDB table name is missing.', 500);
+    }
+
+    // Ensure Rekognition collection exists
+    await createCollection(collectionId);
+    logger.info(`Ensured collection ${collectionId} exists`, { eventId });
 
     // Step 2: Retrieve all guest details for the event
     const queryParams = {
-      TableName: process.env.DYNAMODB_TABLE_NAME,
-      IndexName: 'EventIdIndex', // Ensure you have a GSI on EventId
+      TableName: process.env.DYNAMODB_TABLE_NAME, // GuestsTable
+      IndexName: 'EventIdIndex', // GSI on GuestsTable
       KeyConditionExpression: 'EventId = :eventId',
       ExpressionAttributeValues: {
-        ':eventId': eventId,
+        ':eventId': eventId, // Assuming eventId is a string
       },
     };
+
+    logger.info('Executing DynamoDB QueryCommand to retrieve guests', { eventId, tableName: process.env.DYNAMODB_TABLE_NAME, queryParams });
 
     const data = await dynamoDBDocClient.send(new QueryCommand(queryParams));
 
@@ -347,12 +361,12 @@ export const compareGuestFaces = async (req, res) => {
       logger.info('No guests found for this event.', { eventId });
       return res.status(200).json({ message: 'No guests found for this event.', matches: [] });
     }
-
+    
     const guests = data.Items;
-    logger.info(`Retrieved ${guests.length} guests for event.`, { eventId, guestCount: guests.length });
+    logger.info(`Retrieved ${guests.length} guests for event ${eventId}`, { eventId, guestCount: guests.length });
 
     // Step 3: Index all guest faces into Rekognition collection with concurrency control
-    const limit = pLimit(5); // Limit concurrency to 5
+    const limit = pLimit(5); // Adjust concurrency as needed
 
     const indexPromises = guests.map((guest) => limit(async () => {
       const { GuestId, ImageUrl } = guest;
@@ -365,14 +379,17 @@ export const compareGuestFaces = async (req, res) => {
 
       // Extract the S3 key from ImageUrl
       const s3Key = ImageUrl.replace(`https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/`, '');
+      logger.info(`Processing GuestId ${GuestId} with S3 Key: ${s3Key}`, { eventId, GuestId, s3Key });
 
       // Get image buffer from S3
       const imageBuffer = await getImageBuffer(s3Key);
+      logger.info(`Fetched image buffer for GuestId ${GuestId}`, { eventId, GuestId });
 
       // Resize the image using sharp (optional)
       const resizedImageBuffer = await sharp(imageBuffer)
         .resize(1024, 1024, { fit: 'inside' })
         .toBuffer();
+      logger.info(`Resized image for GuestId ${GuestId}`, { eventId, GuestId });
 
       // Index face into Rekognition collection
       const indexParams = {
@@ -384,25 +401,38 @@ export const compareGuestFaces = async (req, res) => {
 
       try {
         const indexResponse = await rekognitionClient.send(new IndexFacesCommand(indexParams));
+        logger.info(`Indexed face for GuestId ${GuestId}`, { eventId, GuestId });
+
         if (indexResponse.FaceRecords && indexResponse.FaceRecords.length > 0) {
-          const faceId = indexResponse.FaceRecords[0].Face.FaceId;
-          logger.info(`Indexed face for GuestId ${GuestId}: FaceId ${faceId}`, { eventId, GuestId, FaceId: faceId });
+          const faceRecord = indexResponse.FaceRecords[0];
+          
+          // Ensure that Face and FaceId exist
+          if (faceRecord.Face && faceRecord.Face.FaceId) {
+            const faceId = faceRecord.Face.FaceId;
+            logger.info(`Obtained FaceId ${faceId} for GuestId ${GuestId}`, { eventId, GuestId, FaceId: faceId });
 
-          // Update DynamoDB with FaceId
-          const updateParams = {
-            TableName: process.env.DYNAMODB_TABLE_NAME,
-            Key: {
-              EventId: eventId,
-              GuestId: GuestId,
-            },
-            UpdateExpression: 'set FaceId = :f',
-            ExpressionAttributeValues: {
-              ':f': faceId,
-            },
-          };
+            // Update DynamoDB with FaceId
+            const updateParams = {
+              TableName: process.env.DYNAMODB_TABLE_NAME, // GuestsTable
+              Key: {
+                EventId: eventId,
+                GuestId: GuestId,
+              },
+              UpdateExpression: 'set FaceId = :f',
+              ExpressionAttributeValues: {
+                ':f': faceId,
+              },
+            };
 
-          await dynamoDBDocClient.send(new PutCommand(updateParams));
-          logger.info(`Updated DynamoDB with FaceId ${faceId} for GuestId ${GuestId}`, { eventId, GuestId, FaceId: faceId });
+            try {
+              await dynamoDBDocClient.send(new DocUpdateCommand(updateParams));
+              logger.info(`Updated DynamoDB with FaceId ${faceId} for GuestId ${GuestId}`, { eventId, GuestId, FaceId: faceId });
+            } catch (updateError) {
+              logger.error(`Error updating DynamoDB with FaceId ${faceId} for GuestId ${GuestId}: ${updateError.message}`, { eventId, GuestId, FaceId: faceId, error: updateError });
+            }
+          } else {
+            logger.warn(`Face or FaceId missing in FaceRecords for GuestId ${GuestId}.`, { eventId, GuestId });
+          }
         } else {
           logger.warn(`No faces detected for GuestId ${GuestId}.`, { eventId, GuestId });
         }
@@ -414,12 +444,14 @@ export const compareGuestFaces = async (req, res) => {
     await Promise.all(indexPromises);
     logger.info('Completed indexing all guest faces.', { eventId });
 
-    // Refresh the guests array to include updated FaceIds
+    // Step 4: Refresh the guests array to include updated FaceIds
+    logger.info('Executing DynamoDB QueryCommand to retrieve updated guests', { eventId, tableName: process.env.DYNAMODB_TABLE_NAME, queryParams });
+
     const refreshedData = await dynamoDBDocClient.send(new QueryCommand(queryParams));
     const refreshedGuests = refreshedData.Items;
     logger.info('Refreshed guest data with FaceIds.', { eventId });
 
-    // Step 4: Compare each guest face with others to find matches
+    // Step 5: Compare each guest's face with others to find matches
     const matches = [];
 
     for (const guest of refreshedGuests) {
@@ -441,10 +473,18 @@ export const compareGuestFaces = async (req, res) => {
 
       try {
         const searchResponse = await rekognitionClient.send(new SearchFacesCommand(searchParams));
+        logger.info(`Performed SearchFaces for GuestId ${GuestId}. Matches found: ${searchResponse.FaceMatches.length}`, { eventId, GuestId, matchCount: searchResponse.FaceMatches.length });
+
         const faceMatches = searchResponse.FaceMatches;
 
         if (faceMatches && faceMatches.length > 0) {
           for (const match of faceMatches) {
+            // Check if 'Face' property exists before accessing 'FaceId'
+            if (!match.Face) {
+              logger.warn(`Face object missing in faceMatches for FaceId ${FaceId}.`, { eventId, GuestId });
+              continue;
+            }
+
             const matchedFaceId = match.Face.FaceId;
             const similarity = match.Similarity;
 
@@ -471,6 +511,8 @@ export const compareGuestFaces = async (req, res) => {
                 similarity: similarity,
               });
               logger.info(`Found match between GuestId ${GuestId} and GuestId ${matchedGuest.GuestId} with similarity ${similarity}`, { eventId, GuestId, matchedGuestId: matchedGuest.GuestId, similarity });
+            } else {
+              logger.warn(`Matched guest with FaceId ${matchedFaceId} not found in guests list.`, { eventId, matchedFaceId });
             }
           }
         }
@@ -498,4 +540,3 @@ export const compareGuestFaces = async (req, res) => {
     res.status(500).json({ error: 'Failed to compare guest faces.' });
   }
 };
-            

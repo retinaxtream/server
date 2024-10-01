@@ -19,7 +19,7 @@ const s3Client = new S3Client({ region: process.env.AWS_REGION });
 const rekognitionClient = new RekognitionClient({ region: process.env.AWS_REGION });
 const dynamoDBClient = new DynamoDBClient({ region: process.env.AWS_REGION });
 const dynamoDBDocClient = DynamoDBDocumentClient.from(dynamoDBClient);
-
+ 
 // Helper function to sanitize filenames
 const sanitizeFilename = (filename) => {
   return filename.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_.\-:]/g, '');
@@ -29,7 +29,7 @@ const sanitizeFilename = (filename) => {
 const getS3Url = (s3Key) => {
   return `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
 };
-
+ 
 // Function to store guest details
 export const storeGuestDetails = async (req, res, next) => {
   logger.info("calling registering guest");
