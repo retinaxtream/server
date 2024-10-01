@@ -357,9 +357,10 @@ const getGuestsByEventId = async (eventId) => {
 
   try {
     console.log('INSIDE TRY');
-    const data = await dynamoDBClient.send(new QueryCommand(queryParams));
+    const data = await dynamoDBClient.send(new DocQueryCommand(queryParams));
     console.log('data calllllllllllllllllling');
     console.log(data);
+    console.log(data.Items);
     logger.info('DynamoDB Query executed', { eventId, returnedItems: data.Items ? data.Items.length : 0 });
 
     // Check if data.Items is defined and not empty
@@ -369,10 +370,10 @@ const getGuestsByEventId = async (eventId) => {
     }
 
     return data.Items.map((item) => ({
-      guestId: item.GuestId.S,
-      eventId: item.EventId.S,
-      faceId: item.FaceId.S,
-      imageUrl: item.ImageUrl.S,
+      guestId: item.GuestId,
+      eventId: item.EventId,
+      faceId: item.FaceId,
+      imageUrl: item.ImageUrl,
     }));
   } catch (error) {
     logger.error('Error querying GuestsTable', { eventId, error: error.message });
@@ -382,34 +383,57 @@ const getGuestsByEventId = async (eventId) => {
 
 // Helper function to get event faces by FaceIds using QueryCommand on GSI
 const getEventFacesByFaceIds = async (faceIds, eventId) => {
+  if (!faceIds || faceIds.length === 0) {
+    logger.warn('No FaceIds provided for BatchGetCommand', { eventId });
+    return [];
+  }
+
   const batchGetParams = {
     RequestItems: {
       [process.env.EVENT_FACES_TABLE_NAME]: {
         Keys: faceIds.map((faceId) => ({
-          FaceId: { S: faceId }, 
-          EventId: { S: eventId },
+          FaceId: faceId,     // Assuming FaceId is a string
+          EventId: eventId,   // Assuming EventId is a string
         })),
+        // Optionally, specify ProjectionExpression to retrieve only necessary attributes
+        // ProjectionExpression: 'FaceId, ImageUrl, Confidence'
       },
     },
   };
 
   try {
-    const batchGetResponse = await dynamoDBClient.send(new BatchGetCommand(batchGetParams));
-    if (!batchGetResponse.Responses || batchGetResponse.Responses[process.env.EVENT_FACES_TABLE_NAME].length === 0) {
-      logger.info('No matches found in EventFaces table');
+    const batchGetResponse = await dynamoDBDocClient.send(new BatchGetCommand(batchGetParams));
+
+    if (
+      !batchGetResponse.Responses ||
+      !batchGetResponse.Responses[process.env.EVENT_FACES_TABLE_NAME] ||
+      batchGetResponse.Responses[process.env.EVENT_FACES_TABLE_NAME].length === 0
+    ) {
+      logger.info('No matches found in EventFaces table', { eventId });
       return [];
     }
 
     return batchGetResponse.Responses[process.env.EVENT_FACES_TABLE_NAME].map(item => ({
-      faceId: item.FaceId.S,
-      imageUrl: item.ImageUrl.S,
-      confidence: item.Confidence.N,
+      faceId: item.FaceId,
+      imageUrl: item.ImageUrl,
+      confidence: item.Confidence,
     }));
   } catch (error) {
-    logger.error('Error executing BatchGetCommand for EventFaces', { error: error.message });
+    logger.error('Error executing BatchGetCommand for EventFaces', { error: error.message, eventId });
     throw error;
   }
 };
+
+// Helper function to convert stream to buffer
+const streamToBuffer = (stream) => {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('error', reject);
+  });
+};
+
 
 // Compare Guest Faces Against Event Faces Function
 export const compareGuestFaces = async (req, res, next) => {
@@ -439,7 +463,7 @@ export const compareGuestFaces = async (req, res, next) => {
 
     logger.info({ message: 'All the guest under the eventId.', guests});
 
-    const collectionId = `event-${eventId}-faces-collection`; // Ensure consistent naming
+    const collectionId = `event-${eventId}`; // Ensure consistent naming
 
     const exists = await collectionExists(collectionId);
     console.log(exists);
@@ -452,12 +476,13 @@ export const compareGuestFaces = async (req, res, next) => {
 
     const guestMatches = [];
     const limit = pLimit(5); // Adjust concurrency as needed
-
+    console.log('processingPromises ############');
+    console.log(guests);
     const processingPromises = guests.map(guest => limit(async () => {
-      if (!guest.FaceId || !guest.ImageUrl) {
-        logger.warn(`Guest ${guest.GuestId} does not have FaceId or ImageUrl.`, { guestId: guest.GuestId });
+      if (!guest.faceId || !guest.imageUrl) {
+        logger.warn(`Guest ${guest.guestId} does not have FaceId or ImageUrl.`, { guestId: guest.guestId });
         guestMatches.push({
-          guestId: guest.GuestId,
+          guestId: guest.guestId,
           name: guest.Name,
           mobile: guest.Mobile,
           matches: [], // No matches
@@ -467,7 +492,7 @@ export const compareGuestFaces = async (req, res, next) => {
 
       try {
         // Fetch the guest image from S3
-        const imageUrl = guest.ImageUrl;
+        const imageUrl = guest.imageUrl;
         const s3Url = new URL(imageUrl);
         const s3Key = decodeURIComponent(s3Url.pathname.substring(1)); // Remove leading '/'
         console.log('s3Key !@@@@@@');
@@ -508,11 +533,12 @@ export const compareGuestFaces = async (req, res, next) => {
         const searchResponse = await rekognitionClient.send(searchFacesByImageCommand);
 
         const matchedFaceIds = searchResponse.FaceMatches.map(match => match.Face.FaceId);
-
+        console.log('matchedFaceIds');
+        console.log(matchedFaceIds);
         if (matchedFaceIds.length === 0) {
-          logger.info(`No matches found for GuestId: ${guest.GuestId}`, { guestId: guest.GuestId });
+          logger.info(`No matches found for GuestId: ${guest.guestId}`, { guestId: guest.guestId });
           guestMatches.push({
-            guestId: guest.GuestId,
+            guestId: guest.guestId,
             name: guest.Name,
             mobile: guest.Mobile,
             matches: [], // No matches
@@ -524,17 +550,17 @@ export const compareGuestFaces = async (req, res, next) => {
         const matchedImages = await getEventFacesByFaceIds(matchedFaceIds, eventId);
 
         guestMatches.push({
-          guestId: guest.GuestId,
+          guestId: guest.guestId,
           name: guest.Name,
           mobile: guest.Mobile,
           matches: matchedImages, // Array of matched images
         });
 
       } catch (error) {
-        logger.error('Error processing guest face comparison', { guestId: guest.GuestId, error: error.message, stack: error.stack });
+        logger.error('Error processing guest face comparison', { guestId: guest.guestId, error: error.message, stack: error.stack });
         // Optionally, you can push partial data or continue
         guestMatches.push({
-          guestId: guest.GuestId,
+          guestId: guest.guestId,
           name: guest.Name,
           mobile: guest.Mobile,
           matches: [], // No matches due to error
