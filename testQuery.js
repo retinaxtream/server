@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 // Load environment variables from config.env
 dotenv.config({ path: path.resolve(__dirname, 'config.env') });
 
-console.log('DYNAMODB_TABLE_NAME:', process.env.DYNAMODB_TABLE_NAME);
+console.log('GUESTS_TABLE_NAME:', process.env.GUESTS_TABLE_NAME);
 
 // Initialize DynamoDB Document Client
 const client = new DynamoDBClient({ region: process.env.AWS_REGION });
@@ -21,7 +21,7 @@ const ddbDocClient = DynamoDBDocumentClient.from(client);
 
 const queryGuests = async (eventId) => {
   const queryParams = {
-    TableName: process.env.DYNAMODB_TABLE_NAME, // "GuestsTable"
+    TableName: process.env.GUESTS_TABLE_NAME, // "GuestsTable"
     IndexName: 'EventIdIndex', // Ensure this GSI exists
     KeyConditionExpression: 'EventId = :eventId',
     ExpressionAttributeValues: {

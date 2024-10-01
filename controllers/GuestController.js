@@ -30,9 +30,8 @@ const getS3Url = (s3Key) => {
   return `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
 };
  
-// Function to store guest details
 export const storeGuestDetails = async (req, res, next) => {
-  logger.info("calling registering guest");
+  logger.info("Calling storeGuestDetails function");
   const { eventId } = req.query; // Assuming eventId is passed as a query parameter
   const { name, mobile } = req.body;
   const file = req.file;
@@ -78,9 +77,38 @@ export const storeGuestDetails = async (req, res, next) => {
     // Construct the full S3 URL for the uploaded image
     const imageUrl = getS3Url(s3Key);
 
+    // Index the face in Rekognition
+    const collectionId = `event-${eventId}-collection`;
+
+    const indexFacesParams = {
+      CollectionId: collectionId,
+      Image: {
+        S3Object: {
+          Bucket: process.env.S3_BUCKET_NAME,
+          Name: s3Key,
+        },
+      },
+      ExternalImageId: guestId, // Optional: Helps in identifying the face later
+      MaxFaces: 1, // Assuming one face per image
+      QualityFilter: 'AUTO',
+    };
+
+    const indexFacesCommand = new IndexFacesCommand(indexFacesParams);
+    const indexFacesResponse = await rekognitionClient.send(indexFacesCommand);
+    logger.info('Face indexed in Rekognition', { guestId, indexFacesResponse });
+
+    // Extract FaceId from the response
+    if (!indexFacesResponse.FaceRecords || indexFacesResponse.FaceRecords.length === 0) {
+      logger.warn(`No face detected in the image for GuestId: ${guestId}`);
+      return res.status(400).json({ error: 'No face detected in the uploaded image.' });
+    }
+
+    const faceId = indexFacesResponse.FaceRecords[0].Face.FaceId;
+    logger.info('FaceId obtained', { guestId, faceId });
+
     // Prepare the item to be stored in DynamoDB
     const putParams = {
-      TableName: process.env.DYNAMODB_TABLE_NAME, // Use the correct environment variable
+      TableName: process.env.GUESTS_TABLE_NAME, // Use the correct environment variable
       Item: {
         EventId: eventId,
         GuestId: guestId,
@@ -88,6 +116,7 @@ export const storeGuestDetails = async (req, res, next) => {
         Mobile: mobile,
         ImageUrl: imageUrl, // Store the full S3 URL
         ScannedAt: new Date().toISOString(),
+        FaceId: faceId, // Store the FaceId
       },
     };
 
@@ -116,7 +145,7 @@ export const getGuestDetails = async (req, res) => {
   try {
     // Define parameters for DynamoDB Query using DynamoDBDocumentClient
     const queryParams = {
-      TableName: process.env.DYNAMODB_TABLE_NAME, // Ensure this environment variable is set
+      TableName: process.env.GUESTS_TABLE_NAME, // Ensure this environment variable is set
       IndexName: 'EventIdIndex', // Name of the GSI
       KeyConditionExpression: 'EventId = :eventId',
       ExpressionAttributeValues: {

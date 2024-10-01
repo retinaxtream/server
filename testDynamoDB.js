@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, 'config.env') });
 
 // Log environment variables to verify they are loaded (Avoid logging sensitive info in production)
-console.log('DYNAMODB_TABLE_NAME:', process.env.DYNAMODB_TABLE_NAME);
+console.log('GUESTS_TABLE_NAME:', process.env.GUESTS_TABLE_NAME);
 console.log('AWS_REGION:', process.env.AWS_REGION);
 console.log('S3_BUCKET_NAME:', process.env.S3_BUCKET_NAME);
 console.log('PORT:', process.env.PORT);
@@ -23,8 +23,8 @@ console.log('AWS_ACCESS_KEY_ID:', process.env.AWS_ACCESS_KEY_ID ? 'Present' : 'M
 console.log('AWS_SECRET_ACCESS_KEY:', process.env.AWS_SECRET_ACCESS_KEY ? 'Present' : 'Missing');
 
 // Check if required environment variables are loaded
-if (!process.env.DYNAMODB_TABLE_NAME) {
-  console.error('DYNAMODB_TABLE_NAME environment variable is not set.');
+if (!process.env.GUESTS_TABLE_NAME) {
+  console.error('GUESTS_TABLE_NAME environment variable is not set.');
   process.exit(1);
 }
 
@@ -46,7 +46,7 @@ const client = new DynamoDBClient({
 // Function to query guests based on eventId using low-level DynamoDBClient
 const queryGuests = async (eventId) => {
   const queryParams = {
-    TableName: process.env.DYNAMODB_TABLE_NAME, // "GuestsTable"
+    TableName: process.env.GUESTS_TABLE_NAME, // "GuestsTable"
     IndexName: 'EventIdIndex', // Ensure this GSI exists
     KeyConditionExpression: 'EventId = :eventId',
     ExpressionAttributeValues: {
