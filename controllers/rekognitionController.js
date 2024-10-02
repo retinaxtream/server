@@ -1,6 +1,7 @@
 // controllers/rekognitionController.js
 
 import logger from '../Utils/logger.js'; // Import the logger
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import {
   IndexFacesCommand,
   SearchFacesByImageCommand
@@ -385,6 +386,8 @@ const getGuestsByEventId = async (eventId) => {
       guestId: item.GuestId,
       eventId: item.EventId,
       faceId: item.FaceId,
+      Mobile:item.Mobile,
+      Name:item.Name,
       imageUrl: item.ImageUrl,
     }));
   } catch (error) {
@@ -446,7 +449,19 @@ const streamToBuffer = (stream) => {
   });
 };
 
-
+const getPresignedUrl = async (key) => {
+  try {
+    const command = new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: key,
+    });
+    const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 }); // URL valid for 1 hour
+    return url;
+  } catch (error) {
+    console.error(`Error generating pre-signed URL for key ${key}:`, error);
+    return null; // Handle as per your application's requirements
+  }
+};
 
 
 ///////////////////////////FOR COMPARE GUEST FACES /////////////////////////////////////////
@@ -553,9 +568,9 @@ export const compareGuestFaces = async (req, res, next) => {
         if (matchedFaceIds.length === 0) {
           logger.info(`No matches found for GuestId: ${guest.guestId}`, { guestId: guest.guestId });
           guestMatches.push({
-            guestId: guest.guestId,
-            name: guest.Name,
-            mobile: guest.Mobile,
+            GuestId: guest.guestId,
+            Name:  guest.Name,
+            Mobile:guest.Mobile,
             matches: [], // No matches
           });
           return;
@@ -563,13 +578,25 @@ export const compareGuestFaces = async (req, res, next) => {
 
         // Retrieve details of matched EventFaces
         const matchedImages = await getEventFacesByFaceIds(matchedFaceIds, eventId);
+        console.log('matchedImages %$%$%$%$%$%%$');
+        console.log(matchedImages);
+     // Generate pre-signed URLs for matched images
+     const matchedImagesWithUrls = await Promise.all(matchedImages.map(async (match) => {
+      const presignedUrl = await getPresignedUrl(match.imageUrl);
+      return {
+        faceId: match.FaceId,
+        imageUrl: presignedUrl, // Replace with pre-signed URL
+        confidence: match.Confidence,
+      };
+    }));
 
-        guestMatches.push({
-          guestId: guest.guestId,
-          name: guest.Name,
-          mobile: guest.Mobile,
-          matches: matchedImages, // Array of matched images
-        });
+
+    guestMatches.push({
+      GuestId:guest.guestId,
+      Name:  guest.Name,
+      Mobile:guest.Mobile,
+      matches: matchedImagesWithUrls, // Array of matched images with URLs
+    });
 
       } catch (error) {
         logger.error('Error processing guest face comparison', { guestId: guest.guestId, error: error.message, stack: error.stack });

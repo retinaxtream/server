@@ -20,6 +20,7 @@
     "@aws-sdk/credential-provider-ini": "^3.658.1",
     "@aws-sdk/credential-provider-node": "^3.658.1",
     "@aws-sdk/lib-dynamodb": "^3.658.1",
+    "@aws-sdk/s3-request-presigner": "^3.662.0",
     "@google-cloud/storage": "^7.1.0",
     "@logtail/node": "^0.4.21",
     "@logtail/pino": "^0.4.22",
