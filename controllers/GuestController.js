@@ -78,7 +78,7 @@ export const storeGuestDetails = async (req, res, next) => {
     const imageUrl = getS3Url(s3Key);
 
     // Index the face in Rekognition
-    const collectionId = `event-${eventId}-collection`;
+    const collectionId = `event-${eventId}`;
 
     const indexFacesParams = {
       CollectionId: collectionId,

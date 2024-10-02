@@ -5,35 +5,35 @@ import {
   IndexFacesCommand,
   SearchFacesByImageCommand
 } from '@aws-sdk/client-rekognition';
+import { PutCommand as DocPutCommand, QueryCommand as DocQueryCommand } from '@aws-sdk/lib-dynamodb';
 
-import { 
-  S3Client, 
-  PutObjectCommand, 
-  ListObjectsV2Command, 
-  GetObjectCommand 
+import {
+  S3Client,
+  PutObjectCommand,
+  ListObjectsV2Command,
+  GetObjectCommand
 } from '@aws-sdk/client-s3';
-import { 
-  DynamoDBClient 
+import {
+  DynamoDBClient
 } from '@aws-sdk/client-dynamodb';
-import { 
-  RekognitionClient, 
-  CreateCollectionCommand, 
-  SearchFacesCommand, 
-  ListCollectionsCommand 
+import {
+  RekognitionClient,
+  DeleteCollectionCommand,
+  CreateCollectionCommand,
+  SearchFacesCommand,
+  ListCollectionsCommand
 } from '@aws-sdk/client-rekognition';
-import { 
-  DynamoDBDocumentClient, 
-  PutCommand as DocPutCommand, 
-  QueryCommand as DocQueryCommand 
+import {
+  DynamoDBDocumentClient,
 } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
 import pLimit from 'p-limit';
-import {PutItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
+import { PutItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
 import AppError from '../Utils/AppError.js'; // Assuming you have an AppError utility
-import { 
+import {
   QueryCommand as QueryCommandLib,
-  BatchGetCommand 
+  BatchGetCommand
 } from '@aws-sdk/lib-dynamodb';
 // import { log } from 'winston';
 
@@ -77,6 +77,7 @@ const createCollection = async (collectionId) => {
     }
   }
 };
+
 // Controller for uploading multiple images
 export const uploadImages = async (req, res) => {
   const { eventId, socketId } = req.query; // Extract eventId and socketId from query params
@@ -97,9 +98,12 @@ export const uploadImages = async (req, res) => {
   }
 
   try {
+    logger.info(`Starting uploadImages for EventId: ${eventId} with ${files.length} files`, { eventId });
+
     // Check if collection exists for the event (Rekognition)
     const exists = await collectionExists(collectionId);
     if (!exists) {
+      console.log('!exists !!!!!!!!!!');
       await createCollection(collectionId);
     }
 
@@ -144,35 +148,43 @@ export const uploadImages = async (req, res) => {
         ExternalImageId: uniqueId, // Use uniqueId for external image identification
         DetectionAttributes: ['ALL'],
       });
-
+        console.log('^^^^^^^^^^^^^^');
       const indexResponse = await rekognitionClient.send(indexCommand);
+      logger.info(`IndexFaces response for image ${s3Key}: ${JSON.stringify(indexResponse)}`, { eventId, s3Key });
+      console.log('indexResponse');
+      console.log(indexResponse);
       if (indexResponse.FaceRecords.length === 0) {
         logger.warn(`No faces indexed in image: ${s3Key}`, { eventId, s3Key });
+        console.log('No faces indexed in image &&&&&&&&&');
       } else {
+        console.log('Indexing ............................');
+        logger.info(`Number of faces detected in image ${s3Key}: ${indexResponse.FaceRecords.length}`, { eventId, s3Key });
+
         for (const faceRecord of indexResponse.FaceRecords) {
           const faceId = faceRecord.Face.FaceId;
+          console.log(`Face indexed with ID: ${faceId}`);
           logger.info(`Face indexed with ID: ${faceId}`, { eventId, faceId });
 
           // Store face metadata in DynamoDB
           const putParams = {
             TableName: process.env.EVENT_FACES_TABLE_NAME,
             Item: {
-              EventId: eventId,
-              FaceId: faceId,
-              ImageUrl: s3Key, // Store the S3 key with eventId folder
+              EventId: eventId, // String
+              FaceId: faceId,   // String
+              ImageUrl: s3Key,  // String
               BoundingBox: {
                 Left: faceRecord.Face.BoundingBox.Left,
                 Top: faceRecord.Face.BoundingBox.Top,
                 Width: faceRecord.Face.BoundingBox.Width,
                 Height: faceRecord.Face.BoundingBox.Height,
               },
-              Confidence: faceRecord.Face.Confidence,
+              Confidence: faceRecord.Face.Confidence, // Number
             }
           };
 
           try {
-            const dynamoResponse = await dynamoDBDocClient.send(new PutCommand(putParams));
-            logger.info(`DynamoDB response: ${JSON.stringify(dynamoResponse)}`, { eventId, faceId });
+            const dynamoResponse = await dynamoDBDocClient.send(new DocPutCommand(putParams));
+            logger.info(`DynamoDB PutItem successful for FaceId ${faceId}`, { eventId, faceId, dynamoResponse });
           } catch (dbError) {
             logger.error(`Error storing FaceId ${faceId} in DynamoDB: ${dbError.message}`, { eventId, faceId, dbError });
           }
@@ -193,7 +205,7 @@ export const uploadImages = async (req, res) => {
 };
 
 // Controller for searching faces in an event
-export const searchFace = async (req, res) => {  
+export const searchFace = async (req, res) => {
   const { eventId } = req.query; // Get eventId from query params
   const file = req.file;
 
@@ -345,7 +357,7 @@ const ensureCollectionExists = async (collectionId) => {
 const getGuestsByEventId = async (eventId) => {
   const queryParams = {
     TableName: process.env.GUESTS_TABLE_NAME,
-    IndexName: 'EventIdIndex', 
+    IndexName: 'EventIdIndex',
     KeyConditionExpression: 'EventId = :eventId',
     ExpressionAttributeValues: {
       ':eventId': eventId,
@@ -435,6 +447,9 @@ const streamToBuffer = (stream) => {
 };
 
 
+
+
+///////////////////////////FOR COMPARE GUEST FACES /////////////////////////////////////////
 // Compare Guest Faces Against Event Faces Function
 export const compareGuestFaces = async (req, res, next) => {
   const { eventId } = req.query;
@@ -461,7 +476,7 @@ export const compareGuestFaces = async (req, res, next) => {
       return res.status(200).json({ message: 'No guests found for the event.', guestMatches: [] });
     }
 
-    logger.info({ message: 'All the guest under the eventId.', guests});
+    logger.info({ message: 'All the guest under the eventId.', guests });
 
     const collectionId = `event-${eventId}`; // Ensure consistent naming
 
@@ -572,13 +587,75 @@ export const compareGuestFaces = async (req, res, next) => {
     await Promise.all(processingPromises);
 
     // Respond with the guest matches
-    res.status(200).json({ 
-      message: 'Face comparison completed successfully.', 
-      guestMatches 
+    res.status(200).json({
+      message: 'Face comparison completed successfully.',
+      guestMatches
     });
 
   } catch (error) {
     logger.error('Error in compareGuestFaces function', { eventId, error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Failed to compare guest faces.' });
+  }
+};
+
+
+
+
+
+//////////////////////////FOR DELETING COLLECTIONS ////////////////////////////////////
+// List of Collection IDs to delete
+const collectionIds = [
+  'event-66a4a9b6e68c3c0766ce76e2',
+  'event-66b0cda960645b7b30f6389d',
+  'event-66b0cda960645b7b30f6389d-collection',
+  'event-66b0cda960645b7b30f6389d-faces-collection',
+  'event-66b8e52c60645b7b30f6405c',
+  'event-66cec52a28ad7c1333701d95',
+  'event-66cefe727f02f1ad4c0fa98a',
+  'event-66f7f5c3067744a8b3984be3',
+  'event-testeventid',
+  'event-wedding-2023',
+  'event-wedding-2024'
+];
+
+export const deleteAllCollections = async (req, res, next) => {
+  try {
+    const limit = pLimit(5); // Limit concurrency to 5
+
+    // Function to delete a single collection
+    const deleteCollection = async (collectionId) => {
+      try {
+        const deleteParams = { CollectionId: collectionId };
+        const deleteCommand = new DeleteCollectionCommand(deleteParams);
+        const response = await rekognitionClient.send(deleteCommand);
+        logger.info(`Successfully deleted collection: ${collectionId}`, { collectionId, response });
+        return { collectionId, status: 'Deleted', response };
+      } catch (error) {
+        if (error.name === 'ResourceNotFoundException') {
+          logger.warn(`Collection not found: ${collectionId}`, { collectionId });
+          return { collectionId, status: 'Not Found' };
+        } else {
+          logger.error(`Failed to delete collection: ${collectionId}`, { collectionId, error });
+          return { collectionId, status: 'Error', message: error.message };
+        }
+      }
+    };
+
+    // Create an array of deletion promises with controlled concurrency
+    const deletionPromises = collectionIds.map((collectionId) =>
+      limit(() => deleteCollection(collectionId))
+    );
+
+    // Execute all deletion promises
+    const deletionResults = await Promise.all(deletionPromises);
+
+    // Respond with the results
+    res.status(200).json({
+      message: 'Deletion process completed',
+      results: deletionResults
+    });
+  } catch (error) {
+    logger.error('Error deleting collections', { error });
+    next(new AppError('Failed to delete collections', 500));
   }
 };

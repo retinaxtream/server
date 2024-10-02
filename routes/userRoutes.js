@@ -243,8 +243,15 @@ router.post(
 
 router.delete(
   '/empty-event-faces',
-  auth.protect, // Protect the route to ensure only authenticated users can perform this action
+  auth.protect, 
   CatchAsync(emptyEventFaces)
+);
+
+
+router.delete(
+  '/delete-collections',
+  auth.protect, 
+  rekognitionController.deleteAllCollections
 );
 
 // Route to empty the GuestsTable
