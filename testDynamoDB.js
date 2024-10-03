@@ -19,8 +19,8 @@ console.log('AWS_REGION:', process.env.AWS_REGION);
 console.log('S3_BUCKET_NAME:', process.env.S3_BUCKET_NAME);
 console.log('PORT:', process.env.PORT);
 console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('AWS_ACCESS_KEY_ID:', process.env.AWS_ACCESS_KEY_ID ? 'Present' : 'Missing');
-console.log('AWS_SECRET_ACCESS_KEY:', process.env.AWS_SECRET_ACCESS_KEY ? 'Present' : 'Missing');
+console.log('AWS_ACCESS_KEY_ID:', process.env.AWS_ACCESS_KEY_ID_PROD ? 'Present' : 'Missing');
+console.log('AWS_SECRET_ACCESS_KEY:', process.env.AWS_SECRET_ACCESS_KEY_PROD ? 'Present' : 'Missing');
 
 // Check if required environment variables are loaded
 if (!process.env.GUESTS_TABLE_NAME) {
@@ -28,7 +28,7 @@ if (!process.env.GUESTS_TABLE_NAME) {
   process.exit(1);
 }
 
-if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+if (!process.env.AWS_ACCESS_KEY_ID_PROD || !process.env.AWS_SECRET_ACCESS_KEY_PROD) {
   console.error('AWS credentials are not set in environment variables.');
   process.exit(1);
 }
@@ -37,8 +37,8 @@ if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
 const client = new DynamoDBClient({
   region: process.env.AWS_REGION,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID_PROD,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY_PROD,
   },
   logger: console, // Enables console logging for the SDK
 });
