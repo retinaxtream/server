@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 const GuestSchema = new mongoose.Schema(
   {
     eventId: {
-      type: String,
+      type: String, 
       required: true,
       index: true, // For faster queries based on eventId
     },
