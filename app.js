@@ -21,6 +21,7 @@ import { Server as SocketIOServer } from 'socket.io'; // Import Socket.IO server
 // ===========================
 // 1. Initialize Environment Variables and Database
 // ===========================
+
 dotenv.config({ path: './config.env' });
 connectDatabase();
 
@@ -78,7 +79,7 @@ app.use(
 // 4. Define Routes
 // ===========================
 
-app.use('/api/v1/user', userRoutes); 
+app.use('/api/v1/user', userRoutes);
 
 // Catch-all route for undefined endpoints
 app.all('*', (req, res, next) => {

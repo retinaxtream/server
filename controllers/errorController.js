@@ -69,24 +69,25 @@ const sendErrorProd = (err, res) => {
   }
 };
 
-// controllers/errorController.js
-
+// Global error handling middleware
 const globalErrorHandler = (err, req, res, next) => {
-  // Set default values if not already set
+  // Set default values if not set
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
-  // Log the error for debugging
-  logger.error(`Error: ${err.message}`, { error: err });
+  if (process.env.NODE_ENV === 'development') {
+    sendErrorDev(err, res);
+  } else if (process.env.NODE_ENV === 'production') {
+    let error = { ...err };
+    error.message = err.message;
 
-  // Send a JSON response without circular references
-  res.status(err.statusCode).json({
-    status: err.status,
-    message: err.message,
-    // Optionally include stack trace in development
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-  });
-}; 
+    // Handle specific MongoDB errors
+    if (error.name === 'CastError') error = handleCastErrorDB(error);
+    if (error.code === 11000) error = handleDuplicateFieldsDB(error);
+    if (error.name === 'ValidationError') error = handleValidationErrorDB(error);
+
+    sendErrorProd(error, res);
+  }
+};
 
 export default globalErrorHandler;
-
