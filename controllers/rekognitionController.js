@@ -3,7 +3,6 @@
 import logger from '../Utils/logger.js'; // Import the logger
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import Guest from '../models/GuestModel.js';
-
 import {
   IndexFacesCommand,
   SearchFacesByImageCommand
@@ -580,19 +579,24 @@ export const compareGuestFaces = async (req, res, next) => {
           matches: matchedImagesWithUrls, // Array of matched images with URLs
         });
 
-        // **Store the matched details in MongoDB**
+        // Prepare matched guest data
         const matchedGuestData = {
           eventId: eventId,
           guestId: guest.guestId,
           name: guest.Name,
-          mobile: guest.Mobile,
+          mobile: guest.Mobile, 
           matches: matchedImagesWithUrls,
         };
 
-        // Save to MongoDB using the correct model 
-        const matchedGuest = new Guest(matchedGuestData);
-        await matchedGuest.save();
-        logger.info(`Matched guest data saved to MongoDB for GuestId: ${guest.guestId}`, { guestId: guest.guestId });
+        const existingGuest = await Guest.findOne({ eventId: eventId, guestId: guest.guestId });
+        if (!existingGuest) {
+          // Save to MongoDB using the correct model if it doesn't already exist
+          const matchedGuest = new Guest(matchedGuestData);
+          await matchedGuest.save();
+          logger.info(`Matched guest data saved to MongoDB for GuestId: ${guest.guestId}`, { guestId: guest.guestId });
+        } else {
+          logger.info(`Guest data already exists in MongoDB for GuestId: ${guest.guestId}, skipping save.`, { guestId: guest.guestId });
+        }
       } catch (error) {
         logger.error('Error processing guest face comparison', { guestId: guest.guestId, error: error.message, stack: error.stack });
         // Optionally, you can push partial data or continue
@@ -681,3 +685,11 @@ export const deleteAllCollections = async (req, res, next) => {
     next(new AppError('Failed to delete collections', 500));
   }
 };
+
+
+
+
+
+
+
+

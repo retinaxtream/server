@@ -1,7 +1,8 @@
 // controllers/rekognitionController.js
 
 import logger from '../Utils/logger.js'; // Import the logger
-
+import { CatchAsync } from '../Utils/CatchAsync.js'
+import Guest from '../models/GuestModel.js';
 // AWS SDK v3 Clients and Commands
 import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
@@ -180,3 +181,27 @@ export const getGuestDetails = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch guest details.' });
   }
 };
+
+
+export const getGuestDetailsWithImages = CatchAsync(async (req, res, next) => {
+  console.log('Calling getGuestDetailsWithImages');
+  console.log('Event ID:', req.query.eventId);
+
+  const { eventId } = req.query;
+
+  if (!eventId) {
+    return res.status(400).json({
+      status: 'fail',
+      message: 'Event ID is required',
+    });
+  }
+
+  const guests = await Guest.find({ eventId });
+
+  res.status(200).json({  
+    status: 'success',
+    data: {
+      guests, // Changed from 'guest' to 'guests' for clarity
+    },
+  });
+});

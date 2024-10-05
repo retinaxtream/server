@@ -12,7 +12,7 @@ import { body, validationResult } from 'express-validator';
 import { emptyEventFaces, emptyGuestsTable } from '../controllers/dynamoController.js';
 import * as rekognitionController from '../controllers/rekognitionController.js';
 import * as GuestController from '../controllers/GuestController.js';
-
+import { getGuestDetailsWithImages } from '../controllers/GuestController.js';
 
 
 const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa");
@@ -265,6 +265,7 @@ router.delete(
 router.post('/search-face',auth.protect, upload_ai.single('photo'), rekognitionController.searchFace);
 // routes/userRoute.js
 router.get('/get-event-images',auth.protect, rekognitionController.getEventImages);
+router.get('/guests-with-images',auth.protect, getGuestDetailsWithImages);
 
 
 // Upload cover photo
