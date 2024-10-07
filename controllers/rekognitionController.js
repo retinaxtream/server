@@ -468,7 +468,7 @@ const getPresignedUrl = async (key) => {
       Bucket: process.env.S3_BUCKET_NAME,
       Key: key,
     });
-    const url = await getSignedUrl(s3Client, command, { expiresIn: 7200 }); // URL valid for 1 hour
+    const url = await getSignedUrl(s3Client, command, { expiresIn: 172800 }); // URL valid for 2 days (172800 seconds)
     return url;
   } catch (error) {
     console.error(`Error generating pre-signed URL for key ${key}:`, error);
