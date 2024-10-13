@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import AppError from '../Utils/AppError.js';
 // import sharp from 'sharp';
+import sharp from 'sharp';
 import mime from 'mime-types';
 import { log } from 'console';
 // import { logger } from "@logger/node"; 
@@ -29,7 +30,7 @@ const keyFilename = './credentials.json'
 const storage = new Storage({
   projectId: "primal-stock-396615",
   keyFilename: keyFilename,
-});
+});  
 
 const bucketName = 'hapzea';
 
@@ -781,50 +782,184 @@ export const createFolder_Bucket = CatchAsync(async (req, res, next) => {
 
 
 // ###########################################################################
-async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoPaths) {
-  try {
-    const bucket = storage.bucket(bucketName);
-    // Construct the destination path based on userID, album, folder, and subfolder
-    let destinationPath = `${userId}/`;
-    if (albumName) {
-      destinationPath += `${albumName}/`;
-    }
-    if (subfolderName) {
-      destinationPath += `${subfolderName}/`;
-    }
+// async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoPaths) {
+//   try {
+//     const bucket = storage.bucket(bucketName);
+//     // Construct the destination path based on userID, album, folder, and subfolder
+//     let destinationPath = `${userId}/`;
+//     if (albumName) {
+//       destinationPath += `${albumName}/`;
+//     }
+//     if (subfolderName) {
+//       destinationPath += `${subfolderName}/`;
+//     }
 
-    // Upload each photo to the specified subfolder
-    for (const photoPath of photoPaths) {
-      const photoName = path.basename(photoPath); // Extract the photo name using path module
-      const file = bucket.file(`${destinationPath}${photoName}`);
+//     // Upload each photo to the specified subfolder
+//     for (const photoPath of photoPaths) {
+//       const photoName = path.basename(photoPath); // Extract the photo name using path module
+//       const file = bucket.file(`${destinationPath}${photoName}`);
 
-      // Create a write stream to upload the file
-      const stream = file.createWriteStream({
+//       // Create a write stream to upload the file
+//       const stream = file.createWriteStream({
+//         metadata: {
+//           contentType: 'image/jpeg', // Change this based on your file type
+//         },
+//       });
+
+//       // Handle stream events (success, error)
+//       stream.on('error', (err) => {
+//         console.error(`Error uploading photo ${photoName}:`, err);
+//       });
+
+//       stream.on('finish', () => {
+//         // You can perform further processing or store the uploaded file information as needed
+//         fs.unlinkSync(photoPath);
+//       });
+
+//       // Pipe the file into the write stream
+//       const readStream = fs.createReadStream(photoPath);
+//       readStream.pipe(stream);
+//     }
+
+//   } catch (error) {
+//     console.error('Error uploading photos:', error);
+//   }
+// }
+
+
+/**
+ * Uploads photos and their thumbnails to Google Cloud Storage.
+ * @param {string} bucketName - The name of the GCS bucket.
+ * @param {string} userId - The user ID.
+ * @param {string} albumName - The album name.
+ * @param {string} subfolderName - The subfolder name.
+ * @param {string[]} photoPaths - Array of photo file paths to upload.
+ * @returns {Promise<Object[]>} - Array of uploaded file URLs.
+ */
+export async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoPaths) {
+  const bucket = storage.bucket(bucketName);
+  let destinationPath = `${userId}/`;
+  if (albumName) {
+    destinationPath += `${albumName}/`;
+  }
+  if (subfolderName) {
+    destinationPath += `${subfolderName}/`;
+  }
+
+  const originalsPath = `${destinationPath}originals/`;
+  const thumbnailsPath = `${destinationPath}thumbnails/`;
+
+  const uploadedFiles = [];
+
+  // Function to upload a single file
+  const uploadSingleFile = async (filePath) => {
+    const photoName = path.basename(filePath);
+    const originalFile = bucket.file(`${originalsPath}${photoName}`);
+
+    // Upload Original Image
+    await new Promise((resolve, reject) => {
+      const writeStream = originalFile.createWriteStream({
         metadata: {
-          contentType: 'image/jpeg', // Change this based on your file type
+          contentType: 'image/jpeg', // Adjust if needed
         },
       });
 
-      // Handle stream events (success, error)
-      stream.on('error', (err) => {
-        console.error(`Error uploading photo ${photoName}:`, err);
+      writeStream.on('error', (err) => {
+        console.error(`Error uploading original photo ${photoName}:`, err);
+        reject(err);
       });
 
-      stream.on('finish', () => {
-        // You can perform further processing or store the uploaded file information as needed
-        fs.unlinkSync(photoPath);
+      writeStream.on('finish', () => {
+        console.log(`Original photo ${photoName} uploaded successfully.`);
+        resolve();
       });
 
-      // Pipe the file into the write stream
-      const readStream = fs.createReadStream(photoPath);
-      readStream.pipe(stream);
+      fs.createReadStream(filePath)
+        .on('error', (err) => {
+          console.error(`Error reading file ${filePath}:`, err);
+          reject(err);
+        })
+        .pipe(writeStream);
+    });
+
+    // Generate Thumbnail
+    const thumbnailName = `thumb_${photoName}`;
+    const thumbnailPath = path.join(path.dirname(filePath), thumbnailName);
+
+    try {
+      await sharp(filePath)
+        .resize(200, 200, { // Adjust dimensions as needed
+          fit: sharp.fit.cover,
+        })
+        .toFormat('jpeg')
+        .jpeg({ quality: 70 }) // Adjust quality as needed
+        .toFile(thumbnailPath);
+      console.log(`Thumbnail ${thumbnailName} created successfully.`);
+    } catch (err) {
+      console.error(`Error generating thumbnail for ${photoName}:`, err);
+      throw err;
     }
 
-  } catch (error) {
-    console.error('Error uploading photos:', error);
-  }
-}
+    const thumbnailFile = bucket.file(`${thumbnailsPath}${thumbnailName}`);
 
+    // Upload Thumbnail Image
+    await new Promise((resolve, reject) => {
+      const writeStream = thumbnailFile.createWriteStream({
+        metadata: {
+          contentType: 'image/jpeg',
+        },
+      });
+
+      writeStream.on('error', (err) => {
+        console.error(`Error uploading thumbnail ${thumbnailName}:`, err);
+        reject(err);
+      });
+
+      writeStream.on('finish', () => {
+        console.log(`Thumbnail ${thumbnailName} uploaded successfully.`);
+        resolve();
+      });
+
+      fs.createReadStream(thumbnailPath)
+        .on('error', (err) => {
+          console.error(`Error reading thumbnail file ${thumbnailPath}:`, err);
+          reject(err);
+        })
+        .pipe(writeStream);
+    });
+
+    // Delete Local Files After Successful Uploads
+    try {
+      await fs.unlink(filePath); // Delete original
+      await fs.unlink(thumbnailPath); // Delete thumbnail
+      console.log(`Local files ${filePath} and ${thumbnailPath} deleted successfully.`);
+    } catch (err) {
+      console.error(`Error deleting local files: ${err}`);
+      // Decide whether to throw or continue
+    }
+
+    // Construct URLs (Adjust based on your GCS settings)
+    const originalUrl = `https://storage.googleapis.com/${bucketName}/${originalsPath}${photoName}`;
+    const thumbnailUrl = `https://storage.googleapis.com/${bucketName}/${thumbnailsPath}${thumbnailName}`;
+
+    uploadedFiles.push({
+      original: originalUrl,
+      thumbnail: thumbnailUrl,
+    });
+  };
+
+  // Sequential Uploads (You can adjust to concurrent uploads if needed)
+  for (const photoPath of photoPaths) {
+    try {
+      await uploadSingleFile(photoPath);
+    } catch (error) {
+      console.error(`Failed to upload ${photoPath}:`, error);
+      // Optionally, handle retries or continue with next file
+    }
+  }
+
+  return uploadedFiles;
+}
 
 
 
@@ -1036,18 +1171,34 @@ const fetchAllPhotosFilter = async (bucketName, userId, main_folder, sub_folder)
 
 
 
+
 export const upload = CatchAsync(async (req, res, next) => {
   const photoPaths = req.files.map(file => file.path);
   const main_folder = req.query.main_folder;
   const sub_folder = req.query.sub_folder;
   const id = req.query.id;
-  // Use your uploadPhotos function to handle the photo upload
-  await uploadPhotos('hapzea', id, main_folder, sub_folder, photoPaths);
 
-  res.status(200).json({
-    status: 'success',
-  });
+  try {
+    // Upload photos and thumbnails
+    const uploadedFiles = await uploadPhotos('hapzea', id, main_folder, sub_folder, photoPaths);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Photos and thumbnails uploaded successfully.',
+      data: uploadedFiles, // Optionally send back URLs
+    });
+  } catch (error) {
+    // Handle error appropriately
+    console.error('Error in upload handler:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to upload some photos.',
+      error: error.message,
+    });
+  }
 });
+
+
 
 
 
