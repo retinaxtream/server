@@ -5,7 +5,10 @@ import crypto from 'crypto';
 
 const userSchema = new mongoose.Schema({
   businessName: { type: String },
-  validating: { type: Boolean },
+  validating: {
+    type: Boolean,
+    default: false,
+  },
   email: {
     type: String,
     unique: true,
@@ -18,6 +21,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['user', 'guide', 'lead-guide', 'admin'],
     default: 'user',
+  },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true, // Allows multiple null values
   },
   password: {
     type: String,

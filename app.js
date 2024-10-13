@@ -109,10 +109,10 @@ const initializeServer = () => {
         methods: ['GET', 'POST'],
         allowedHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options'],
         credentials: true,
-      },
+      }, 
     });
 
-    // Handle Socket.IO connections
+    // Handle Socket.IO connections 
     io.on('connection', (socket) => {
       logger.info(`Client connected: ${socket.id}`);
 

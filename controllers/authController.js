@@ -3,14 +3,11 @@ import { CatchAsync } from '../Utils/CatchAsync.js'
 import jwt from 'jsonwebtoken';
 import { Logtail } from "@logtail/node";
 import { validationResult } from 'express-validator';
-
+import AppError from '../Utils/AppError.js';
 
 const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa");
 
-
-
-
-
+    
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
@@ -252,63 +249,117 @@ export const protect = CatchAsync(async (req, res, next) => {
 }); 
 
 
+// export const googleAuth = CatchAsync(async (req, res, next) => {
+//   try {
+
+//     let { email, id } = req.body; 
+//     if (!id) {
+//       return res.status(401).json({ error: "Invalid Credentials" });
+//     }
+ 
+//     const user = await User.findOne({ email });
+
+//     if (!user) {
+//       const newUser = await User.create({
+//         email,
+//         password: "Asdfghjklqwer2",
+//         passwordConfirm: "Asdfghjklqwer2",
+//         validating: true,
+//       });
+
+//       const token = await signToken(newUser._id);
+//       res.cookie('jwtToken', token, {
+//         httpOnly: true,
+//         secure: true,
+//         sameSite: 'strict'
+//       });
+
+//       return res.status(201).json({
+//         status: 'success',
+//         token: token,
+//         data: {
+//           user: newUser
+//         }
+//       });
+//     } else if (user) { 
+//       const token = await signToken(user._id);
+//       res.cookie('jwtToken', token, {
+//         httpOnly: true,
+//         secure: true,
+//         sameSite: 'strict'
+//       });
+
+//       return res.status(201).json({
+//         status: 'success',
+//         token: token,
+//         data: {
+//           user
+//         }
+//       });
+//     }
+
+//     next(); // Call next middleware if user already exists
+//   } catch (error) {
+//     // Log the error for debugging
+//     console.error('Error in googleAuth middleware:', error);
+//     // Return a detailed error response
+//     return res.status(500).json({ error: error.message });
+//   }
+// });
+
 export const googleAuth = CatchAsync(async (req, res, next) => {
   try {
+    const { email, id: googleId } = req.body;
 
-    let { email, id } = req.body; 
-    if (!id) {
+    if (!googleId) {
       return res.status(401).json({ error: "Invalid Credentials" });
     }
- 
-    const user = await User.findOne({ email });
 
-    if (!user) {
-      const newUser = await User.create({
+    let user = await User.findOne({ email });
+
+    if (user) {
+      // Check if the user already has a Google ID linked
+      if (!user.googleId) {
+        // Link the Google account
+        user.googleId = googleId;
+        user.validating = true; // Assuming this flag is used for verification
+        await user.save({ validateBeforeSave: false });
+      }
+    } else {
+      // Create a new user without setting a password
+      user = await User.create({
         email,
-        password: "Asdfghjklqwer2",
-        passwordConfirm: "Asdfghjklqwer2",
+        googleId,
         validating: true,
-      });
-
-      const token = await signToken(newUser._id);
-      res.cookie('jwtToken', token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'strict'
-      });
-
-      return res.status(201).json({
-        status: 'success',
-        token: token,
-        data: {
-          user: newUser
-        }
-      });
-    } else if (user) { 
-      const token = await signToken(user._id);
-      res.cookie('jwtToken', token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'strict'
-      });
-
-      return res.status(201).json({
-        status: 'success',
-        token: token,
-        data: {
-          user
-        }
+        // Add other necessary fields, e.g., businessName, mobile, role
       });
     }
 
-    next(); // Call next middleware if user already exists
+    // Generate JWT Token
+    const token = signToken(user._id); // Ensure signToken is properly defined
+
+    // Set JWT in HTTP-only cookie
+    res.cookie('jwtToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Ensure secure flag in production
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
+    });
+
+    // Respond with the token and user data
+    return res.status(200).json({
+      status: 'success',
+      token,
+      data: {
+        user,
+      },
+    });
   } catch (error) {
-    // Log the error for debugging
     console.error('Error in googleAuth middleware:', error);
-    // Return a detailed error response
     return res.status(500).json({ error: error.message });
   }
 });
+
 
 export const googleAuthDesk = CatchAsync(async (req, res, next) => {
   try {
