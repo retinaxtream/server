@@ -888,11 +888,11 @@ export async function uploadPhotos(bucketName, userId, albumName, subfolderName,
 
     try {
       await sharp(filePath)
-        .resize(200, 200, { // Adjust dimensions as needed
+        .resize(400, 400, { // Adjust dimensions as needed
           fit: sharp.fit.cover,
         })
         .toFormat('jpeg')
-        .jpeg({ quality: 70 }) // Adjust quality as needed
+        .jpeg({ quality: 80 }) // Adjust quality as needed
         .toFile(thumbnailPath);
       console.log(`Thumbnail ${thumbnailName} created successfully.`);
     } catch (err) {
@@ -1167,7 +1167,7 @@ const fetchAllPhotosFilter = async (bucketName, userId, main_folder, sub_folder)
     console.error('Error fetching photos:', error);
     throw error;
   }
-};
+}; 
 
 
 
@@ -1198,8 +1198,8 @@ export const upload = CatchAsync(async (req, res, next) => {
   }
 });
 
-
-
+ 
+     
 
 
 export const signedUrl = CatchAsync(async (req, res, next) => {
