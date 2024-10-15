@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import AppError from '../Utils/AppError.js';
 // import sharp from 'sharp';
+import { pipeline } from 'stream/promises';
 import sharp from 'sharp';
 import mime from 'mime-types';
 import { log } from 'console';
@@ -827,6 +828,7 @@ export const createFolder_Bucket = CatchAsync(async (req, res, next) => {
 // }
 
 
+
 /**
  * Uploads photos and their thumbnails to Google Cloud Storage.
  * @param {string} bucketName - The name of the GCS bucket.
@@ -836,16 +838,6 @@ export const createFolder_Bucket = CatchAsync(async (req, res, next) => {
  * @param {string[]} photoPaths - Array of photo file paths to upload.
  * @returns {Promise<Object[]>} - Array of uploaded file URLs.
  */
-
-const fileExists = async (filePath) => {
-  try {
-    await fs.promises.access(filePath, fs.constants.F_OK);
-    return true;
-  } catch (err) {
-    return false;
-  }
-};
-
 export async function uploadPhotos(bucketName, userId, albumName, subfolderName, photoPaths) {
   const bucket = storage.bucket(bucketName);
   let destinationPath = `${userId}/`;
@@ -861,129 +853,139 @@ export async function uploadPhotos(bucketName, userId, albumName, subfolderName,
 
   const uploadedFiles = [];
 
-  // Function to upload a single file
-// Function to upload a single file and delete after success
-// Function to upload a single file and delete after success
-const uploadSingleFile = async (filePath) => {
+  // Sequential Uploads
+  for (const photoPath of photoPaths) {
+    try {
+      const uploadedFile = await uploadSingleFile(photoPath, bucket, originalsPath, thumbnailsPath);
+      uploadedFiles.push(uploadedFile);
+    } catch (error) {
+      console.error(`Failed to upload ${photoPath}:`, error);
+    }
+  }
+
+  return uploadedFiles;
+}
+
+/**
+ * Helper function to check if the file exists
+ * @param {string} filePath
+ * @returns {Promise<boolean>}
+ */
+const fileExists = async (filePath) => {
+  try {
+    await fs.promises.access(filePath, fs.constants.F_OK);
+    return true;
+  } catch (err) {
+    return false;
+  }
+};
+
+/**
+ * Helper function to delete files with retry logic
+ * @param {string} filePath
+ * @param {number} retries - Number of retry attempts
+ * @param {number} delayMs - Delay between retries in milliseconds
+ */
+const unlinkWithRetry = async (filePath, retries = 3, delayMs = 1000) => {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await fs.promises.unlink(filePath);
+      console.log(`Local file ${filePath} deleted successfully.`);
+      return;
+    } catch (err) {
+      if (err.code === 'EPERM' && attempt < retries) {
+        console.warn(`Attempt ${attempt} - EPERM error deleting file ${filePath}. Retrying in ${delayMs}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      } else {
+        console.error(`Failed to delete file ${filePath} after ${attempt} attempts:`, err);
+        throw err;
+      }
+    }
+  }
+};
+
+/**
+ * Function to upload a single file and its thumbnail
+ * @param {string} filePath
+ * @param {Storage.Bucket} bucket
+ * @param {string} originalsPath
+ * @param {string} thumbnailsPath
+ * @returns {Promise<Object>} - URLs of the uploaded original and thumbnail
+ */
+const uploadSingleFile = async (filePath, bucket, originalsPath, thumbnailsPath) => {
   const photoName = path.basename(filePath);
   const originalFile = bucket.file(`${originalsPath}${photoName}`);
 
-  // Upload Original Image
-  await new Promise((resolve, reject) => {
-    const readStream = fs.createReadStream(filePath);
-    const writeStream = originalFile.createWriteStream({
-      metadata: {
-        contentType: 'image/jpeg', // Adjust if needed
-      },
-    });
-
-    writeStream.on('error', (err) => {
-      console.error(`Error uploading original photo ${photoName}:`, err);
-      reject(err);
-    });
-
-    writeStream.on('finish', () => {
-      console.log(`Original photo ${photoName} uploaded successfully.`);
-      readStream.close(); // Close the read stream once it's finished
-      resolve();
-    });
-
-    readStream.on('error', (err) => {
-      console.error(`Error reading file ${filePath}:`, err);
-      reject(err);
-    });
-
-    readStream.pipe(writeStream);
-  });
-
-  // Generate Thumbnail
-  const thumbnailName = `thumb_${photoName}`;
-  const thumbnailPath = path.join(path.dirname(filePath), thumbnailName);
-
+  // Upload Original Image using pipeline for better stream management
   try {
-    await sharp(filePath)
-      .resize(400, 400, { // Adjust dimensions as needed
-        fit: sharp.fit.cover,
+    await pipeline(
+      fs.createReadStream(filePath),
+      originalFile.createWriteStream({
+        metadata: {
+          contentType: 'image/jpeg', // Adjust based on your file type
+        },
       })
-      .toFormat('jpeg')
-      .jpeg({ quality: 80 }) // Adjust quality as needed
-      .toFile(thumbnailPath);
-    console.log(`Thumbnail ${thumbnailName} created successfully.`);
+    );
+    console.log(`Original photo ${photoName} uploaded successfully.`);
   } catch (err) {
-    console.error(`Error generating thumbnail for ${photoName}:`, err);
+    console.error(`Error uploading original photo ${photoName}:`, err);
     throw err;
   }
 
+  // Generate Thumbnail in-memory using sharp
+  const thumbnailName = `thumb_${photoName}`;
   const thumbnailFile = bucket.file(`${thumbnailsPath}${thumbnailName}`);
 
-  // Upload Thumbnail Image
-  await new Promise((resolve, reject) => {
-    const readStream = fs.createReadStream(thumbnailPath);
-    const writeStream = thumbnailFile.createWriteStream({
-      metadata: {
-        contentType: 'image/jpeg',
-      },
-    });
+  try {
+    // Create a readable stream from the original file
+    const readStream = fs.createReadStream(filePath);
 
-    writeStream.on('error', (err) => {
-      console.error(`Error uploading thumbnail ${thumbnailName}:`, err);
-      reject(err);
-    });
+    // Pipe the original image through sharp to resize it
+    const transform = sharp()
+      .resize(400, 400, {
+        fit: sharp.fit.cover,
+      })
+      .toFormat('jpeg')
+      .jpeg({ quality: 80 });
 
-    writeStream.on('finish', () => {
-      console.log(`Thumbnail ${thumbnailName} uploaded successfully.`);
-      readStream.close(); // Close the read stream once it's finished
-      resolve();
-    });
+    // Upload the thumbnail directly to GCS
+    await pipeline(
+      readStream,
+      transform,
+      thumbnailFile.createWriteStream({
+        metadata: {
+          contentType: 'image/jpeg', // Adjust based on your file type
+        },
+      })
+    );
 
-    readStream.on('error', (err) => {
-      console.error(`Error reading thumbnail file ${thumbnailPath}:`, err);
-      reject(err);
-    });
+    console.log(`Thumbnail ${thumbnailName} uploaded successfully.`);
+  } catch (err) {
+    console.error(`Error uploading thumbnail ${thumbnailName}:`, err);
+    throw err;
+  }
 
-    readStream.pipe(writeStream);
-  });
-
-// Add a small delay before attempting to delete the files
-setTimeout(async () => {
+  // Delete Original File with Retry
   try {
     if (await fileExists(filePath)) {
-      await fs.promises.unlink(filePath);
-      console.log(`Local original file ${filePath} deleted successfully.`);
-    }
-
-    if (await fileExists(thumbnailPath)) {
-      await fs.promises.unlink(thumbnailPath);
-      console.log(`Local thumbnail file ${thumbnailPath} deleted successfully.`);
+      await unlinkWithRetry(filePath);
     }
   } catch (err) {
-    console.error(`Error deleting local files: ${err}`);
+    console.error(`Error deleting original file: ${err}`);
+    // Depending on your needs, you might want to rethrow the error or handle it accordingly
   }
-}, 100);  // 100ms delay before attempting file deletion
 
-  // Construct URLs (Adjust based on your GCS settings)
-  const originalUrl = `https://storage.googleapis.com/${bucketName}/${originalsPath}${photoName}`;
-  const thumbnailUrl = `https://storage.googleapis.com/${bucketName}/${thumbnailsPath}${thumbnailName}`;
+  // No need to delete thumbnails as they're not saved locally
 
-  uploadedFiles.push({
+  // Return URLs for original and thumbnail
+  const originalUrl = `https://storage.googleapis.com/${bucket.name}/${originalsPath}${photoName}`;
+  const thumbnailUrl = `https://storage.googleapis.com/${bucket.name}/${thumbnailsPath}${thumbnailName}`;
+
+  return {
     original: originalUrl,
     thumbnail: thumbnailUrl,
-  });
+  };
 };
-
-// Sequential Uploads
-for (const photoPath of photoPaths) {
-  try {
-    await uploadSingleFile(photoPath);
-  } catch (error) {
-    console.error(`Failed to upload ${photoPath}:`, error);
-  }
-}
-
-return uploadedFiles;
-} 
-
-
 
 
 const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataValue) => {
@@ -992,7 +994,7 @@ const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataVal
 
     const folderPath = `${userId}/PhotoSelection`;
 
-    const [files] = await bucket.getFiles({
+    const [files] = await bucket.getFiles({ 
       prefix: folderPath,
     });
 
