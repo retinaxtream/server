@@ -904,10 +904,10 @@ const unlinkWithRetry = async (filePath, retries = 3, delayMs = 1000) => {
   }
 };
 
-/**
+/** 
  * Function to upload a single file and its thumbnail
- * @param {string} filePath
- * @param {Storage.Bucket} bucket
+ * @param {string} filePath   
+ * @param {Storage.Bucket} bucket 
  * @param {string} originalsPath
  * @param {string} thumbnailsPath
  * @returns {Promise<Object>} - URLs of the uploaded original and thumbnail
@@ -986,7 +986,7 @@ const uploadSingleFile = async (filePath, bucket, originalsPath, thumbnailsPath)
     thumbnail: thumbnailUrl,
   };
 };
-
+ 
 
 const getFoldersByMetadata = async (bucketName, userId, metadataKey, metadataValue) => {
   try {
@@ -1029,7 +1029,7 @@ const getFilesByMetadata = async (bucketName, userId, metadataKey, metadataValue
   try {
     const bucket = storage.bucket(bucketName);
 
-    const folderPath = `${userId}/PhotoSelection/${sub_Files}/`;
+    const folderPath = `${userId}/PhotoSelection/${sub_Files}/thumbnails/`;
 
     const [files] = await bucket.getFiles({
       prefix: folderPath,
@@ -1386,45 +1386,48 @@ export const sendMedia_Files = CatchAsync(async (req, res, next) => {
 // });
 
 
-
 export const folder_metadata = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
   const folders = req.body.selected;
-  let subFolder;
-  if (req.body.sub_folder) {
-    subFolder = req.body.sub_folder;
-  }
+
+  // Reassigning thumbnail for clarity
+  folders.forEach(folder => {
+    folder.thumbnail = folder.thumbnail; // Keeping the same thumbnail if needed
+  });
+
+  console.log(folders);
+  console.log('#############################################');
+
+  let subFolder = req.body.sub_folder || null; // Handling sub_folder conditionally
   const bucketName = 'hapzea';
   const bucket = storage.bucket(bucketName);
 
-  let [files] = [];
-
   if (subFolder) {
-    const prefix = `${clientId}/PhotoSelection/${subFolder}/`;
+    const prefix = `${clientId}/PhotoSelection/${subFolder}/thumbnails`;
+
     const [files] = await bucket.getFiles({
       prefix: prefix,
     });
 
-    // for (const file of files) {
-    //   if (!file.name.endsWith('/')) {
-    //     await file.setMetadata({ metadata: null });
-    //     console.log(`Metadata removed for file ${file.name}`);
-    //   }
-    // }
-
     for (const item of folders) {
-      const filePath = item.src;
-      const fileName = filePath.split('/').pop();
-      const folderPath = `${clientId}/PhotoSelection/${subFolder}/${fileName}`;
-      try {
-        await bucket.file(folderPath).setMetadata({
-          metadata: {
-            selected: true
-          },
-        });
-        logger.info(`Metadata updated for file: ${folderPath}`);
-      } catch (error) {
-        logger.error(`Error updating metadata for file ${folderPath}: ${error.message}`);
+      // Ensure 'thumbnail' exists before using 'split'
+      if (item.thumbnail) {
+        const filePath = item.thumbnail; // Use thumbnail URL to target the correct image in the thumbnails folder
+        const fileName = filePath.split('/').pop(); // Extract file name from the thumbnail URL
+        const folderPath = `${clientId}/PhotoSelection/${subFolder}/thumbnails/${fileName}`; // Correct path to the thumbnail file
+
+        try {
+          await bucket.file(folderPath).setMetadata({
+            metadata: {
+              selected: true, // Example metadata to be attached
+            },
+          });
+          logger.info(`Metadata updated for file: ${folderPath}`);
+        } catch (error) {
+          logger.error(`Error updating metadata for file ${folderPath}: ${error.message}`);
+        }
+      } else {
+        logger.error('Thumbnail path is missing in the folder item.');
       }
     }
 
@@ -1432,18 +1435,17 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
       status: 'success',
     });
   } else {
-
     async function removeMetadataFromFolders(bucket, prefix) {
       const [files] = await bucket.getFiles({
         prefix: prefix,
-        autoPaginate: false
+        autoPaginate: false,
       });
 
       for (const file of files) {
         if (file.name.endsWith('/')) {
           await file.setMetadata({ metadata: null });
           await removeMetadataFromFolders(bucket, `${prefix}${file.name}`);
-          logger.info('removeMetadataFromFolders')
+          logger.info('removeMetadataFromFolders');
         }
       }
     }
@@ -1456,17 +1458,16 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
 
     for (const folder of folders) {
       const folderPath = `${clientId}/PhotoSelection/${folder}/`;
-      logger.info(`Updating metadata for folder: ${folderPath}`)
+      logger.info(`Updating metadata for folder: ${folderPath}`);
       try {
         await bucket.file(folderPath).setMetadata({
           metadata: {
-            selected: false
+            selected: false,
           },
         });
         logger.info(`Metadata updated successfully for ${folderPath}`);
       } catch (error) {
         logger.error(`Error updating metadata for ${folderPath}: ${error.message}`);
-        console.error(`Error updating metadata for ${folderPath}:`, error);
       }
     }
 
@@ -1475,6 +1476,8 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     });
   }
 });
+
+
 
 export const fileSelecting = CatchAsync(async (req, res, next) => {
   const clientId = req.params.id;
