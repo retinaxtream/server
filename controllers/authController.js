@@ -312,7 +312,7 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
     const { email, id: googleId } = req.body;
 
     if (!googleId) {
-      return res.status(401).json({ error: "Invalid Credentials" });
+      return res.status(401).json({ error: 'Invalid Credentials' });
     }
 
     let user = await User.findOne({ email });
@@ -331,7 +331,8 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
         email,
         googleId,
         validating: true,
-        // Add other necessary fields, e.g., businessName, mobile, role
+        // Add other necessary fields as needed
+        // For optional fields, they will take default values
       });
     }
 

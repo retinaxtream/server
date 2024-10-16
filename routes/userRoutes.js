@@ -184,6 +184,8 @@ router.post('/createfolder', auth.protect, userController.createFolder_Bucket);
 router.get('/fetchMedia', userController.fetch_Photos);
 router.get('/fetchMedia_filer', userController.fetch_Photos_filtered);
 router.post('/upload', auth.protect, upload.array('photos'), userController.upload);
+router.delete('/client/delete/:id', auth.protect, userController.deleteClient);
+
 router.get('/generate-signed-url', auth.protect, userController.signedUrl);
 router.post('/profile_upload', auth.protect, profile.single('photos'), userController.uploadProfilePhoto);
 router.get('/profile_upload', auth.protect, userController.getProfilePhotoFromGCS);

@@ -29,7 +29,12 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Please provide a password'],
+    required: [
+      function () {
+        return !this.googleId;
+      },
+      'Please provide a password',
+    ],
     minlength: 8,
     select: false,
   },
@@ -37,7 +42,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     validate: {
       validator: function (el) {
-        return el === this.password;
+        if (this.password || el) {
+          return el === this.password;
+        }
+        return true;
       },
       message: 'Passwords are not the same!',
     },
@@ -45,12 +53,14 @@ const userSchema = new mongoose.Schema({
   mobile: {
     type: String,
     unique: true,
+    sparse: true, // Allows multiple null values
     validate: {
       validator: function (value) {
-        return /^(\+91[\d]{10})$/.test(value);
+        return value === '' || /^(\+91[\d]{10})$/.test(value);
       },
       message: 'Please provide a valid Indian mobile number with the format +919XXXXXXXXX.',
     },
+    default: '',
   },
   passwordChangedAt: Date,
   passwordResetToken: String,
@@ -59,33 +69,59 @@ const userSchema = new mongoose.Schema({
   address: { type: String },
   website: {
     type: String,
-    validate: [validator.isURL, 'Please provide a valid URL'],
+    validate: {
+      validator: function (v) {
+        return v === '' || validator.isURL(v);
+      },
+      message: 'Please provide a valid URL',
+    },
     default: '',
   },
   googleMapLink: {
     type: String,
-    validate: [validator.isURL, 'Please provide a valid URL'],
+    validate: {
+      validator: function (v) {
+        return v === '' || validator.isURL(v);
+      },
+      message: 'Please provide a valid URL',
+    },
     default: '',
   },
   socialProfiles: {
     facebook: {
       type: String,
-      validate: [validator.isURL, 'Please provide a valid URL for Facebook'],
+      validate: {
+        validator: function (v) {
+          return v === '' || validator.isURL(v);
+        },
+        message: 'Please provide a valid URL for Facebook',
+      },
       default: '',
     },
     twitter: {
       type: String,
-      validate: [validator.isURL, 'Please provide a valid URL for Twitter'],
+      validate: {
+        validator: function (v) {
+          return v === '' || validator.isURL(v);
+        },
+        message: 'Please provide a valid URL for Twitter',
+      },
       default: '',
     },
     instagram: {
       type: String,
-      validate: [validator.isURL, 'Please provide a valid URL for Instagram'],
+      validate: {
+        validator: function (v) {
+          return v === '' || validator.isURL(v);
+        },
+        message: 'Please provide a valid URL for Instagram',
+      },
       default: '',
     },
   },
 });
 
+// Hash the password before saving, if modified
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
 
@@ -94,15 +130,17 @@ userSchema.pre('save', async function (next) {
   next();
 });
 
+// Pre-save hook to format mobile number
 userSchema.pre('save', function (next) {
   if (!this.isModified('mobile')) return next();
 
-  if (!this.mobile.startsWith('+91')) {
+  if (this.mobile && !this.mobile.startsWith('+91')) {
     this.mobile = '+91' + this.mobile;
   }
   next();
 });
 
+// Update passwordChangedAt if password is modified
 userSchema.pre('save', function (next) {
   if (!this.isModified('password') || this.isNew) return next();
 
@@ -110,11 +148,13 @@ userSchema.pre('save', function (next) {
   next();
 });
 
+// Query middleware to exclude inactive users
 userSchema.pre(/^find/, function (next) {
   this.find({ active: { $ne: false } });
   next();
 });
 
+// Instance method to check if password is correct
 userSchema.methods.correctPassword = async function (
   candidatePassword,
   userPassword
@@ -122,6 +162,7 @@ userSchema.methods.correctPassword = async function (
   return await bcrypt.compare(candidatePassword, userPassword);
 };
 
+// Instance method to check if password was changed after JWT was issued
 userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
   if (this.passwordChangedAt) {
     const changedTimestamp = parseInt(
@@ -133,6 +174,7 @@ userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
   return false;
 };
 
+// Instance method to create a password reset token
 userSchema.methods.createPasswordResetToken = function () {
   const resetToken = crypto.randomBytes(32).toString('hex');
 

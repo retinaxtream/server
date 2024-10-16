@@ -1223,9 +1223,47 @@ export const upload = CatchAsync(async (req, res, next) => {
 });
 
  
-     
+
+const bucket = storage.bucket(bucketName);
 
 
+// Controller to delete client and associated folder
+export const deleteClient = CatchAsync(async (req, res, next) => {
+  const clientId = req.params.id; // Get client ID from request params
+
+  // Find and delete the client from MongoDB
+  const client = await Client.findByIdAndDelete(clientId);
+  
+  if (!client) {
+    return res.status(404).json({ status: 'fail', message: 'Client not found' });
+  }
+
+  // Construct the folder path in GCS to delete
+  const folderPath = `${clientId}/`; // Assuming client ID is used as the folder name
+
+  // Delete all files and the folder from GCS
+  const [files] = await bucket.getFiles({ prefix: folderPath });
+
+  if (files.length === 0) {
+    console.log('No files found in folder to delete.');
+    logger.info('No files found in folder to delete.');
+  } else {
+    // Delete files and the folder
+    await Promise.all(
+      files.map(file => file.delete())
+    );
+    console.log(`All files and folder ${folderPath} deleted from bucket ${bucketName}`);
+    logger.info(`All files and folder ${folderPath} deleted from bucket ${bucketName}`);
+  }
+
+  res.status(204).json({
+    status: 'success',
+    message: 'Client and associated folder deleted successfully',
+  });
+});
+
+
+ 
 export const signedUrl = CatchAsync(async (req, res, next) => {
   const { id, main_folder, sub_folder, fileName, fileType } = req.query;
 
@@ -1408,7 +1446,7 @@ export const folder_metadata = CatchAsync(async (req, res, next) => {
     const [files] = await bucket.getFiles({
       prefix: prefix,
     });
-
+ 
     for (const item of folders) {
       // Ensure 'thumbnail' exists before using 'split'
       if (item.thumbnail) {
