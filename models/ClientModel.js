@@ -23,7 +23,7 @@ const clientSchema = new mongoose.Schema({
   Bride: {
     type: String,
   },
-  EventName: {
+  EventName: { 
     type: String,
     // EventName is not required, it will default to EventCategory if not provided
   },
@@ -74,6 +74,8 @@ clientSchema.pre('save', function (next) {
       this.ClientName = this.Groom;
     } else if (this.Bride) {
       this.ClientName = this.Bride;
+    }else if (this.EventName) {
+      this.ClientName = this.EventName;
     }
   }
 

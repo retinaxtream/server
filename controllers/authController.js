@@ -331,7 +331,7 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
         email,
         googleId,
         validating: true,
-        // Add other necessary fields as needed
+        // Add other necessary fields as needed 
         // For optional fields, they will take default values
       });
     }
