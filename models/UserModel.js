@@ -56,11 +56,13 @@ const userSchema = new mongoose.Schema({
     sparse: true, // Allows multiple null values
     validate: {
       validator: function (value) {
-        return value === '' || /^(\+91[\d]{10})$/.test(value);
+        // Allow undefined or null values
+        if (value == null) return true;
+        return /^(\+91[\d]{10})$/.test(value);
       },
       message: 'Please provide a valid Indian mobile number with the format +919XXXXXXXXX.',
     },
-    default: '',
+    // Removed default: ''
   },
   passwordChangedAt: Date,
   passwordResetToken: String,
@@ -71,52 +73,52 @@ const userSchema = new mongoose.Schema({
     type: String,
     validate: {
       validator: function (v) {
-        return v === '' || validator.isURL(v);
+        return v == null || v === '' || validator.isURL(v);
       },
       message: 'Please provide a valid URL',
     },
-    default: '',
+    default: undefined, // Changed from ''
   },
   googleMapLink: {
     type: String,
     validate: {
       validator: function (v) {
-        return v === '' || validator.isURL(v);
+        return v == null || v === '' || validator.isURL(v);
       },
       message: 'Please provide a valid URL',
     },
-    default: '',
+    default: undefined, // Changed from ''
   },
   socialProfiles: {
     facebook: {
       type: String,
       validate: {
         validator: function (v) {
-          return v === '' || validator.isURL(v);
+          return v == null || v === '' || validator.isURL(v);
         },
         message: 'Please provide a valid URL for Facebook',
       },
-      default: '',
+      default: undefined, // Changed from ''
     },
     twitter: {
       type: String,
       validate: {
         validator: function (v) {
-          return v === '' || validator.isURL(v);
+          return v == null || v === '' || validator.isURL(v);
         },
         message: 'Please provide a valid URL for Twitter',
       },
-      default: '',
+      default: undefined, // Changed from ''
     },
     instagram: {
       type: String,
       validate: {
         validator: function (v) {
-          return v === '' || validator.isURL(v);
+          return v == null || v === '' || validator.isURL(v);
         },
         message: 'Please provide a valid URL for Instagram',
       },
-      default: '',
+      default: undefined, // Changed from ''
     },
   },
 });
