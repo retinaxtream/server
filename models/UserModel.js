@@ -52,8 +52,6 @@ const userSchema = new mongoose.Schema({
   },
   mobile: {
     type: String,
-    unique: true,
-    sparse: true, // Allows multiple null values
     validate: {
       validator: function (value) {
         // Allow undefined or null values
@@ -62,8 +60,9 @@ const userSchema = new mongoose.Schema({
       },
       message: 'Please provide a valid Indian mobile number with the format +919XXXXXXXXX.',
     },
-    // Removed default: ''
+    // Removed unique: true and default: ''
   },
+  
   passwordChangedAt: Date,
   passwordResetToken: String,
   passwordResetExpires: Date,
