@@ -185,7 +185,6 @@ router.get('/fetchMedia', userController.fetch_Photos);
 router.get('/fetchMedia_filer', userController.fetch_Photos_filtered);
 router.post('/upload', auth.protect, upload.array('photos'), userController.upload);
 router.delete('/client/delete/:id', auth.protect, userController.deleteClient);
-
 router.get('/generate-signed-url', auth.protect, userController.signedUrl);
 router.post('/profile_upload', auth.protect, profile.single('photos'), userController.uploadProfilePhoto);
 router.get('/profile_upload', auth.protect, userController.getProfilePhotoFromGCS);
@@ -193,7 +192,7 @@ router.post("/googlesignIn", authController.googleAuth);
 router.post('/sendUrl', userController.sendPublic_url);
 router.post('/sendAlbumUrl', userController.sendAlbum_url);
 router.post('/sendMedia', auth.protect, userController.sendMedia_Files);
-router.post('/meta/:id', userController.folder_metadata);
+router.post('/meta/:id', userController.folder_metadata); 
 router.post('/meta_selecting/:id', userController.fileSelecting);
 router.get('/metacheck/:id', userController.matchingFolders);
 router.get('/meta_selction_check/:id', auth.protect, userController.matchingFiles);

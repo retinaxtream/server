@@ -78,14 +78,13 @@ clientSchema.pre('save', function (next) {
       this.ClientName = this.EventName;
     }
   }
-
   // Set EventName to EventCategory if EventName is not provided
   if (!this.EventName || this.EventName.trim() === '') {
     this.EventName = this.EventCategory;
   }
-
   next();
 });
+
 
 const Client = mongoose.model('Client', clientSchema);
 

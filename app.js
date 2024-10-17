@@ -19,6 +19,54 @@ import http from 'http'; // Import HTTP module to create an HTTP server
 import { Server as SocketIOServer } from 'socket.io'; // Import Socket.IO server
 
 // ===========================
+// 0. Process-Level Error Handlers
+// ===========================
+
+const shutdown = (server) => {
+  logger.info('Shutting down gracefully...');
+  
+  server.close(() => {
+    logger.info('💥 Process terminated!');
+    process.exit(1);
+  });
+
+  // Force shutdown after 10 seconds
+  setTimeout(() => {
+    logger.error('Could not close connections in time, forcefully shutting down');
+    process.exit(1);
+  }, 10000);
+};
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  logger.error('UNCAUGHT EXCEPTION! Shutting down...');
+  logger.error(`Error Name: ${err.name}`);
+  logger.error(`Error Message: ${err.message}`);
+  logger.error(`Stack Trace: ${err.stack}`);
+
+  // If server is initialized, shut it down gracefully
+  if (global.server) {
+    shutdown(global.server);
+  } else {
+    process.exit(1);
+  }
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('UNHANDLED REJECTION! Shutting down...');
+  logger.error(`Reason: ${reason}`);
+  logger.error(`Promise: ${promise}`);
+
+  // If server is initialized, shut it down gracefully
+  if (global.server) {
+    shutdown(global.server);
+  } else {
+    process.exit(1);
+  }
+});
+
+// ===========================
 // 1. Initialize Environment Variables and Database
 // ===========================
 
@@ -81,6 +129,15 @@ app.use(
 
 app.use('/api/v1/user', userRoutes);
 
+// Test Routes for Error Handling
+app.get('/test-uncaught-exception', (req, res) => {
+  throw new Error('Simulated uncaught exception');
+});
+
+app.get('/test-unhandled-rejection', (req, res) => {
+  Promise.reject(new Error('Simulated unhandled rejection'));
+});
+
 // Catch-all route for undefined endpoints
 app.all('*', (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
@@ -97,6 +154,9 @@ const initializeServer = () => {
 
     // Create an HTTP server from the Express app
     const server = http.createServer(app);
+
+    // Assign the server to a global variable for access in error handlers
+    global.server = server;
 
     // Initialize Socket.IO server
     const io = new SocketIOServer(server, {
