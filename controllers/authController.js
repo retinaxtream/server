@@ -205,48 +205,55 @@ export const logout = async (req, res) => {
 
 export const protect = CatchAsync(async (req, res, next) => {
   let token;
-  logtail.info('token is here') 
-  logtail.info(token)
+  logtail.info('Attempting to authenticate request');
+
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
-
-  } else if (req.cookies.jwt) {
-    token = req.cookies.jwt;
+    logtail.info(`Token found in Authorization header: ${token.substring(0, 20)}...`);
+  } else if (req.cookies.jwtToken) { // Ensure the correct cookie name
+    token = req.cookies.jwtToken;
+    logtail.info(`Token found in cookies: ${token.substring(0, 20)}...`);
   } else if (req.query.token) {
     token = req.query.token;
+    logtail.info(`Token found in query parameters: ${token.substring(0, 20)}...`);
+  } else {
+    logtail.warn('No token found in request');
   }
 
   try {
     if (!token) {
-      // logger.info('No token found');
       res.status(401);
       throw new Error('Not Authorized, no token');
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    logtail.info(`Token decoded successfully for user ID: ${decoded.id}`);
 
     req.user = await User.findById(decoded.id).select('-password');
-    const user = await User.findById(decoded.id).select('-password');
+    if (!req.user) {
+      res.status(401);
+      throw new Error('Not Authorized, user not found');
+    }
+
     if (req.user.tokenVersion !== decoded.tokenVersion) {
-      // logger.info('Invalid token version');
-      res.clearCookie("jwt", { path: "/" });
+      res.clearCookie("jwtToken", { path: "/" }); // Ensure the correct cookie is cleared
       res.status(401); 
       throw new Error('Not Authorized, Invalid token version');
     }
+
     if (!req.user.validating && !req.body.otp) {
-      // logger.info('OTP validation pending');
       res.status(401);
       throw new Error('Not Authorized, OTP validation pending');
     }
 
+    logtail.info('Authentication successful');
     next();
   } catch (error) {
-    // logger.error(error);
-    res.status(401);
-
-    throw new Error('Not Authorized, token failed');
+    logtail.error(`Authentication failed: ${error.message}`);
+    res.status(401).json({ message: 'Not Authorized, token failed' });
   } 
-}); 
+});
+
 
 
 // export const googleAuth = CatchAsync(async (req, res, next) => {

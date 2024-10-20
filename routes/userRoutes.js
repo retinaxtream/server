@@ -194,7 +194,7 @@ router.post('/sendAlbumUrl', userController.sendAlbum_url);
 router.post('/sendMedia', auth.protect, userController.sendMedia_Files);
 router.post('/meta/:id', userController.folder_metadata); 
 router.post('/meta_selecting/:id', userController.fileSelecting);
-router.get('/metacheck/:id', userController.matchingFolders);
+router.get('/metacheck/:id', userController.matchingFolders); 
 router.get('/meta_selection_check/:id', auth.protect, userController.matchingFiles);
 // router.get('/non_meta_files/:id', userController.UnSelected);
 router.post('/deleteImages/:id', userController.deleteFiles);
