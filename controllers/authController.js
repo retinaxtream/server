@@ -1,11 +1,10 @@
 import User from '../models/UserModel.js';
 import { CatchAsync } from '../Utils/CatchAsync.js'
 import jwt from 'jsonwebtoken';
-import { Logtail } from "@logtail/node";
 import { validationResult } from 'express-validator';
 import AppError from '../Utils/AppError.js';
+import logger from '../Utils/logger.js'; 
 
-const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa");
 
     
 const signToken = (id) => {
@@ -205,19 +204,19 @@ export const logout = async (req, res) => {
 
 export const protect = CatchAsync(async (req, res, next) => {
   let token;
-  logtail.info('Attempting to authenticate request');
+  logger.info('Attempting to authenticate request');
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
-    logtail.info(`Token found in Authorization header: ${token.substring(0, 20)}...`);
+    logger.info(`Token found in Authorization header: ${token.substring(0, 20)}...`);
   } else if (req.cookies.jwtToken) { // Ensure the correct cookie name
     token = req.cookies.jwtToken;
-    logtail.info(`Token found in cookies: ${token.substring(0, 20)}...`);
+    logger.info(`Token found in cookies: ${token.substring(0, 20)}...`);
   } else if (req.query.token) {
     token = req.query.token;
-    logtail.info(`Token found in query parameters: ${token.substring(0, 20)}...`);
+    logger.info(`Token found in query parameters: ${token.substring(0, 20)}...`);
   } else {
-    logtail.warn('No token found in request');
+    logger.warn('No token found in request');
   }
 
   try {
@@ -227,7 +226,7 @@ export const protect = CatchAsync(async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    logtail.info(`Token decoded successfully for user ID: ${decoded.id}`);
+    logger.info(`Token decoded successfully for user ID: ${decoded.id}`);
 
     req.user = await User.findById(decoded.id).select('-password');
     if (!req.user) {
@@ -246,10 +245,10 @@ export const protect = CatchAsync(async (req, res, next) => {
       throw new Error('Not Authorized, OTP validation pending');
     }
 
-    logtail.info('Authentication successful');
+    logger.info('Authentication successful');
     next();
   } catch (error) {
-    logtail.error(`Authentication failed: ${error.message}`);
+    logger.error(`Authentication failed: ${error.message}`);
     res.status(401).json({ message: 'Not Authorized, token failed' });
   } 
 });
