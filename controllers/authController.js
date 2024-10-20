@@ -11,7 +11,7 @@ const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
-};
+}; 
 
 const createSendToken = (user, statusCode, res) => {
   const token = signToken(user._id);
@@ -41,15 +41,17 @@ export const login = CatchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
+    logger.warn('Login failed: Missing email or password');
     return next(new AppError('Please provide email and password', 400));
   }
 
   const user = await User.findOne({ email }).select('+password');
-
   if (!user || !(await user.correctPassword(password, user.password))) {
+    logger.warn(`Login failed: Incorrect email or password for ${email}`);
     return next(new AppError('Incorrect email or password', 401));
   }
 
+  logger.info(`User logged in: ${email}`);
   return createSendToken(user, 200, res);
 });
 
@@ -57,10 +59,12 @@ export const signup = CatchAsync(async (req, res, next) => {
   const { businessName, email, mobile, password, passwordConfirm, role } = req.body;
 
   if (!businessName || !email || !mobile || !password || !passwordConfirm) {
+    logger.warn('Signup failed: Missing required fields');
     return next(new AppError('Please provide all required fields', 400));
   }
 
   if (password !== passwordConfirm) {
+    logger.warn('Signup failed: Passwords do not match');
     return next(new AppError('Passwords do not match', 400));
   }
 
@@ -68,6 +72,7 @@ export const signup = CatchAsync(async (req, res, next) => {
 
   const existingUser = await User.findOne({ $or: [{ email }, { mobile: normalizedMobile }] });
   if (existingUser) {
+    logger.warn(`Signup failed: User already exists with email ${email} or mobile ${mobile}`);
     return next(new AppError('User with this email or mobile already exists', 409));
   }
 
@@ -80,115 +85,10 @@ export const signup = CatchAsync(async (req, res, next) => {
     role,
   });
 
+  logger.info(`New user signed up: ${email}`);
   return createSendToken(newUser, 201, res);
 });
-
-
-// export const signup = CatchAsync(async (req, res, next) => {
-//   const { businessName, email, mobile, password, passwordConfirm, role } = req.body;
-
-//   if (!businessName || !email || !mobile || !password || !passwordConfirm) {
-//     return res.status(400).json({
-//       status: 'fail',
-//       message: 'Please provide all required fields',
-//     });
-//   }
-
-//   if (password !== passwordConfirm) {
-//     return res.status(400).json({
-//       status: 'fail',
-//       message: 'Passwords do not match',
-//     });
-//   }
-
-//   const normalizedMobile = mobile.startsWith('+91') ? mobile : `+91${mobile}`;
-
-//   const existingUser = await User.findOne({ $or: [{ email }, { mobile: normalizedMobile }] });
-//   if (existingUser) {
-//     return res.status(409).json({
-//       status: 'fail',
-//       message: 'User with this email or mobile already exists',
-//     });
-//   }
-
-//   const newUser = await User.create({
-//     businessName,
-//     email,
-//     mobile: normalizedMobile,
-//     password,
-//     passwordConfirm,
-//     role,
-//   });
-
-//   const token = signToken(newUser._id); 
-
-//   res.cookie('jwtToken', token, {
-//     expires: new Date(Date.now() + parseInt(process.env.JWT_EXPIRES_IN, 10) * 24 * 60 * 60 * 1000),
-//     httpOnly: true,
-//     secure: true,
-//     sameSite: 'strict'
-//   });
-
-//   res.status(201).json({
-//     status: 'success',
-//     token,
-//     data: {
-//       user: newUser,
-//     },
-//   });
-// });
-
-// export const login = CatchAsync(async (req, res, next) => {
-//   const { email, password } = req.body;
-
-//   if (!email || !password) {
-//     return res.status(400).json({
-//       status: 'fail',
-//       message: 'Please provide email and password',
-//     });
-//   }
-
-//   const user = await User.findOne({ email }).select('+password');
-  
-//   if (!user) {
-//     return res.status(401).json({
-//       status: 'fail',
-//       message: 'Incorrect email',
-//     });
-//   }
-
-//   if (!(await user.correctPassword(password, user.password))) {
-//     return res.status(401).json({
-//       status: 'fail',
-//       message: 'Incorrect password',
-//     });
-//   }
-
-//   const token = signToken(user._id);
-
-//   const jwtExpiresIn = parseInt(process.env.JWT_EXPIRES_IN, 10);
-//   if (isNaN(jwtExpiresIn)) {
-//     return res.status(500).json({
-//       status: 'fail',
-//       message: 'Server configuration error',
-//     });
-//   }
-
-//   const cookieOptions = {
-//     httpOnly: true,
-//     secure: true,
-//     sameSite: 'strict',
-//     expires: new Date(Date.now() + jwtExpiresIn * 24 * 60 * 60 * 1000)
-//   };
-
-//   res.cookie('jwtToken', token, cookieOptions);
-
-//   res.status(200).json({
-//     status: 'success',
-//     token,
-//     user
-//   });
-// });
+ 
 
 
 
@@ -208,161 +108,91 @@ export const protect = CatchAsync(async (req, res, next) => {
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
-    logger.info(`Token found in Authorization header: ${token.substring(0, 20)}...`);
-  } else if (req.cookies.jwtToken) { // Ensure the correct cookie name
+    logger.debug(`Token found in Authorization header: ${token.substring(0, 20)}...`);
+  } else if (req.cookies.jwtToken) {
     token = req.cookies.jwtToken;
-    logger.info(`Token found in cookies: ${token.substring(0, 20)}...`);
+    logger.debug(`Token found in cookies: ${token.substring(0, 20)}...`);
   } else if (req.query.token) {
     token = req.query.token;
-    logger.info(`Token found in query parameters: ${token.substring(0, 20)}...`);
+    logger.debug(`Token found in query parameters: ${token.substring(0, 20)}...`);
   } else {
     logger.warn('No token found in request');
+    return res.status(401).json({ message: 'Not Authorized, no token' });
   }
 
   try {
-    if (!token) {
-      res.status(401);
-      throw new Error('Not Authorized, no token');
-    }
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     logger.info(`Token decoded successfully for user ID: ${decoded.id}`);
 
     req.user = await User.findById(decoded.id).select('-password');
     if (!req.user) {
-      res.status(401);
-      throw new Error('Not Authorized, user not found');
+      logger.warn('User not found for the decoded token');
+      return res.status(401).json({ message: 'Not Authorized, user not found' });
     }
 
     if (req.user.tokenVersion !== decoded.tokenVersion) {
-      res.clearCookie("jwtToken", { path: "/" }); // Ensure the correct cookie is cleared
-      res.status(401); 
-      throw new Error('Not Authorized, Invalid token version');
+      res.clearCookie("jwtToken", { path: "/" });
+      logger.warn('Token version mismatch, invalidating token');
+      return res.status(401).json({ message: 'Not Authorized, Invalid token version' });
     }
 
     if (!req.user.validating && !req.body.otp) {
-      res.status(401);
-      throw new Error('Not Authorized, OTP validation pending');
+      logger.warn('OTP validation pending for the user');
+      return res.status(401).json({ message: 'Not Authorized, OTP validation pending' });
     }
 
-    logger.info('Authentication successful');
+    logger.info(`Authentication successful for user ID: ${req.user._id}`);
     next();
   } catch (error) {
     logger.error(`Authentication failed: ${error.message}`);
-    res.status(401).json({ message: 'Not Authorized, token failed' });
-  } 
+    return res.status(401).json({ message: 'Not Authorized, token failed' });
+  }
 });
 
-
-
-// export const googleAuth = CatchAsync(async (req, res, next) => {
-//   try {
-
-//     let { email, id } = req.body; 
-//     if (!id) {
-//       return res.status(401).json({ error: "Invalid Credentials" });
-//     }
- 
-//     const user = await User.findOne({ email });
-
-//     if (!user) {
-//       const newUser = await User.create({
-//         email,
-//         password: "Asdfghjklqwer2",
-//         passwordConfirm: "Asdfghjklqwer2",
-//         validating: true,
-//       });
-
-//       const token = await signToken(newUser._id);
-//       res.cookie('jwtToken', token, {
-//         httpOnly: true,
-//         secure: true,
-//         sameSite: 'strict'
-//       });
-
-//       return res.status(201).json({
-//         status: 'success',
-//         token: token,
-//         data: {
-//           user: newUser
-//         }
-//       });
-//     } else if (user) { 
-//       const token = await signToken(user._id);
-//       res.cookie('jwtToken', token, {
-//         httpOnly: true,
-//         secure: true,
-//         sameSite: 'strict'
-//       });
-
-//       return res.status(201).json({
-//         status: 'success',
-//         token: token,
-//         data: {
-//           user
-//         }
-//       });
-//     }
-
-//     next(); // Call next middleware if user already exists
-//   } catch (error) {
-//     // Log the error for debugging
-//     console.error('Error in googleAuth middleware:', error);
-//     // Return a detailed error response
-//     return res.status(500).json({ error: error.message });
-//   }
-// });
 
 export const googleAuth = CatchAsync(async (req, res, next) => {
   try {
     const { email, id: googleId } = req.body;
 
     if (!googleId) {
+      logger.warn('Google Authentication failed: Missing Google ID');
       return res.status(401).json({ error: 'Invalid Credentials' });
     }
 
     let user = await User.findOne({ email });
 
     if (user) {
-      // Check if the user already has a Google ID linked
       if (!user.googleId) {
-        // Link the Google account
         user.googleId = googleId;
-        user.validating = true; // Assuming this flag is used for verification
+        user.validating = true;
         await user.save({ validateBeforeSave: false });
+        logger.info(`Google account linked for user: ${email}`);
       }
     } else {
-      // Create a new user without setting a password
       user = await User.create({
         email,
         googleId,
         validating: true,
-        // Add other necessary fields as needed 
-        // For optional fields, they will take default values
       });
+      logger.info(`New user created via Google Auth: ${email}`);
     }
 
-    // Generate JWT Token
-    const token = signToken(user._id); // Ensure signToken is properly defined
-
-    // Set JWT in HTTP-only cookie
+    const token = signToken(user._id);
     res.cookie('jwtToken', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Ensure secure flag in production
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     });
 
-    // Respond with the token and user data
+    logger.info(`User authenticated via Google: ${email}`);
     return res.status(200).json({
       status: 'success',
       token,
-      data: {
-        user,
-      },
+      data: { user },
     });
   } catch (error) {
-    console.error('Error in googleAuth middleware:', error);
+    logger.error(`Google Authentication failed: ${error.message}`);
     return res.status(500).json({ error: error.message });
   }
 });
