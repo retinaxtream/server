@@ -2606,7 +2606,6 @@ export const getClientCoverPhoto = async (req, res, next) => {
   }
 
   const prefix = `${userId}/client-Cover/`;
-  const bucket = new Storage().bucket(bucketName);
 
   try {
     const [files] = await bucket.getFiles({ prefix });
@@ -2614,7 +2613,7 @@ export const getClientCoverPhoto = async (req, res, next) => {
     if (files.length === 0) {
       return res.status(404).json({
         status: 'error',
-        message: 'No files found in the user folder',
+        message: 'No ClientCoverPhoto found for this user',
       });
     }
 
@@ -2623,14 +2622,19 @@ export const getClientCoverPhoto = async (req, res, next) => {
     const contentType = mime.lookup(file.name) || 'application/octet-stream';
 
     res.setHeader('Content-Type', contentType);
-    fileStream.pipe(res);
+    fileStream.pipe(res).on('error', (error) => {
+      console.error('Error streaming file:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Error streaming the file',
+      });
+    });
   } catch (error) {
-    console.error('Error retrieving photo:', error);
+    console.error('Error retrieving ClientCoverPhoto:', error);
     res.status(500).json({
       status: 'error',
-      message: 'Error retrieving photo',
+      message: 'Error retrieving ClientCoverPhoto',
     });
   }
-};
-
+}; 
 

@@ -200,7 +200,7 @@ export const googleAuth = CatchAsync(async (req, res, next) => {
 
 export const googleAuthDesk = CatchAsync(async (req, res, next) => {
   try {
-    let  { email } = req.body;
+    let  { email } = req.body; 
 
     if (!email) {
       return res.status(401).json({ error: "Invalid Credentials" });
@@ -217,7 +217,7 @@ export const googleAuthDesk = CatchAsync(async (req, res, next) => {
       httpOnly: true,
       secure: true,
       sameSite: 'strict'
-    });
+    }); 
 
     return res.status(201).json({
       status: 'success',

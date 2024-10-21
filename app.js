@@ -87,12 +87,12 @@ const app = express();
 // app.use(helmet());
 
 // Rate limiting to prevent brute force attacks
-const limiter = rateLimit({
-  max: 100, // Maximum number of requests
-  windowMs: 60 * 60 * 1000, // 1 hour
-  message: 'Too many requests from this IP, please try again in an hour!',
-});
-app.use('/api', limiter);
+// const limiter = rateLimit({
+//   max: 100, 
+//   windowMs: 60 * 60 * 1000, 
+//   message: 'Too many requests from this IP, please try again in an hour!',
+// });
+// app.use('/api', limiter);
 
 // Data sanitization against NoSQL query injection and XSS
 // app.use(mongoSanitize());
