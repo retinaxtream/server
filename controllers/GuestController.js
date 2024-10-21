@@ -30,19 +30,26 @@ const sanitizeFilename = (filename) => {
 const getS3Url = (s3Key) => {
   return `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
 };
- 
+
+
 export const storeGuestDetails = async (req, res, next) => {
   logger.info("Calling storeGuestDetails function");
+
   const { eventId } = req.query; // Assuming eventId is passed as a query parameter
-  const { name, mobile } = req.body;
+  const { name, email /*, mobile */ } = req.body; // Replaced 'mobile' with 'email'
   const file = req.file;
 
   // Validate required fields
-  if (!eventId || !name || !mobile || !file) {
-    logger.warn('Missing required fields', { eventId, name, mobile, filePresent: !!file });
+  if (!eventId || !name || !email /* || !mobile */ || !file) { // Replaced 'mobile' with 'email'
+    logger.warn('Missing required fields', { 
+      eventId, 
+      name, 
+      email /*, mobile */, 
+      filePresent: !!file 
+    });
     return res.status(400).json({
       error: {
-        message: 'Missing required fields: eventId, name, mobile, or image.',
+        message: 'Missing required fields: eventId, name, email, or image.', // Updated message
         storageErrors: [],
         statusCode: 400,
         status: 'fail',
@@ -114,7 +121,8 @@ export const storeGuestDetails = async (req, res, next) => {
         EventId: eventId,
         GuestId: guestId,
         Name: name,
-        Mobile: mobile,
+        Email: email, // Added 'email'
+        // Mobile: mobile, // Commented out 'mobile'
         ImageUrl: imageUrl, // Store the full S3 URL
         ScannedAt: new Date().toISOString(),
         FaceId: faceId, // Store the FaceId
@@ -128,11 +136,14 @@ export const storeGuestDetails = async (req, res, next) => {
     // Respond with success
     res.status(200).json({ message: 'Guest details stored successfully', guestId });
   } catch (error) {
-    logger.error('Error storing guest details', { eventId, error: error.message, stack: error.stack });
+    logger.error('Error storing guest details', { 
+      eventId, 
+      error: error.message, 
+      stack: error.stack 
+    });
     next(error); // Pass the error to the centralized error handler
   }
 };
-
 // Controller to get all guest details for an event
 export const getGuestDetails = async (req, res) => {
   const { eventId } = req.query; // Assuming eventId is passed as a query parameter

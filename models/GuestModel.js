@@ -1,5 +1,4 @@
 // models/MatchedGuest.js
-
 import mongoose from 'mongoose';
 
 const GuestSchema = new mongoose.Schema(
@@ -18,9 +17,17 @@ const GuestSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    mobile: {
+    // mobile: { // Commented out mobile field
+    //   type: String,
+    //   required: true,
+    // },
+    email: { // Added email field
       type: String,
       required: true,
+      unique: true, // Ensures that each email is unique
+      lowercase: true, // Converts email to lowercase before saving
+      trim: true, // Removes whitespace from both ends
+      match: [/\S+@\S+\.\S+/, 'is invalid'], // Basic email format validation
     },
     matches: [
       {
@@ -51,6 +58,8 @@ const GuestSchema = new mongoose.Schema(
 
 // Create indexes for efficient querying
 GuestSchema.index({ eventId: 1, guestId: 1 });
+// Optionally, create an index for email if frequent lookups by email are expected
+GuestSchema.index({ email: 1 }, { unique: true });
 
 const Guest = mongoose.model('Guest', GuestSchema);
 
