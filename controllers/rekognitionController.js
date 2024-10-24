@@ -398,7 +398,8 @@ const getGuestsByEventId = async (eventId) => {
       guestId: item.GuestId,
       eventId: item.EventId,
       faceId: item.FaceId,
-      Mobile: item.Mobile,
+      email:item.Email,
+      // Mobile: item.Mobile,
       Name: item.Name,
       imageUrl: item.ImageUrl,
     }));
@@ -522,7 +523,8 @@ export const compareGuestFaces = async (req, res, next) => {
         guestMatches.push({
           guestId: guest.guestId,
           name: guest.Name,
-          mobile: guest.Mobile,
+          email:guest.email,
+          // mobile: guest.Mobile,
           matches: [], // No matches
         });
         return;
@@ -562,7 +564,8 @@ export const compareGuestFaces = async (req, res, next) => {
           guestMatches.push({
             guestId: guest.guestId,
             name: guest.Name,
-            mobile: guest.Mobile,
+            email:guest.email,
+            // mobile: guest.Mobile,
             matches: [], // No matches
           });
           return;
@@ -585,7 +588,8 @@ export const compareGuestFaces = async (req, res, next) => {
         guestMatches.push({
           guestId: guest.guestId,
           name: guest.Name,
-          mobile: guest.Mobile,
+          email: guest.email,
+          // mobile: guest.Mobile,
           matches: matchedImagesWithUrls, // Array of matched images with URLs
         });
 
@@ -594,12 +598,16 @@ export const compareGuestFaces = async (req, res, next) => {
           eventId: eventId,
           guestId: guest.guestId,
           name: guest.Name,
-          mobile: guest.Mobile, 
+          email:guest.email,
+          // mobile: guest.Mobile, 
           matches: matchedImagesWithUrls,
         };
 
         const existingGuest = await Guest.findOne({ eventId: eventId, guestId: guest.guestId });
         if (!existingGuest) {
+          console.log('Guest stooooooooooooooring');
+          console.log(matchedGuestData);
+          
           // Save to MongoDB using the correct model if it doesn't already exist
           const matchedGuest = new Guest(matchedGuestData);
           await matchedGuest.save();
@@ -613,7 +621,8 @@ export const compareGuestFaces = async (req, res, next) => {
         guestMatches.push({
           guestId: guest.guestId,
           name: guest.Name,
-          mobile: guest.Mobile,
+          email:guest.email,
+          // mobile: guest.Mobile,
           matches: [], // No matches due to error
         });
       }

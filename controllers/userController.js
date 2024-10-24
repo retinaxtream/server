@@ -1792,7 +1792,7 @@ export const deleteFiles = CatchAsync(async (req, res, next) => {
 
   const bucketName = 'hapzea';
   const bucket = storage.bucket(bucketName);
-
+ 
   const deletePromises = imageFiles.map(imageFile => {
     const filePath = `${id}/${mainFile}/${sub_folder}/${imageFile}`;
     const file = bucket.file(filePath);
