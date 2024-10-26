@@ -822,10 +822,10 @@ export const sendMatchingImagesEmails = async (req, res, next) => {
 
 
 export const getMatchedImages = async (req, res, next) => {
-  const { id } = req.query;
+  const { id } = req.query; 
 
   const guestId = id;
-
+ 
   if (!guestId) {
     logger.warn('Missing required field: guestId', { guestId });
     return res.status(400).json({
