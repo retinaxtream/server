@@ -24,7 +24,6 @@ const GuestSchema = new mongoose.Schema(
     email: { // Added email field
       type: String,
       required: true,
-      unique: true, // Ensures that each email is unique
       lowercase: true, // Converts email to lowercase before saving
       trim: true, // Removes whitespace from both ends
       match: [/\S+@\S+\.\S+/, 'is invalid'], // Basic email format validation

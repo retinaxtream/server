@@ -241,6 +241,11 @@ router.post(
   rekognitionController.compareGuestFaces // Controller function handling the logic
 );
 
+router.post(
+  '/send-matching-images',
+  auth.protect, // Protect the route
+  rekognitionController.sendMatchingImagesEmails // Controller function to send emails
+);
 
 router.delete(
   '/empty-event-faces',

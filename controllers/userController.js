@@ -1818,8 +1818,8 @@ const sendURL = async (email, magic_url, company_name, event_name) => {
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: "retina@hapzea.com",
-        pass: "nkhz kfjz nvri tkny", // Provide the correct password
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS, // Provide the correct password
       },
     });
 
@@ -2637,4 +2637,7 @@ export const getClientCoverPhoto = async (req, res, next) => {
     });
   }
 }; 
+
+
+
 

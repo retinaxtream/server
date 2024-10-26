@@ -3,6 +3,8 @@
 import logger from '../Utils/logger.js'; // Import the logger
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import Guest from '../models/GuestModel.js';
+import  {sendMedia}   from '../Utils/emailSender.js'
+
 import {
   IndexFacesCommand,
   SearchFacesByImageCommand
@@ -235,15 +237,19 @@ export const searchFace = async (req, res) => {
       CollectionId: `event-${eventId}`,
       Image: { Bytes: resizedImageBuffer },
       MaxFaces: 50, // Limit to top 50 matches
-      FaceMatchThreshold: 70, // Confidence threshold
+      FaceMatchThreshold: 60, // Confidence threshold
     });
 
     const searchResponse = await rekognitionClient.send(searchCommand);
     logger.info(`Search response: ${JSON.stringify(searchResponse, null, 2)}`, { eventId });
-
+    console.log(`SearchFacesByImage response: ${JSON.stringify(searchResponse, null, 2)}`,{ eventId });
+    
     const faceMatches = searchResponse.FaceMatches;
+    console.log(`Number of FaceMatches returned: ${faceMatches.length}`, { eventId });
+    
 
     if (faceMatches.length === 0) {
+      console.log(`No matching faces found for event: ${eventId}`, { eventId });
       logger.warn(`No matching faces found for event: ${eventId}`, { eventId });
       return res.status(200).json({ matchedImages: [] });
     }
@@ -251,6 +257,8 @@ export const searchFace = async (req, res) => {
     const matchedImages = [];
     for (const match of faceMatches) {
       const faceId = match.Face.FaceId;
+      const confidence = match.Face.Confidence;
+      console.log(`Processing FaceMatch: FaceId=${faceId}, Confidence=${confidence}`, { eventId });
       logger.info(`Matched face with FaceId: ${faceId} (Confidence: ${match.Face.Confidence})`, { eventId, faceId, confidence: match.Face.Confidence });
 
       // Query DynamoDB for matching face IDs and get their corresponding image URLs
@@ -264,18 +272,37 @@ export const searchFace = async (req, res) => {
       };
 
       const queryResponse = await dynamoDBDocClient.send(new QueryCommand(queryParams));
+      console.log(`DynamoDB Query response for FaceId=${faceId}: ${JSON.stringify(queryResponse, null, 2)}`, { eventId });
       logger.info(`DynamoDB query response: ${JSON.stringify(queryResponse, null, 2)}`, { eventId, faceId });
 
-      if (queryResponse.Items.length === 0) {
-        logger.warn(`No corresponding image found in DynamoDB for FaceId: ${faceId}`, { eventId, faceId });
-      } else {
-        for (const item of queryResponse.Items) {
-          const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/${item.ImageUrl}`;
-          matchedImages.push(imageUrl);
-          logger.info(`Matched image URL: ${imageUrl}`, { eventId, faceId, imageUrl });
-        }
-      }
+    //   if (queryResponse.Items.length === 0) {
+    //     logger.warn(`No corresponding image found in DynamoDB for FaceId: ${faceId}`, { eventId, faceId });
+    //   } else {
+    //     for (const item of queryResponse.Items) {
+    //       const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/${item.ImageUrl}`;
+    //       matchedImages.push(imageUrl);
+    //       logger.info(`Matched image URL: ${imageUrl}`, { eventId, faceId, imageUrl });
+    //     }
+    //   }
+    // }
+
+    if (queryResponse.Items.length === 0) {
+      logger.warn(`No DynamoDB entry found for FaceId=${faceId}`, { eventId, faceId });
+      continue; // Skip to next match
     }
+
+    const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/${queryResponse.Items[0].ImageUrl}`;
+    console.log(`Matched Image URL: ${imageUrl}`, { eventId, faceId });
+
+    matchedImages.push({
+      faceId,
+      imageUrl,
+      confidence,
+    });
+  }
+
+  logger.info(`Total matched images: ${guestMatches.length}`, { eventId });
+  console.log(`Total matched images: ${guestMatches.length}`, { eventId });
 
     res.status(200).json({ matchedImages });
   } catch (error) {
@@ -322,7 +349,7 @@ export const getEventImages = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch event images' });
   }
 }; 
-
+ 
 // Helper function to get image buffer from S3
 const getImageBuffer = async (s3Key) => {
   try {
@@ -417,6 +444,8 @@ const getEventFacesByFaceIds = async (faceIds, eventId) => {
     return [];
   }
 
+  console.log(`Fetching DynamoDB entries for FaceIds: ${faceIds.join(', ')}`, { eventId });
+
   const batchGetParams = {
     RequestItems: {
       [process.env.EVENT_FACES_TABLE_NAME]: {
@@ -433,20 +462,42 @@ const getEventFacesByFaceIds = async (faceIds, eventId) => {
   try {
     const batchGetResponse = await dynamoDBDocClient.send(new BatchGetCommand(batchGetParams));
 
-    if (
-      !batchGetResponse.Responses ||
-      !batchGetResponse.Responses[process.env.EVENT_FACES_TABLE_NAME] ||
-      batchGetResponse.Responses[process.env.EVENT_FACES_TABLE_NAME].length === 0
-    ) {
-      logger.info('No matches found in EventFaces table', { eventId });
-      return [];
-    }
+    console.log(`DynamoDB BatchGetCommand response: ${JSON.stringify(batchGetResponse, null, 2)}`, { eventId });
 
-    return batchGetResponse.Responses[process.env.EVENT_FACES_TABLE_NAME].map(item => ({
+    // if (
+    //   !batchGetResponse.Responses ||
+    //   !batchGetResponse.Responses[process.env.EVENT_FACES_TABLE_NAME] ||
+    //   batchGetResponse.Responses[process.env.EVENT_FACES_TABLE_NAME].length === 0
+    // ) {
+    //   logger.info('No matches found in EventFaces table', { eventId });
+    //   console.log('No matches found in EventFaces table', { eventId });
+    //   return [];
+    // }
+
+    // return batchGetResponse.Responses[process.env.EVENT_FACES_TABLE_NAME].map(item => ({
+    //   faceId: item.FaceId,
+    //   imageUrl: item.ImageUrl,
+    //   confidence: item.Confidence,
+    // }));
+
+    let items = batchGetResponse.Responses[process.env.EVENT_FACES_TABLE_NAME] || [];
+  
+    // Handle UnprocessedKeys
+    let unprocessedKeys = batchGetResponse.UnprocessedKeys;
+    while (unprocessedKeys && Object.keys(unprocessedKeys).length > 0) {
+      logger.warn('UnprocessedKeys found, retrying...', { unprocessedKeys, eventId });
+      console.log('UnprocessedKeys found, retrying...', { unprocessedKeys, eventId });
+      const retryResponse = await dynamoDBDocClient.send(new BatchGetCommand({ RequestItems: unprocessedKeys }));
+      items = items.concat(retryResponse.Responses[process.env.EVENT_FACES_TABLE_NAME] || []);
+      unprocessedKeys = retryResponse.UnprocessedKeys;
+    }
+  
+    return items.map(item => ({
       faceId: item.FaceId,
       imageUrl: item.ImageUrl,
       confidence: item.Confidence,
     }));
+
   } catch (error) {
     logger.error('Error executing BatchGetCommand for EventFaces', { error: error.message, eventId });
     throw error;
@@ -481,6 +532,12 @@ const getPresignedUrl = async (key) => {
 ///////////////////////////FOR COMPARE GUEST FACES /////////////////////////////////////////
 export const compareGuestFaces = async (req, res, next) => {
   const { eventId } = req.query;
+  // const file = req.file;
+
+  // if (!file) {
+  //   logger.warn('No file uploaded for face search', { eventId });
+  //   return res.status(400).json({ message: 'No file uploaded' });
+  // }
 
   // Validate required fields
   if (!eventId) {
@@ -551,13 +608,15 @@ export const compareGuestFaces = async (req, res, next) => {
           Image: {
             Bytes: imageBuffer,
           },
-          FaceMatchThreshold: 70, // Adjust as needed
-          MaxFaces: 10, // Adjust based on how many matches you want
+          FaceMatchThreshold: 60, // Adjust as needed
+          MaxFaces: 50, // Adjust based on how many matches you want
         };
 
         const searchFacesByImageCommand = new SearchFacesByImageCommand(searchFacesByImageParams);
         const searchResponse = await rekognitionClient.send(searchFacesByImageCommand);
-
+        logger.info(`Number of FaceMatches returned: ${searchResponse.FaceMatches.length}`, { eventId });
+        console.log(`{{{{{{{{ Number of FaceMatches returned: {{${searchResponse.FaceMatches.length}}${ eventId }}}}}}}}}}`);
+        
         const matchedFaceIds = searchResponse.FaceMatches.map(match => match.Face.FaceId);
         if (matchedFaceIds.length === 0) {
           logger.info(`No matches found for GuestId: ${guest.guestId}`, { guestId: guest.guestId });
@@ -573,7 +632,9 @@ export const compareGuestFaces = async (req, res, next) => {
 
         // Retrieve details of matched EventFaces
         const matchedImages = await getEventFacesByFaceIds(matchedFaceIds, eventId);
-
+        logger.info(`Number of matched images retrieved from DynamoDB: ${matchedImages.length}`, { eventId });
+        console.log(`{{{{{{{{{Number of matched images retrieved from DynamoDB: ${matchedImages.length}}}, ${ eventId }}}}}}}}`);
+        
         // Generate pre-signed URLs for matched images
         const matchedImagesWithUrls = await Promise.all(matchedImages.map(async (match) => {
           const presignedUrl = await getPresignedUrl(match.imageUrl);
@@ -706,9 +767,58 @@ export const deleteAllCollections = async (req, res, next) => {
 };
 
 
+export const sendMatchingImagesEmails = async (req, res, next) => {
+  const { eventId } = req.body;
+  
+  // Validate input
+  if (!eventId) {
+    return res.status(400).json({
+      error: 'Missing required field: eventId.',
+    });
+  }
+
+  try {
+    // Retrieve all matched guests from MongoDB
+    const matchedGuests = await Guest.find({ eventId });
+
+    if (!matchedGuests || matchedGuests.length === 0) {
+      logger.info('No matched guests found for event:', eventId);
+      return res.status(200).json({ message: 'No matched guests found for the event.' });
+    }
+
+    // Optional: Retrieve event name from another source if available
+    const eventName = `Event ${eventId}`; // Replace with dynamic data as needed
+    const companyName = 'Hapzea'; // Replace with your company name
+
+    // Collect URLs for each matched guest
+    const guestUrls = matchedGuests.map(guest => ({
+      guestId: guest.guestId,
+      galleryLink: `http://localhost:3000/${guest.guestId}/ai/face_recognition/guest/gallery`
+    }));
+
+    // Iterate through each matched guest and send email
+    for (const guest of matchedGuests) {
+      if (guest.matches && guest.matches.length > 0) {
+        // Use the existing sendMedia function
+        await sendMedia(
+          guest.email,
+          guestUrls.find(url => url.guestId === guest.guestId).galleryLink,
+          companyName,
+          eventName,
+          guest.name
+        );
+        logger.info(`Email sent to ${guest.email} for event ${eventId}`);
+      } else {
+        logger.info(`No matches found for guest: ${guest.name}, skipping email.`);
+      }
+    }
+
+    res.status(200).json({ message: 'Emails sent successfully to all matched guests.' });
+  } catch (error) {
+    logger.error('Error sending matching images emails:', { error: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Failed to send emails.' });
+  }
+};
 
 
-
-
-
-
+  
