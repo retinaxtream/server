@@ -241,6 +241,9 @@ router.post(
   rekognitionController.compareGuestFaces // Controller function handling the logic
 );
 
+ 
+router.get('/matched-images', rekognitionController.getMatchedImages);
+
 router.post(
   '/send-matching-images',
   auth.protect, // Protect the route

@@ -821,4 +821,55 @@ export const sendMatchingImagesEmails = async (req, res, next) => {
 };
 
 
-  
+export const getMatchedImages = async (req, res, next) => {
+  const { id } = req.query;
+
+  const guestId = id;
+
+  if (!guestId) {
+    logger.warn('Missing required field: guestId', { guestId });
+    return res.status(400).json({
+      error: {
+        message: 'Missing required field: guestId.',
+        statusCode: 400,
+        status: 'fail',
+      },
+    });
+  }
+
+  try {
+    // Retrieve all guests with their matched images for the specified guestId
+    const guests = await Guest.find({ guestId });
+    console.log('guests:', guests);
+
+    if (!guests || guests.length === 0) {
+      logger.info('No guests found for the guestId', { guestId });
+      return res.status(200).json({ message: 'No guests found for the guestId.', matchedImages: [] });
+    }
+
+    // Aggregate all matched images
+    const matchedImages = guests.reduce((acc, guest) => {
+      if (guest.matches && guest.matches.length > 0) {
+        guest.matches.forEach(match => {
+          acc.push({
+            guestId: guest.guestId,
+            guestName: guest.name,
+            imageUrl: match.imageUrl,
+            confidence: match.confidence,
+          });
+        });
+      }
+      return acc;
+    }, []);
+
+    logger.info(`Retrieved ${matchedImages.length} matched images for guestId: ${guestId}`, { guestId });
+
+    res.status(200).json({
+      message: 'Matched images retrieved successfully.',
+      matchedImages,
+    });
+  } catch (error) {
+    logger.error('Error fetching matched images', { error: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Failed to fetch matched images.' });
+  }
+};
