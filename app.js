@@ -14,6 +14,9 @@ import connectDatabase from './config/mongodb.js';
 import globalErrorHandler from './controllers/errorController.js';
 import AppError from './Utils/AppError.js';
 
+// import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+// import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
 import http from 'http'; // Import HTTP module to create an HTTP server
 import { Server as SocketIOServer } from 'socket.io'; // Import Socket.IO server
 
@@ -81,7 +84,7 @@ const app = express();
 // ===========================
 // 3. Configure Middleware
 // ===========================
-
+ 
 // Set security HTTP headers
 // app.use(helmet());
 
