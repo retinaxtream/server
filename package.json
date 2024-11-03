@@ -9,7 +9,7 @@
     "start:dev": "nodemon app.js",
     "worker": "node worker/uploadWorker.js",
     "start:prod": "cross-env NODE_ENV=production nodemon app.js"
-  },
+  }, 
   "author": "\"Team Members\"",
   "license": "ISC",
   "dependencies": {

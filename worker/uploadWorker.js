@@ -56,95 +56,88 @@ const createCollection = async (collectionId) => {
 
 // Process Jobs from Queue
 uploadQueue.process(async (job) => {
-  const { files, eventId, socketId } = job.data;
+  const { filePath, originalName, eventId, socketId } = job.data;
   const collectionId = `event-${eventId}`;
 
-  // Ensure Rekognition collection exists
-  const exists = await collectionExists(collectionId);
-  if (!exists) {
-    await createCollection(collectionId);
-  }
-
-  const totalFiles = files.length;
-  let processedCount = 0;
-
-  for (const filePath of files) {
-    try {
-      // Read file from disk
-      const fileBuffer = await fs.readFile(filePath);
-
-      // Resize image using Sharp
-      const resizedImageBuffer = await sharp(fileBuffer)
-        .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
-        .toFormat('jpeg', { quality: 80 }) // Adjust quality as needed
-        .toBuffer();
-
-      // Generate unique ID and sanitize filename
-      const uniqueId = uuidv4();
-      const originalName = path.basename(filePath);
-      const sanitizedFilename = sanitizeFilename(originalName);
-      const s3Key = `${eventId}/${uniqueId}-${sanitizedFilename}`;
-
-      // Upload to S3
-      const uploadParams = {
-        Bucket: process.env.S3_BUCKET_NAME,
-        Key: s3Key,
-        Body: resizedImageBuffer,
-        ContentType: 'image/jpeg',
-      };
-
-      await s3Client.send(new PutObjectCommand(uploadParams));
-      logger.info(`Uploaded ${s3Key} to S3`);
-
-      // Emit progress via Socket.io
-      processedCount++;
-      const uploadProgress = Math.round((processedCount / totalFiles) * 100);
-      io.to(socketId).emit('uploadProgress', { progress: uploadProgress });
-
-      // Index Faces with Rekognition
-      const indexCommand = new IndexFacesCommand({
-        CollectionId: collectionId,
-        Image: { Bytes: resizedImageBuffer },
-        ExternalImageId: uniqueId,
-        DetectionAttributes: ['ALL'],
-      });
-
-      const indexResponse = await rekognitionClient.send(indexCommand);
-      logger.info(`Indexed faces for ${s3Key}`);
-
-      if (indexResponse.FaceRecords.length === 0) {
-        logger.warn(`No faces detected in ${s3Key}`);
-      } else {
-        for (const faceRecord of indexResponse.FaceRecords) {
-          const faceId = faceRecord.Face.FaceId;
-
-          // Store metadata in DynamoDB
-          const putParams = {
-            TableName: process.env.EVENT_FACES_TABLE_NAME,
-            Item: {
-              EventId: eventId, // String
-              FaceId: faceId,   // String
-              ImageUrl: s3Key,  // String
-              BoundingBox: faceRecord.Face.BoundingBox,
-              Confidence: faceRecord.Face.Confidence, // Number
-            },
-          };
-
-          await dynamoDBDocClient.send(new PutItemCommand(putParams));
-          logger.info(`Stored face ${faceId} metadata in DynamoDB`);
-        }
-      }
-
-      // Optionally delete the file from server after processing
-      await fs.unlink(filePath);
-      logger.info(`Deleted temporary file ${filePath}`);
-    } catch (error) {
-      logger.error(`Error processing file ${filePath}: ${error.message}`, { error });
-      io.to(socketId).emit('uploadError', { message: `Failed to process image ${path.basename(filePath)}` });
+  try {
+    // Ensure Rekognition collection exists
+    const exists = await collectionExists(collectionId);
+    if (!exists) {
+      await createCollection(collectionId);
     }
-  }
 
-  // Emit completion via Socket.io
-  io.to(socketId).emit('uploadComplete', { message: 'All images processed successfully' });
-  logger.info(`Completed processing all files for event ${eventId}`);
+    // Read file from disk
+    const fileBuffer = await fs.readFile(filePath);
+
+    // Resize image using Sharp
+    const resizedImageBuffer = await sharp(fileBuffer)
+      .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+      .toFormat('jpeg', { quality: 80 }) // Adjust quality as needed
+      .toBuffer();
+
+    // Generate unique ID and sanitize filename
+    const uniqueId = uuidv4();
+    const sanitizedFilename = sanitizeFilename(originalName);
+    const s3Key = `${eventId}/${uniqueId}-${sanitizedFilename}`;
+
+    // Upload to S3
+    const uploadParams = {
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: s3Key,
+      Body: resizedImageBuffer,
+      ContentType: 'image/jpeg',
+    };
+
+    await s3Client.send(new PutObjectCommand(uploadParams));
+    logger.info(`Uploaded ${s3Key} to S3`);
+
+    // Emit progress via Socket.io (since it's a single file, progress is 100%)
+    io.to(socketId).emit('uploadProgress', { progress: 100 });
+
+    // Index Faces with Rekognition
+    const indexCommand = new IndexFacesCommand({
+      CollectionId: collectionId,
+      Image: { Bytes: resizedImageBuffer },
+      ExternalImageId: uniqueId,
+      DetectionAttributes: ['ALL'],
+    });
+
+    const indexResponse = await rekognitionClient.send(indexCommand);
+    logger.info(`Indexed faces for ${s3Key}`);
+
+    if (indexResponse.FaceRecords.length === 0) {
+      logger.warn(`No faces detected in ${s3Key}`);
+    } else {
+      for (const faceRecord of indexResponse.FaceRecords) {
+        const faceId = faceRecord.Face.FaceId;
+
+        // Store metadata in DynamoDB
+        const putParams = {
+          TableName: process.env.EVENT_FACES_TABLE_NAME,
+          Item: {
+            EventId: eventId, // String
+            FaceId: faceId,   // String
+            ImageUrl: s3Key,  // String
+            BoundingBox: faceRecord.Face.BoundingBox,
+            Confidence: faceRecord.Face.Confidence, // Number
+          },
+        };
+
+        await dynamoDBDocClient.send(new PutItemCommand(putParams));
+        logger.info(`Stored face ${faceId} metadata in DynamoDB`);
+      }
+    }
+
+    // Optionally delete the file from server after processing
+    await fs.unlink(filePath);
+    logger.info(`Deleted temporary file ${filePath}`);
+
+    // Emit completion via Socket.io
+    io.to(socketId).emit('uploadComplete', { message: 'Image processed successfully' });
+    logger.info(`Completed processing file ${s3Key} for event ${eventId}`);
+  } catch (error) {
+    logger.error(`Error processing file ${filePath}: ${error.message}`, { error });
+    io.to(socketId).emit('uploadError', { message: `Failed to process image ${path.basename(filePath)}` });
+    throw error; // Let Bull handle retries if configured
+  }
 });

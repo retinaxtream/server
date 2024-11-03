@@ -26,26 +26,27 @@ const memoryStorage = multer.memoryStorage();
 // const upload_ai = multer({ storage: memoryStorage });
 
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // Ensure this directory exists and is writable
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // Ensure this directory exists and has proper permissions
   },
-  filename: function (req, file, cb) {
-    // Use a unique filename to prevent collisions
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-    cb(null, `${uniqueSuffix}-${file.originalname}`);
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
   },
 });
 
 // Initialize Multer with disk storage
 const upload_ai = multer({
   storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit per file
+  limits: { 
+    fileSize: 50 * 1024 * 1024, // 20MB limit per file
+  },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only images are allowed.'));
+    // Accept only image files
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed!'), false);
     }
+    cb(null, true);
   },
 });
 

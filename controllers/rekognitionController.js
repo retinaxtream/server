@@ -87,28 +87,31 @@ const createCollection = async (collectionId) => {
 
 // Controller for uploading multiple images
 export const uploadImages = CatchAsync(async (req, res, next) => {
-  const { eventId, socketId } = req.query;
-  const files = req.files;
+  try {
+    const { socketId, eventId } = req.query;
+    const files = req.files;
 
-  if (!files || files.length === 0) {
-    logger.warn('No files uploaded', { eventId });
-    return next(new AppError('No files uploaded', 400));
+    if (!files || files.length === 0) {
+      logger.warn('No files uploaded.', { eventId, socketId });
+      return res.status(400).json({ message: 'No files uploaded.' });
+    }
+
+    for (const file of files) {
+      await uploadQueue.add({
+        filePath: file.path,
+        originalName: file.originalname,
+        eventId,
+        socketId,
+      });
+    }
+    logger.info(`Enqueued ${files.length} upload jobs.`, { eventId, socketId });
+    res.status(200).json({ message: 'Files are being uploaded.' });
+  } catch (error) {
+    logger.error('Error enqueuing upload jobs:', error);
+    res.status(500).json({ message: 'Failed to enqueue upload jobs.' });
   }
-
-  if (!socketId) {
-    logger.warn('No socket ID provided', { eventId });
-    return next(new AppError('No socket ID provided', 400));
-  }
-
-  // Enqueue a job for processing
-  await uploadQueue.add({
-    files: files.map(file => file.path), // Pass the file paths to the worker
-    eventId,
-    socketId,
-  });
-
-  res.status(200).json({ message: 'Upload in progress' });
 });
+
 
 
 // Controller for searching faces in an event
