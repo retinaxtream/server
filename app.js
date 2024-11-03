@@ -195,7 +195,7 @@ const initializeServer = () => {
 
     // Place the global error handler after all routes and middleware
     app.use(globalErrorHandler);
-
+ 
     // Start listening
     const port = process.env.PORT || 3000;
     server.listen(port, () => {
