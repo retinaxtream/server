@@ -4,9 +4,6 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import Guest from '../models/GuestModel.js';
 import  {sendMedia}   from '../Utils/emailSender.js'
 // import uploadQueue from '../queue.js';
-import uploadQueue from '../queue/uploadQueue.js'; // Import the Bull queue
-import CatchAsync from '../Utils/CatchAsync.js'; // Adjust the path if necessary
-
 
 import {
   IndexFacesCommand, 
