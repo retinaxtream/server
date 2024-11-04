@@ -15,16 +15,17 @@ const redisOptions = {
 const uploadQueue = new Bull('upload-queue', {
   redis: redisOptions,
   settings: {
-    lockDuration: 30000, // Adjust as needed
-    stalledInterval: 30000, // Interval to check for stalled jobs
-    maxStalledCount: 1, // Maximum number of stalled attempts
+    lockDuration: 30000, // Time in ms to lock a job before it's considered stalled
+    stalledInterval: 30000, // Interval in ms to check for stalled jobs
+    maxStalledCount: 1, // Maximum number of times a job can be stalled before failing
   },
   limiter: {
-    max: 50, // Maximum number of jobs per interval
-    duration: 1000, // Interval duration in milliseconds
+    max: 50, // Maximum number of jobs processed per interval
+    duration: 1000, // Interval duration in ms
   },
 });
 
+// Event Listeners for Logging
 uploadQueue.on('error', (error) => {
   logger.error(`Bull Queue Error: ${error.message}`, { error, timestamp: new Date().toISOString() });
 });

@@ -1,19 +1,23 @@
-// backend/socket.js
+// server/socketClient.js
 
-import { Server } from 'socket.io';
-import logger from './Utils/logger.js';
+import { io } from 'socket.io-client';
 import dotenv from 'dotenv';
+import logger from './Utils/logger.js';
 
 dotenv.config();
 
-const io = new Server();
+const SOCKET_SERVER_URL = process.env.SOCKET_SERVER_URL || 'http://localhost:8000'; // Ensure this matches your server's Socket.io URL
 
-io.on('connection', (socket) => {
-  logger.info(`New client connected: ${socket.id}`);
-
-  socket.on('disconnect', () => {
-    logger.info(`Client disconnected: ${socket.id}`);
-  });
+const socket = io(SOCKET_SERVER_URL, {
+  withCredentials: true,
 });
 
-export default io;
+socket.on('connect', () => {
+  logger.info(`Socket.io client connected: ${socket.id}`);
+});
+
+socket.on('disconnect', () => {
+  logger.info(`Socket.io client disconnected: ${socket.id}`);
+});
+
+export default socket;

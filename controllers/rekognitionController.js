@@ -104,6 +104,9 @@ export const uploadImages = CatchAsync(async (req, res, next) => {
         socketId,
       });
     }
+    
+
+
     logger.info(`Enqueued ${files.length} upload jobs.`, { eventId, socketId });
     res.status(200).json({ message: 'Files are being uploaded.' });
   } catch (error) {

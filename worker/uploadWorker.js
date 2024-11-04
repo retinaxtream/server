@@ -3,14 +3,14 @@
 import uploadQueue from '../queue/uploadQueue.js';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { RekognitionClient, IndexFacesCommand, CreateCollectionCommand, ListCollectionsCommand } from '@aws-sdk/client-rekognition';
-import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import sharp from 'sharp';
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../Utils/logger.js';
-import io from '../socket.js'; // Import the Socket.io instance
+import socket from '../socketClient.js'; // Import the Socket.io client
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -54,9 +54,12 @@ const createCollection = async (collectionId) => {
   }
 };
 
+// Initial Log to Confirm Worker Start
+logger.info('Upload Worker Started and Listening for Jobs...', { timestamp: new Date().toISOString() });
+
 // Process Jobs from Queue
 uploadQueue.process(async (job) => {
-  const { filePath, originalName, eventId, socketId } = job.data;
+  const { filePath, originalName, eventId, socketId } = job.data; // Single file per job
   const collectionId = `event-${eventId}`;
 
   try {
@@ -92,7 +95,7 @@ uploadQueue.process(async (job) => {
     logger.info(`Uploaded ${s3Key} to S3`);
 
     // Emit progress via Socket.io (since it's a single file, progress is 100%)
-    io.to(socketId).emit('uploadProgress', { progress: 100 });
+    socket.emit('uploadProgress', { socketId, progress: 100 });
 
     // Index Faces with Rekognition
     const indexCommand = new IndexFacesCommand({
@@ -123,7 +126,7 @@ uploadQueue.process(async (job) => {
           },
         };
 
-        await dynamoDBDocClient.send(new PutItemCommand(putParams));
+        await dynamoDBDocClient.send(new PutCommand(putParams)); // Corrected command
         logger.info(`Stored face ${faceId} metadata in DynamoDB`);
       }
     }
@@ -133,11 +136,11 @@ uploadQueue.process(async (job) => {
     logger.info(`Deleted temporary file ${filePath}`);
 
     // Emit completion via Socket.io
-    io.to(socketId).emit('uploadComplete', { message: 'Image processed successfully' });
+    socket.emit('uploadComplete', { socketId, message: 'Image processed successfully' });
     logger.info(`Completed processing file ${s3Key} for event ${eventId}`);
   } catch (error) {
     logger.error(`Error processing file ${filePath}: ${error.message}`, { error });
-    io.to(socketId).emit('uploadError', { message: `Failed to process image ${path.basename(filePath)}` });
+    socket.emit('uploadError', { socketId, message: `Failed to process image ${path.basename(filePath)}` });
     throw error; // Let Bull handle retries if configured
   }
 });
