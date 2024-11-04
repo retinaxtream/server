@@ -1,3 +1,5 @@
+
+
 // app.js
 import express from 'express';
 import morgan from 'morgan';
@@ -195,7 +197,7 @@ const initializeServer = () => {
 
     // Place the global error handler after all routes and middleware
     app.use(globalErrorHandler);
- 
+
     // Start listening
     const port = process.env.PORT || 3000;
     server.listen(port, () => {
@@ -215,3 +217,5 @@ initializeServer();
 // ===========================
 
 // Already handled in initializeServer with globalErrorHandler
+
+

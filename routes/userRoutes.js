@@ -25,32 +25,18 @@ const router = express.Router();
 const memoryStorage = multer.memoryStorage();
 // const upload_ai = multer({ storage: memoryStorage });
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // Ensure this directory exists and has proper permissions
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
-  },
-});
-
-// Initialize Multer with disk storage
 const upload_ai = multer({
-  storage: storage,
-  limits: { 
-    fileSize: 50 * 1024 * 1024, // 20MB limit per file
-  },
+  storage: memoryStorage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // Limit each file to 3MB
   fileFilter: (req, file, cb) => {
-    // Accept only image files
-    if (!file.mimetype.startsWith('image/')) {
-      return cb(new Error('Only image files are allowed!'), false);
+    // Only allow image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only images are allowed.'));
     }
-    cb(null, true);
   },
 });
-
-
 const guestImageStorage = multer.memoryStorage();
 const uploadGuestImage = multer({
   storage: guestImageStorage,
@@ -66,14 +52,14 @@ const uploadGuestImage = multer({
   },
 });
 
-// const storage = multer.diskStorage({
-//   destination: function (req, file, cb) {
-//     cb(null, 'uploads/');
-//   },
-//   filename: function (req, file, cb) {
-//     cb(null, file.originalname);
-//   }
-// });
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.originalname);
+  }
+});
 
 const storageTwo = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -329,3 +315,7 @@ router
   .post(upload.array('images'), userController.uploadImage);
 
 export default router;
+
+
+
+

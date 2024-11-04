@@ -7,9 +7,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start:dev": "nodemon app.js",
-    "worker": "node worker/uploadWorker.js",
     "start:prod": "cross-env NODE_ENV=production nodemon app.js"
-  }, 
+  },
   "author": "\"Team Members\"",
   "license": "ISC",
   "dependencies": {
@@ -28,7 +27,6 @@
     "aws-sdk": "^2.1691.0",
     "axios": "^1.7.2",
     "bcryptjs": "^2.4.3",
-    "bull": "^4.16.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
@@ -64,3 +62,10 @@
     "cross-env": "^7.0.3"
   }
 }
+
+
+
+
+
+
+
