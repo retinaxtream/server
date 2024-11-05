@@ -4,6 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import Guest from '../models/GuestModel.js';
 import  {sendMedia}   from '../Utils/emailSender.js'
 // import uploadQueue from '../queue.js';
+import fs from 'fs';
 
 import {
   IndexFacesCommand, 
@@ -82,8 +83,6 @@ const createCollection = async (collectionId) => {
   }
 };
 
-
-// Helper function to implement exponential backoff
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
@@ -107,50 +106,34 @@ const uploadWithRetry = async (file, socketId, eventId, collectionId, retries = 
       // Construct S3 key with eventId as folder name
       const s3Key = `${eventId}/${uniqueId}-${sanitizedFilename}`;
 
-      // Check if file exists
-      if (!fs.existsSync(file.path)) {
-        throw new Error(`File not found at path: ${file.path}`);
-      }
-
-      const fileBuffer = fs.readFileSync(file.path);
-      if (!fileBuffer || fileBuffer.length === 0) {
-        throw new Error(`Empty file buffer for file: ${file.originalname}`);
-      }
-
-      // Resize image
+      // Resize the image (optional)
       const resizedImageBuffer = await sharp(file.path)
         .resize(1024, 1024, { fit: 'inside' })
         .toBuffer();
 
-      // Validate resized buffer
-      if (!resizedImageBuffer || resizedImageBuffer.length === 0) {
-        throw new Error(`Resized image buffer is empty for file: ${file.originalname}`);
-      }
+      // Log the upload attempt
+      logger.info(`Attempt ${attempt}: Uploading file to S3: ${file.originalname}`, { eventId, fileName: file.originalname, s3Key });
 
+      // Upload image to S3 under the eventId folder
       const uploadParams = {
         Bucket: process.env.S3_BUCKET_NAME,
         Key: s3Key,
         Body: resizedImageBuffer,
-        ContentType: file.mimetype, // e.g., 'image/jpeg'
-        // Do NOT set ACL if Object Ownership is Bucket owner enforced
-        // ACL: 'private', // <-- Remove or comment out if necessary
+        ContentType: file.mimetype, // Set Content-Type
       };
 
-      logger.info(`Attempt ${attempt}: Uploading ${file.originalname} to S3 with Key: ${s3Key}`, { eventId });
+      // Optionally, log the upload parameters (be cautious with sensitive data)
+      logger.debug(`S3 Upload Params: Bucket=${uploadParams.Bucket}, Key=${uploadParams.Key}`, { eventId, s3Key });
 
       await s3Client.send(new PutObjectCommand(uploadParams));
 
-      logger.info(`Successfully uploaded ${file.originalname} to S3 as ${s3Key}`, { eventId });
+      // Log successful upload
+      logger.info(`Successfully uploaded to S3: ${s3Key}`, { eventId, s3Key });
 
       // Emit progress update after successful S3 upload
-      return { s3Key, uniqueId };
+      return { s3Key, uniqueId }; // Return necessary identifiers
     } catch (error) {
-      logger.error(`Attempt ${attempt} failed to upload ${file.originalname}: ${error.message}`, { 
-        eventId, 
-        file: file.originalname, 
-        attempt, 
-        error: JSON.stringify(error, Object.getOwnPropertyNames(error)) 
-      });
+      logger.error(`Attempt ${attempt} failed to upload ${file.originalname}: ${error.message}`, { eventId, file: file.originalname, attempt, error });
 
       if (attempt < retries) {
         // Exponential backoff delay
@@ -165,20 +148,16 @@ const uploadWithRetry = async (file, socketId, eventId, collectionId, retries = 
   }
 };
 
-/**
- * Controller for uploading multiple images with retry mechanism.
- */
 export const uploadImages = async (req, res) => {
-  const { eventId, socketId } = req.query; // Extract eventId and socketId from query params
+  const { eventId, socketId } = req.query;
   const files = req.files;
-  const collectionId = `event-${eventId}`; // Collection ID for Rekognition
+  const collectionId = `event-${eventId}`;
 
   if (!files || files.length === 0) {
     logger.warn('No files uploaded', { eventId });
     return res.status(400).json({ message: 'No files uploaded' });
   }
 
-  // Retrieve Socket.IO instance from Express app
   const io = req.app.get('socketio');
 
   if (!socketId) {
@@ -189,7 +168,7 @@ export const uploadImages = async (req, res) => {
   try {
     logger.info(`Starting uploadImages for EventId: ${eventId} with ${files.length} files`, { eventId });
 
-    // Check if Rekognition collection exists for the event
+    // Check if Rekognition collection exists
     const exists = await collectionExists(collectionId);
     if (!exists) {
       logger.info(`Collection ${collectionId} does not exist. Creating new collection.`, { collectionId });
@@ -200,7 +179,7 @@ export const uploadImages = async (req, res) => {
     let processedCount = 0;
 
     // Define concurrency limit
-    const limit = pLimit(3); // Adjust the concurrency level as needed based on EC2 capacity
+    const limit = pLimit(3); // Adjust based on EC2 capacity
 
     // Create an array of promises with controlled concurrency
     const uploadPromises = files.map((file) =>
@@ -208,15 +187,15 @@ export const uploadImages = async (req, res) => {
         let s3Key;
         let uniqueId;
         try {
-          // Upload the file with retry mechanism
+          // Upload with retry mechanism
           const uploadResult = await uploadWithRetry(file, socketId, eventId, collectionId, 3);
           s3Key = uploadResult.s3Key;
           uniqueId = uploadResult.uniqueId;
 
-          // Emit progress update after successful S3 upload
+          // Emit progress update
           processedCount++;
           const uploadProgress = Math.round((processedCount / totalFiles) * 100);
-          logger.info(`Emitting progress: ${uploadProgress}% for file: ${s3Key}`, { eventId, socketId, uploadProgress });
+          logger.info(`Progress: ${uploadProgress}% for file: ${s3Key}`, { eventId, socketId, uploadProgress });
           io.to(socketId).emit('uploadProgress', { progress: uploadProgress });
 
           // Read the resized image buffer for Rekognition
@@ -226,31 +205,31 @@ export const uploadImages = async (req, res) => {
           const indexCommand = new IndexFacesCommand({
             CollectionId: collectionId,
             Image: { Bytes: resizedImageBuffer },
-            ExternalImageId: uniqueId, // Use uniqueId for external image identification
+            ExternalImageId: uniqueId,
             DetectionAttributes: ['ALL'],
           });
 
           const indexResponse = await rekognitionClient.send(indexCommand);
-          logger.info(`IndexFaces response for image ${s3Key}: ${JSON.stringify(indexResponse)}`, { eventId, s3Key });
+          logger.info(`IndexFaces response for ${s3Key}: ${JSON.stringify(indexResponse)}`, { eventId, s3Key });
 
           if (indexResponse.FaceRecords.length === 0) {
-            logger.warn(`No faces indexed in image: ${s3Key}`, { eventId, s3Key });
+            logger.warn(`No faces detected in image: ${s3Key}`, { eventId, s3Key });
           } else {
-            logger.info(`Number of faces detected in image ${s3Key}: ${indexResponse.FaceRecords.length}`, { eventId, s3Key });
+            logger.info(`Faces detected in image ${s3Key}: ${indexResponse.FaceRecords.length}`, { eventId, s3Key });
 
             for (const faceRecord of indexResponse.FaceRecords) {
               const faceId = faceRecord.Face.FaceId;
-              logger.info(`Face indexed with ID: ${faceId}`, { eventId, faceId });
+              logger.info(`Face ID: ${faceId}`, { eventId, faceId });
 
-              // Store face metadata in DynamoDB
+              // Store metadata in DynamoDB
               const putParams = {
                 TableName: process.env.EVENT_FACES_TABLE_NAME,
                 Item: {
-                  EventId: eventId, // String
-                  FaceId: faceId,   // String
-                  ImageUrl: s3Key,  // String
-                  BoundingBox: faceRecord.Face.BoundingBox, // Object
-                  Confidence: faceRecord.Face.Confidence,   // Number
+                  EventId: eventId,
+                  FaceId: faceId,
+                  ImageUrl: s3Key,
+                  BoundingBox: faceRecord.Face.BoundingBox,
+                  Confidence: faceRecord.Face.Confidence,
                 },
               };
 
@@ -258,18 +237,17 @@ export const uploadImages = async (req, res) => {
                 const dynamoResponse = await dynamoDBDocClient.send(new DocPutCommand(putParams));
                 logger.info(`DynamoDB PutItem successful for FaceId ${faceId}`, { eventId, faceId, dynamoResponse });
               } catch (dbError) {
-                logger.error(`Error storing FaceId ${faceId} in DynamoDB: ${dbError.message}`, { eventId, faceId, dbError });
+                logger.error(`DynamoDB error for FaceId ${faceId}: ${dbError.message}`, { eventId, faceId, dbError });
               }
             }
 
-            // Log after successful indexing
-            logger.info(`Successfully indexed in Rekognition: ${s3Key}`, { eventId, s3Key });
+            logger.info(`Successfully indexed faces in Rekognition for ${s3Key}`, { eventId, s3Key });
           }
         } catch (error) {
           logger.error(`Error processing image ${file.originalname}: ${error.message}`, { eventId, error });
           io.to(socketId).emit('uploadError', { message: `Failed to process image ${file.originalname}`, file: file.originalname });
         } finally {
-          // Clean up the file from disk after processing
+          // Clean up the file from disk
           fs.unlink(file.path, (err) => {
             if (err) {
               logger.error(`Failed to delete temp file ${file.path}: ${err.message}`, { eventId, file: file.originalname });
@@ -284,18 +262,17 @@ export const uploadImages = async (req, res) => {
     // Execute all upload promises
     await Promise.all(uploadPromises);
 
-    // After all files are processed, emit completion event
+    // Emit completion event
     io.to(socketId).emit('uploadComplete', { message: 'All images processed successfully' });
     logger.info('All images processed successfully', { eventId, socketId });
 
     res.status(200).json({ message: 'Images uploaded and faces indexed' });
   } catch (error) {
-    logger.error(`Error uploading and indexing images: ${error.message}`, { eventId, error });
+    logger.error(`Upload process failed: ${error.message}`, { eventId, error });
     io.to(socketId).emit('uploadError', { message: 'Failed to process images' });
     res.status(500).json({ error: 'Failed to process images' });
   }
 };
-
 
 // Controller for searching faces in an event
 export const searchFace = async (req, res) => {
