@@ -24,7 +24,7 @@ const router = express.Router();
 
 const memoryStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, '/tmp/uploads/'); // Ensure this directory exists and has appropriate permissions
+    cb(null, 'face_uploads/'); // Ensure this directory exists and has appropriate permissions
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}-${file.originalname}`);
