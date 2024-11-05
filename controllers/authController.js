@@ -1,25 +1,28 @@
+
 import User from '../models/UserModel.js';
-import { CatchAsync } from '../Utils/CatchAsync.js'
 import jwt from 'jsonwebtoken';
-import { validationResult } from 'express-validator';
 import AppError from '../Utils/AppError.js';
-import logger from '../Utils/logger.js'; 
+import logger from '../Utils/logger.js';
+import { CatchAsync } from '../Utils/CatchAsync.js';
 
-
-    
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
-}; 
+};
 
 const createSendToken = (user, statusCode, res) => {
   const token = signToken(user._id);
   const jwtExpiresIn = parseInt(process.env.JWT_EXPIRES_IN, 10);
 
+  if (isNaN(jwtExpiresIn) || jwtExpiresIn <= 0) {
+    logger.error('Invalid JWT_EXPIRES_IN value');
+    throw new Error('Invalid JWT_EXPIRES_IN value');
+  }
+
   const cookieOptions = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     expires: new Date(Date.now() + jwtExpiresIn * 24 * 60 * 60 * 1000),
   };
@@ -36,8 +39,8 @@ const createSendToken = (user, statusCode, res) => {
     },
   });
 };
- 
-export const login = CatchAsync(async (req, res, next) => {
+
+export const login = async (req, res, next) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -52,10 +55,10 @@ export const login = CatchAsync(async (req, res, next) => {
   }
 
   logger.info(`User logged in: ${email}`);
-  return createSendToken(user, 200, res);
-});
+  createSendToken(user, 200, res);
+};
 
-export const signup = CatchAsync(async (req, res, next) => {
+export const signup = async (req, res, next) => {
   const { businessName, email, mobile, password, passwordConfirm, role } = req.body;
 
   if (!businessName || !email || !mobile || !password || !passwordConfirm) {
@@ -86,19 +89,16 @@ export const signup = CatchAsync(async (req, res, next) => {
   });
 
   logger.info(`New user signed up: ${email}`);
-  return createSendToken(newUser, 201, res);
-});
- 
-
-
+  createSendToken(newUser, 201, res);
+};
 
 export const logout = async (req, res) => {
   try {
-      await res.clearCookie("jwtToken");
-      res.status(200).json({ status: 'success' });
+    await res.clearCookie("jwtToken");
+    res.status(200).json({ status: 'success' });
   } catch (error) {
-      console.error('Logout failed:', error);
-      res.status(400).json({ status: 'fail' });   
+    console.error('Logout failed:', error);
+    res.status(400).json({ status: 'fail' });
   }
 };
 

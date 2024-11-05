@@ -186,10 +186,10 @@ const validateLogin = [
   },
 ];
 
-// Authentication routes
-router.post('/login', CatchAsync(authController.login));
-router.post('/signup', CatchAsync(authController.signup));
- 
+router.post('/login', CatchAsync(authController.login)); // Now wrapped once
+router.post('/signup', CatchAsync(authController.signup)); // Now wrapped once
+
+    
 // Other routes
 router.post('/validatingLink', userController.validateLink);
 router.post('/create/client', auth.protect, userController.createClient);
