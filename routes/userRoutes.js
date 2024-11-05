@@ -22,14 +22,19 @@ import * as RhzuserController from '../controllers/RhzuserController.js';
 const multerStorage = multer.memoryStorage();
 const router = express.Router();
 
-const memoryStorage = multer.memoryStorage();
-// const upload_ai = multer({ storage: memoryStorage });
+const memoryStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, '/tmp/uploads/'); // Ensure this directory exists and has appropriate permissions
+  },
+  filename: function (req, file, cb) {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
+});
 
 const upload_ai = multer({
   storage: memoryStorage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // Limit each file to 3MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
   fileFilter: (req, file, cb) => {
-    // Only allow image files
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -37,6 +42,7 @@ const upload_ai = multer({
     }
   },
 });
+
 const guestImageStorage = multer.memoryStorage();
 const uploadGuestImage = multer({
   storage: guestImageStorage,
