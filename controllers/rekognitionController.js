@@ -82,16 +82,16 @@ const createCollection = async (collectionId) => {
   }
 };
 
-// Helper function to implement exponential backoff
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Helper function to upload and index a single file with retry mechanism.
+ * Uploads a single file to S3 with a retry mechanism.
  * @param {Object} file - The file object from Multer.
  * @param {String} socketId - The Socket.IO client ID.
  * @param {String} eventId - The event identifier.
  * @param {String} collectionId - The Rekognition collection ID.
  * @param {Number} retries - Number of retry attempts.
+ * @returns {Object} - Contains s3Key and uniqueId on success.
  */
 const uploadWithRetry = async (file, socketId, eventId, collectionId, retries = 3) => {
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -106,33 +106,38 @@ const uploadWithRetry = async (file, socketId, eventId, collectionId, retries = 
       const s3Key = `${eventId}/${uniqueId}-${sanitizedFilename}`;
 
       // Resize the image (optional)
-      const resizedImageBuffer = await sharp(file.buffer)
+      const resizedImageBuffer = await sharp(file.path)
         .resize(1024, 1024, { fit: 'inside' })
         .toBuffer();
 
       // Log the upload attempt
-      logger.info(`Attempt ${attempt}: Uploading file to S3: ${file.originalname}`, { eventId, fileName: file.originalname });
+      logger.info(`Attempt ${attempt}: Uploading file to S3: ${file.originalname}`, { eventId, fileName: file.originalname, s3Key });
 
       // Upload image to S3 under the eventId folder
       const uploadParams = {
         Bucket: process.env.S3_BUCKET_NAME,
         Key: s3Key,
         Body: resizedImageBuffer,
+        ContentType: file.mimetype, // Set Content-Type
       };
+
+      // Optionally, log the upload parameters (be cautious with sensitive data)
+      logger.debug(`S3 Upload Params: Bucket=${uploadParams.Bucket}, Key=${uploadParams.Key}`, { eventId, s3Key });
+
       await s3Client.send(new PutObjectCommand(uploadParams));
 
       // Log successful upload
       logger.info(`Successfully uploaded to S3: ${s3Key}`, { eventId, s3Key });
 
       // Emit progress update after successful S3 upload
-      return { s3Key }; // Exit the function on success
+      return { s3Key, uniqueId }; // Return necessary identifiers
     } catch (error) {
-      logger.error(`Attempt ${attempt} failed to upload ${file.originalname}: ${error.message}`, { eventId, file: file.originalname, attempt });
+      logger.error(`Attempt ${attempt} failed to upload ${file.originalname}: ${error.message}`, { eventId, file: file.originalname, attempt, error });
 
       if (attempt < retries) {
-        // Exponential backoff before the next retry
+        // Exponential backoff delay
         const delay = Math.pow(2, attempt) * 1000; // 2^attempt * 1000 ms
-        logger.info(`Retrying upload for ${file.originalname} in ${delay} ms`, { eventId, file: file.originalname });
+        logger.info(`Retrying upload for ${file.originalname} in ${delay} ms`, { eventId, file: file.originalname, delay });
         await sleep(delay);
       } else {
         // After final attempt, throw the error to be caught by the caller
@@ -142,20 +147,17 @@ const uploadWithRetry = async (file, socketId, eventId, collectionId, retries = 
   }
 };
 
-/**
- * Controller for uploading multiple images with retry mechanism.
- */
+
 export const uploadImages = async (req, res) => {
-  const { eventId, socketId } = req.query; // Extract eventId and socketId from query params
+  const { eventId, socketId } = req.query;
   const files = req.files;
-  const collectionId = `event-${eventId}`; // Collection ID for Rekognition
+  const collectionId = `event-${eventId}`;
 
   if (!files || files.length === 0) {
     logger.warn('No files uploaded', { eventId });
     return res.status(400).json({ message: 'No files uploaded' });
   }
 
-  // Retrieve Socket.IO instance from Express app
   const io = req.app.get('socketio');
 
   if (!socketId) {
@@ -166,7 +168,7 @@ export const uploadImages = async (req, res) => {
   try {
     logger.info(`Starting uploadImages for EventId: ${eventId} with ${files.length} files`, { eventId });
 
-    // Check if Rekognition collection exists for the event
+    // Ensure Rekognition collection exists
     const exists = await collectionExists(collectionId);
     if (!exists) {
       logger.info(`Collection ${collectionId} does not exist. Creating new collection.`, { collectionId });
@@ -177,31 +179,42 @@ export const uploadImages = async (req, res) => {
     let processedCount = 0;
 
     // Define concurrency limit
-    const limit = pLimit(3); // Adjust the concurrency level as needed
+    const limit = pLimit(3); // Adjust as needed
 
     // Create an array of promises with controlled concurrency
     const uploadPromises = files.map((file) =>
       limit(async () => {
         let s3Key;
+        let uniqueId;
         try {
-          // Upload the file with retry mechanism
+          // Verify that the file exists
+          if (!fs.existsSync(file.path)) {
+            throw new Error(`File not found at path: ${file.path}`);
+          }
+
+          logger.info(`File exists: ${file.path}`, { eventId, fileName: file.originalname });
+
+          // Upload with retry
           const uploadResult = await uploadWithRetry(file, socketId, eventId, collectionId, 3);
           s3Key = uploadResult.s3Key;
+          uniqueId = uploadResult.uniqueId;
 
-          // Emit progress update after successful S3 upload
+          // Emit progress update
           processedCount++;
           const uploadProgress = Math.round((processedCount / totalFiles) * 100);
           logger.info(`Emitting progress: ${uploadProgress}% for file: ${s3Key}`, { eventId, socketId, uploadProgress });
           io.to(socketId).emit('uploadProgress', { progress: uploadProgress });
 
-          // Log before indexing with Rekognition
-          logger.info(`Starting Rekognition indexing for: ${s3Key}`, { eventId, s3Key });
+          // Resize the image again for Rekognition (or reuse the buffer if possible)
+          const resizedImageBuffer = await sharp(file.path)
+            .resize(1024, 1024, { fit: 'inside' })
+            .toBuffer();
 
-          // Index faces in AWS Rekognition
+          // Index faces in Rekognition
           const indexCommand = new IndexFacesCommand({
             CollectionId: collectionId,
             Image: { Bytes: resizedImageBuffer },
-            ExternalImageId: uniqueId, // Use uniqueId for external image identification
+            ExternalImageId: uniqueId,
             DetectionAttributes: ['ALL'],
           });
           const indexResponse = await rekognitionClient.send(indexCommand);
@@ -220,16 +233,16 @@ export const uploadImages = async (req, res) => {
               const putParams = {
                 TableName: process.env.EVENT_FACES_TABLE_NAME,
                 Item: {
-                  EventId: eventId, // String
-                  FaceId: faceId,   // String
-                  ImageUrl: s3Key,  // String
+                  EventId: eventId,
+                  FaceId: faceId,
+                  ImageUrl: s3Key,
                   BoundingBox: {
                     Left: faceRecord.Face.BoundingBox.Left,
                     Top: faceRecord.Face.BoundingBox.Top,
                     Width: faceRecord.Face.BoundingBox.Width,
                     Height: faceRecord.Face.BoundingBox.Height,
                   },
-                  Confidence: faceRecord.Face.Confidence, // Number
+                  Confidence: faceRecord.Face.Confidence,
                 },
               };
 
@@ -241,12 +254,20 @@ export const uploadImages = async (req, res) => {
               }
             }
 
-            // Log after successful indexing
             logger.info(`Successfully indexed in Rekognition: ${s3Key}`, { eventId, s3Key });
           }
         } catch (error) {
           logger.error(`Error processing image ${file.originalname}: ${error.message}`, { eventId, error });
           io.to(socketId).emit('uploadError', { message: `Failed to process image ${file.originalname}`, file: file.originalname });
+        } finally {
+          // Clean up the file from disk after processing
+          fs.unlink(file.path, (err) => {
+            if (err) {
+              logger.error(`Failed to delete temp file ${file.path}: ${err.message}`, { eventId, file: file.originalname });
+            } else {
+              logger.info(`Deleted temp file: ${file.path}`, { eventId, file: file.originalname });
+            }
+          });
         }
       })
     );
@@ -265,7 +286,6 @@ export const uploadImages = async (req, res) => {
     res.status(500).json({ error: 'Failed to process images' });
   }
 };
-
 
 // Controller for searching faces in an event
 export const searchFace = async (req, res) => {
