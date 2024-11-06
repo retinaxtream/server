@@ -13,6 +13,7 @@ import { emptyEventFaces, emptyGuestsTable } from '../controllers/dynamoControll
 import * as rekognitionController from '../controllers/rekognitionController.js';
 import * as GuestController from '../controllers/GuestController.js';
 import { getGuestDetailsWithImages } from '../controllers/GuestController.js';
+import {uploadImages} from '../controllers/uploadController.js';
 
 
 const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa");
@@ -22,15 +23,18 @@ import * as RhzuserController from '../controllers/RhzuserController.js';
 const multerStorage = multer.memoryStorage();
 const router = express.Router();
 
+
+// Configure multer storage
 const memoryStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'face_uploads/'); // Ensure this directory exists and has appropriate permissions
+    cb(null, 'face_uploads/'); // Ensure this directory exists
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}-${file.originalname}`);
-  }
+  },
 });
 
+// Initialize multer with storage and file filters
 const upload_ai = multer({
   storage: memoryStorage,
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
@@ -237,7 +241,7 @@ router.post('/upload-images', upload_ai.array('images'), (req, res, next) => {
   req.socketId = req.query.socketId;
   req.eventId = req.query.eventId;
   next();
-}, rekognitionController.uploadImages);
+}, uploadImages);
 
 
 router.post(

@@ -1,5 +1,3 @@
-
-
 // app.js
 import express from 'express';
 import morgan from 'morgan';
@@ -21,6 +19,7 @@ import AppError from './Utils/AppError.js';
 
 import http from 'http'; // Import HTTP module to create an HTTP server
 import { Server as SocketIOServer } from 'socket.io'; // Import Socket.IO server
+import { Worker } from './worker.js'; // Import the Worker class
 
 // ===========================
 // 0. Process-Level Error Handlers
@@ -203,6 +202,14 @@ const initializeServer = () => {
     server.listen(port, () => {
       logger.info(`App running on port ${port} in ${process.env.NODE_ENV} mode`);
     });
+
+    // ===========================
+    // 7. Initialize and Start the Worker
+    // ===========================
+
+    const worker = new Worker(io); // Pass the Socket.IO instance
+    worker.start();
+
   } catch (error) {
     logger.error('Failed to initialize server:', error);
     process.exit(1); // Exit the application if server initialization fails
@@ -213,9 +220,7 @@ const initializeServer = () => {
 initializeServer();
 
 // ===========================
-// 7. Error Handling Middleware
+// 8. Error Handling Middleware
 // ===========================
 
 // Already handled in initializeServer with globalErrorHandler
-
-

@@ -94,6 +94,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * @param {Number} retries - Number of retry attempts.
  * @returns {Object} - Contains s3Key and uniqueId on success.
  */
+
 const uploadWithRetry = async (file, socketId, eventId, collectionId, retries = 3) => {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {

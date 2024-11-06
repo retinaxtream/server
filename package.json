@@ -14,8 +14,9 @@
   "dependencies": {
     "@aws-sdk/client-cloudwatch-logs": "^3.658.1",
     "@aws-sdk/client-dynamodb": "^3.658.1",
-    "@aws-sdk/client-rekognition": "^3.651.1",
-    "@aws-sdk/client-s3": "^3.651.1",
+    "@aws-sdk/client-rekognition": "^3.682.0",
+    "@aws-sdk/client-s3": "^3.685.0",
+    "@aws-sdk/client-sqs": "^3.682.0",
     "@aws-sdk/credential-provider-env": "^3.654.0",
     "@aws-sdk/credential-provider-ini": "^3.658.1",
     "@aws-sdk/credential-provider-node": "^3.658.1",
@@ -43,6 +44,7 @@
     "mongoose": "^7.5.4",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3",
     "nodemailer": "^6.9.11",
     "nodemon": "^3.0.1",
     "p-limit": "^6.1.0",
@@ -62,10 +64,3 @@
     "cross-env": "^7.0.3"
   }
 }
-
-
-
-
-
-
-
