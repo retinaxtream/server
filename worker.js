@@ -11,6 +11,7 @@ import path from 'path';
 import pLimit from 'p-limit';
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
+import logger from './Utils/logger.js'
 
 dotenv.config({ path: './config.env' });
 
