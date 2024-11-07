@@ -12,8 +12,18 @@ import pLimit from 'p-limit';
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
 import logger from './Utils/logger.js'
+import {
+    DynamoDBDocumentClient,
+  } from '@aws-sdk/lib-dynamodb';
+
+import {
+  DynamoDBClient
+} from '@aws-sdk/client-dynamodb';
 
 dotenv.config({ path: './config.env' });
+
+const dynamoDBClient = new DynamoDBClient({ region: process.env.AWS_REGION });
+const dynamoDBDocClient = DynamoDBDocumentClient.from(dynamoDBClient);
 
 const collectionExists = async (collectionId) => {
     try {
