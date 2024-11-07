@@ -25,20 +25,36 @@ dotenv.config({ path: './config.env' });
 const dynamoDBClient = new DynamoDBClient({ region: process.env.AWS_REGION });
 const dynamoDBDocClient = DynamoDBDocumentClient.from(dynamoDBClient);
 
+const createCollection = async (collectionId) => {
+    try {
+      const createCollectionCommand = new CreateCollectionCommand({ CollectionId: collectionId });
+      const response = await rekognitionClient.send(createCollectionCommand);
+      logger.info(`Collection ${collectionId} created successfully with ARN: ${response.CollectionArn}`, { collectionId });
+    } catch (error) {
+      if (error.name === 'ResourceAlreadyExistsException') {
+        logger.info(`Collection ${collectionId} already exists.`, { collectionId });
+      } else {
+        logger.error(`Error creating collection ${collectionId}: ${error.message}`, { collectionId, error });
+        throw error;
+      }
+    }
+  };
+  
+
 const collectionExists = async (collectionId) => {
     try {
-        const listCommand = new ListCollectionsCommand({});
-        console.log('listCommand !!!!!');
-        console.log(listCommand);
-        const response = await rekognitionClient.send(listCommand);
-        console.log('response &&&&&&&&&&&&&&');
-        console.log(response);
-        return response.CollectionIds.includes(collectionId);
+      const listCommand = new ListCollectionsCommand({});
+      console.log('listCommand !!!!!');
+      console.log(listCommand);
+      const response = await rekognitionClient.send(listCommand);
+      console.log('response &&&&&&&&&&&&&&');
+      console.log(response);
+      return response.CollectionIds.includes(collectionId);
     } catch (error) {
-        logger.error(`Error listing collections: ${error.message}`, { collectionId, error });
-        throw error;
+      logger.error(`Error listing collections: ${error.message}`, { collectionId, error });
+      throw error;
     }
-}
+  }
 
 export class Worker {
     constructor(io) {
@@ -83,6 +99,7 @@ export class Worker {
                 logger.info(`Collection ${collectionId} does not exist. Creating new collection.`, { collectionId });
                 await createCollection(collectionId);
             }
+            
             // Upload to S3
             const uploadParams = {
                 Bucket: process.env.S3_BUCKET_NAME,
