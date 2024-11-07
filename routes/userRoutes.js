@@ -13,7 +13,8 @@ import { emptyEventFaces, emptyGuestsTable } from '../controllers/dynamoControll
 import * as rekognitionController from '../controllers/rekognitionController.js';
 import * as GuestController from '../controllers/GuestController.js';
 import { getGuestDetailsWithImages } from '../controllers/GuestController.js';
-import {uploadImages} from '../controllers/uploadController.js';
+// import {uploadImages} from '../controllers/uploadController.js';
+import {uploadImages} from '../controllers/testupload.js';
 
 
 const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa");
@@ -24,21 +25,24 @@ const multerStorage = multer.memoryStorage();
 const router = express.Router();
 
 
-// Configure multer storage
+
+// Define storage strategy
 const memoryStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'face_uploads/'); // Ensure this directory exists
+  destination: (req, file, cb) => {
+    cb(null, os.tmpdir()); // Use OS temporary directory
   },
-  filename: function (req, file, cb) {
-    cb(null, `${Date.now()}-${file.originalname}`);
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
+    cb(null, sanitizeFilename(uniqueSuffix));
   },
 });
 
-// Initialize multer with storage and file filters
+// Multer configuration
 const upload_ai = multer({
-  storage: memoryStorage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  memoryStorage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB per file
   fileFilter: (req, file, cb) => {
+    // Only allow image files
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -46,6 +50,7 @@ const upload_ai = multer({
     }
   },
 });
+
 
 const guestImageStorage = multer.memoryStorage();
 const uploadGuestImage = multer({
@@ -237,11 +242,23 @@ router.get('/getClientCoverPhoto', auth.protect, userController.getClientCoverPh
 // Example route for uploading multiple images for face indexing in an event
 // router.post('/upload-images',auth.protect, upload_ai.array('images'), rekognitionController.uploadImages);
 // routes/userRoute.js
-router.post('/upload-images', upload_ai.array('images'), (req, res, next) => {
-  req.socketId = req.query.socketId;
-  req.eventId = req.query.eventId;
-  next();
-}, uploadImages);
+// router.post('/upload-images', upload_ai.array('images'), (req, res, next) => {
+//   req.socketId = req.query.socketId;
+//   req.eventId = req.query.eventId;
+//   next();
+// }, uploadImages);
+
+router.post(
+  '/upload-images',
+  upload_ai.array('images'), 
+  (req, res, next) => {
+    req.socketId = req.query.socketId;
+    req.eventId = req.query.eventId;
+    next();
+  },
+  uploadImages
+);
+
 
 
 router.post(

@@ -207,8 +207,8 @@ const initializeServer = () => {
     // 7. Initialize and Start the Worker
     // ===========================
 
-    const worker = new Worker(io); // Pass the Socket.IO instance
-    worker.start();
+    // const worker = new Worker(io); 
+    // worker.start();
 
   } catch (error) {
     logger.error('Failed to initialize server:', error);
