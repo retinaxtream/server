@@ -3,9 +3,6 @@
 import logger from '../Utils/logger.js';
 import { S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
-import Guest from '../models/GuestModel.js';
-import { sendMedia } from '../Utils/emailSender.js';
-import AppError from '../Utils/AppError.js';
 import pLimit from 'p-limit';
 import fs from 'fs/promises';
 import path from 'path';
@@ -34,7 +31,13 @@ export const uploadImages = async (req, res) => {
   try {
     const uploadPromises = files.map((file) =>
       limit(async () => {
+        if (!file.path) {
+          throw new Error(`File path is undefined for file: ${file.originalname}`);
+        }
+
+        // Read the file from the temporary directory
         const fileStream = await fs.readFile(file.path);
+
         const uploadParams = {
           Bucket: bucketName,
           Key: `${folderPath}${file.filename}`,
@@ -42,11 +45,11 @@ export const uploadImages = async (req, res) => {
           ContentType: file.mimetype,
         };
 
+        // Proceed with uploading to S3 using multipart upload
         const parallelUploads3 = new Upload({
           client: s3Client,
           params: uploadParams,
-          // Optional concurrency and part size configuration
-          queueSize: 4, // concurrent uploads
+          queueSize: 4, // Concurrent upload threads
           partSize: 5 * 1024 * 1024, // 5MB per part
         });
 

@@ -1,4 +1,5 @@
 // routes/userRoute.js
+
 import express from 'express';
 import * as userController from '../controllers/userController.js';
 import multer from 'multer';
@@ -7,42 +8,35 @@ import * as auth from '../controllers/auth.js';
 import { Logtail } from "@logtail/node";
 import { CatchAsync } from '../Utils/CatchAsync.js';
 import path from 'path';
+import os from 'os'; // Import os module
 import { body, validationResult } from 'express-validator';
-// import { storeGuestDetails } from '../controllers/GuestController.js';
 import { emptyEventFaces, emptyGuestsTable } from '../controllers/dynamoController.js';
 import * as rekognitionController from '../controllers/rekognitionController.js';
 import * as GuestController from '../controllers/GuestController.js';
 import { getGuestDetailsWithImages } from '../controllers/GuestController.js';
-// import {uploadImages} from '../controllers/uploadController.js';
-import {uploadImages} from '../controllers/testupload.js';
-
+import { uploadImages } from '../controllers/rekognitionController.js'; // Correct import
+import { v4 as uuidv4 } from 'uuid'; // Ensure uuidv4 is imported
 
 const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa");
-
 import * as RhzuserController from '../controllers/RhzuserController.js';
 
-const multerStorage = multer.memoryStorage();
 const router = express.Router();
 
-
-
-// Define storage strategy
-const memoryStorage = multer.diskStorage({
+// Configure diskStorage for upload_ai
+const uploadAiStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, os.tmpdir()); // Use OS temporary directory
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
-    cb(null, sanitizeFilename(uniqueSuffix));
+    cb(null, uniqueSuffix);
   },
 });
 
-// Multer configuration
 const upload_ai = multer({
-  memoryStorage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB per file
+  storage: uploadAiStorage, // Use the correct key
+  limits: { fileSize: 50 * 1024 * 1024 }, // Limit each file to 50MB
   fileFilter: (req, file, cb) => {
-    // Only allow image files
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -51,14 +45,20 @@ const upload_ai = multer({
   },
 });
 
-
-const guestImageStorage = multer.memoryStorage();
+// Configure diskStorage for uploadGuestImage
 const uploadGuestImage = multer({
-  storage: guestImageStorage,
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, os.tmpdir()); // Use OS temporary directory
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
+      cb(null, uniqueSuffix);
+    },
+  }),
   limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size to 5MB
   fileFilter: (req, file, cb) => {
-    console.log('Incoming file:', file.originalname, file.mimetype); // Log file details
-    // Accept only image files
+    console.log('Incoming file:', file.originalname, file.mimetype);
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -67,6 +67,7 @@ const uploadGuestImage = multer({
   },
 });
 
+// Define other storage configurations as needed
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/');
@@ -85,7 +86,7 @@ const storageTwo = multer.diskStorage({
   }
 });
 
-const storageclient = multer.diskStorage({
+const storageClient = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'clientcover/');
   },
@@ -126,7 +127,7 @@ const ProfileFilter = (req, file, cb) => {
 const cover = multer({ storage: storageOne });
 const free = multer({ storage: storageTwo });
 const profile = multer({ storage: storageProfile });
-const clientcover = multer({ storage: storageclient });
+const clientcover = multer({ storage: storageClient });
 
 // Validation and sanitization middleware for signup
 const validateSignup = [
@@ -195,10 +196,9 @@ const validateLogin = [
   },
 ];
 
-router.post('/login', CatchAsync(authController.login)); // Now wrapped once
-router.post('/signup', CatchAsync(authController.signup)); // Now wrapped once
+router.post('/login', CatchAsync(authController.login));
+router.post('/signup', CatchAsync(authController.signup));
 
-    
 // Other routes
 router.post('/validatingLink', userController.validateLink);
 router.post('/create/client', auth.protect, userController.createClient);
@@ -240,30 +240,21 @@ router.post('/uploadClientCoverPhoto', auth.protect, clientcover.single('photos'
 router.get('/getClientCoverPhoto', auth.protect, userController.getClientCoverPhoto);
 
 // Example route for uploading multiple images for face indexing in an event
-// router.post('/upload-images',auth.protect, upload_ai.array('images'), rekognitionController.uploadImages);
-// routes/userRoute.js
-// router.post('/upload-images', upload_ai.array('images'), (req, res, next) => {
-//   req.socketId = req.query.socketId;
-//   req.eventId = req.query.eventId;
-//   next();
-// }, uploadImages);
-
 router.post(
   '/upload-images',
-  upload_ai.array('images'), 
+  upload_ai.array('images'), // Correct multer instance with diskStorage
   (req, res, next) => {
     req.socketId = req.query.socketId;
     req.eventId = req.query.eventId;
+    console.log("Received files:", req.files); // Add this line for debugging
     next();
   },
   uploadImages
 );
 
-
-
 router.post(
   '/register-guest',
-   // Protect the route if authentication is required; remove if not needed
+  // Protect the route if authentication is required; remove if not needed
   uploadGuestImage.single('guestImage'), // 'guestImage' is the field name in the form-data
   GuestController.storeGuestDetails
 );
@@ -282,7 +273,6 @@ router.post(
 
 router.get('/matched-images', rekognitionController.getMatchedImages);
 
-
 router.post(
   '/send-matching-images',
   auth.protect, // Protect the route
@@ -294,7 +284,6 @@ router.delete(
   auth.protect, 
   CatchAsync(emptyEventFaces)
 );
-
 
 router.delete(
   '/delete-collections',
@@ -310,11 +299,11 @@ router.delete(
 );
 
 // Example route for searching a face in an event
-router.post('/search-face',auth.protect, upload_ai.single('photo'), rekognitionController.searchFace);
-// routes/userRoute.js
-router.get('/get-event-images',auth.protect, rekognitionController.getEventImages);
-router.get('/guests-with-images',auth.protect, getGuestDetailsWithImages);
+router.post('/search-face', auth.protect, upload_ai.single('photo'), rekognitionController.searchFace);
 
+// Additional routes
+router.get('/get-event-images', auth.protect, rekognitionController.getEventImages);
+router.get('/guests-with-images', auth.protect, getGuestDetailsWithImages);
 
 // Upload cover photo
 router.get('/getClientCoverPhotoURL/:id', userController.getClientCoverPhotoURL);
@@ -342,7 +331,3 @@ router
   .post(upload.array('images'), userController.uploadImage);
 
 export default router;
-
-
-
-
