@@ -23,20 +23,37 @@ import * as RhzuserController from '../controllers/RhzuserController.js';
 const router = express.Router();
 
 // Configure diskStorage for upload_ai
-const uploadAiStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, os.tmpdir()); // Use OS temporary directory
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
-    cb(null, uniqueSuffix);
-  },
-});
+// const uploadAiStorage = multer.diskStorage({
+//   destination: (req, file, cb) => {
+//     cb(null, os.tmpdir()); // Use OS temporary directory
+//   },
+//   filename: (req, file, cb) => {
+//     const uniqueSuffix = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
+//     cb(null, uniqueSuffix);
+//   },
+// });
+
+// const upload_ai = multer({
+//   storage: uploadAiStorage, // Use the correct key
+//   limits: { fileSize: 50 * 1024 * 1024 }, // Limit each file to 50MB
+//   fileFilter: (req, file, cb) => {
+//     if (file.mimetype.startsWith('image/')) {
+//       cb(null, true);
+//     } else {
+//       cb(new Error('Invalid file type. Only images are allowed.'));
+//     }
+//   },
+// });
+
+
+const memoryStorage = multer.memoryStorage();
+// const upload_ai = multer({ storage: memoryStorage });
 
 const upload_ai = multer({
-  storage: uploadAiStorage, // Use the correct key
-  limits: { fileSize: 50 * 1024 * 1024 }, // Limit each file to 50MB
+  storage: memoryStorage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // Limit each file to 3MB
   fileFilter: (req, file, cb) => {
+    // Only allow image files
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -240,17 +257,24 @@ router.post('/uploadClientCoverPhoto', auth.protect, clientcover.single('photos'
 router.get('/getClientCoverPhoto', auth.protect, userController.getClientCoverPhoto);
 
 // Example route for uploading multiple images for face indexing in an event
-router.post(
-  '/upload-images',
-  upload_ai.array('images'), // Correct multer instance with diskStorage
-  (req, res, next) => {
-    req.socketId = req.query.socketId;
-    req.eventId = req.query.eventId;
-    console.log("Received files:", req.files); // Add this line for debugging
-    next();
-  },
-  uploadImages
-);
+// router.post(
+//   '/upload-images',
+//   upload_ai.array('images'),
+//   (req, res, next) => {
+//     req.socketId = req.query.socketId;
+//     req.eventId = req.query.eventId;
+//     console.log("Received files:", req.files); 
+//     next();
+//   },
+//   uploadImages
+// );
+
+router.post('/upload-images', upload_ai.array('images'), (req, res, next) => {
+  req.socketId = req.query.socketId;
+  req.eventId = req.query.eventId;
+  next();
+}, rekognitionController.uploadImages);
+
 
 router.post(
   '/register-guest',
