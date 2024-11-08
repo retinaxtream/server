@@ -63,26 +63,44 @@ const upload_ai = multer({
 });
 
 // Configure diskStorage for uploadGuestImage
+// const uploadGuestImage = multer({
+//   storage: multer.diskStorage({
+//     destination: (req, file, cb) => {
+//       cb(null, os.tmpdir()); // Use OS temporary directory
+//     },
+//     filename: (req, file, cb) => {
+//       const uniqueSuffix = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
+//       cb(null, uniqueSuffix);
+//     },
+//   }),
+//   limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size to 5MB
+//   fileFilter: (req, file, cb) => {
+//     console.log('Incoming file:', file.originalname, file.mimetype);
+//     if (file.mimetype.startsWith('image/')) {
+//       cb(null, true);
+//     } else {
+//       cb(new Error('Invalid file type. Only images are allowed.'));
+//     }
+//   },
+// });
+
+// Replace the existing uploadGuestImage configuration with memoryStorage
+// routes/userRoute.js
+
 const uploadGuestImage = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, os.tmpdir()); // Use OS temporary directory
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
-      cb(null, uniqueSuffix);
-    },
-  }),
-  limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size to 5MB
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
     console.log('Incoming file:', file.originalname, file.mimetype);
-    if (file.mimetype.startsWith('image/')) {
+    if (file.mimetype && file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
       cb(new Error('Invalid file type. Only images are allowed.'));
     }
   },
 });
+
+
 
 // Define other storage configurations as needed
 const storage = multer.diskStorage({
@@ -274,6 +292,7 @@ router.post('/upload-images', upload_ai.array('images'), (req, res, next) => {
   req.eventId = req.query.eventId;
   next();
 }, rekognitionController.uploadImages);
+
 
 
 router.post(

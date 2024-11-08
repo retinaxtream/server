@@ -82,8 +82,8 @@ export const storeGuestDetails = async (req, res, next) => {
     await s3Client.send(new PutObjectCommand(uploadParams));
     logger.info('Guest image uploaded to S3', { eventId, s3Key });
 
-    // Construct the full S3 URL for the uploaded image
-    const imageUrl = getS3Url(s3Key);
+     // Construct the full S3 URL for the uploaded image
+     const imageUrl = getS3Url(s3Key);
 
     // Index the face in Rekognition
     const collectionId = `event-${eventId}`;
@@ -100,6 +100,7 @@ export const storeGuestDetails = async (req, res, next) => {
       MaxFaces: 1, // Assuming one face per image
       QualityFilter: 'AUTO',
     };
+
 
     const indexFacesCommand = new IndexFacesCommand(indexFacesParams);
     const indexFacesResponse = await rekognitionClient.send(indexFacesCommand);
