@@ -46,14 +46,39 @@ const router = express.Router();
 // });
 
 
-const memoryStorage = multer.memoryStorage();
+// const memoryStorage = multer.memoryStorage();
 // const upload_ai = multer({ storage: memoryStorage });
 
+// const upload_ai = multer({
+//   storage: memoryStorage,
+//   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB per file
+//   fileFilter: (req, file, cb) => {
+//     if (file.mimetype.startsWith('image/')) {
+//       cb(null, true);
+//     } else {
+//       cb(new Error('Invalid file type. Only images are allowed.'));
+//     }
+//   },
+// });
+
+
+
+
+
+const uploadAiStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, os.tmpdir()); // Temporary directory
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
+    cb(null, uniqueSuffix);
+  },
+});
+
 const upload_ai = multer({
-  storage: memoryStorage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // Limit each file to 3MB
+  storage: uploadAiStorage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB per file
   fileFilter: (req, file, cb) => {
-    // Only allow image files
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -61,6 +86,7 @@ const upload_ai = multer({
     }
   },
 });
+
 
 // Configure diskStorage for uploadGuestImage
 // const uploadGuestImage = multer({
