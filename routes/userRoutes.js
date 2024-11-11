@@ -1,6 +1,6 @@
 // routes/userRoute.js
-
 import express from 'express';
+import logger from '../Utils/logger.js'; 
 import * as userController from '../controllers/userController.js';
 import multer from 'multer';
 import * as authController from '../controllers/authController.js';
@@ -47,13 +47,10 @@ const router = express.Router();
 
 
 const memoryStorage = multer.memoryStorage();
-// const upload_ai = multer({ storage: memoryStorage });
-
 const upload_ai = multer({
   storage: memoryStorage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // Limit each file to 3MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // Limit each file to 50MB
   fileFilter: (req, file, cb) => {
-    // Only allow image files
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -287,11 +284,21 @@ router.get('/getClientCoverPhoto', auth.protect, userController.getClientCoverPh
 //   uploadImages
 // );
 
-router.post('/upload-images', upload_ai.array('images'), (req, res, next) => {
-  req.socketId = req.query.socketId;
-  req.eventId = req.query.eventId;
-  next();
-}, rekognitionController.uploadImages);
+router.post(
+  '/upload-images',
+  upload_ai.array('images'),
+  (req, res, next) => {
+    logger.info('Received /upload-images request', {
+      query: req.query,
+      files: req.files.length,
+    });
+    req.socketId = req.query.socketId;
+    req.eventId = req.query.eventId;
+    next();
+  },
+  rekognitionController.uploadImages
+);
+
 
 
 
