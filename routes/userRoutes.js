@@ -47,9 +47,10 @@ const router = express.Router();
 
 
 const memoryStorage = multer.memoryStorage();
+
 const upload_ai = multer({
   storage: memoryStorage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // Limit each file to 50MB
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB per file
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);

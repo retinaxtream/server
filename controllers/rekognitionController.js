@@ -82,6 +82,35 @@ const createCollection = async (collectionId) => {
   }
 };
 
+
+// **New Helper Function: Process Image with Optimizations**
+const processImage = async (buffer) => {
+  try {
+    // Step 1: Resize the image to a maximum dimension (e.g., 1920x1080)
+    const resizedBuffer = await sharp(buffer)
+      .resize({
+        width: 1920,
+        height: 1080,
+        fit: sharp.fit.inside,
+        withoutEnlargement: true,
+      })
+      // Step 2: Convert to WebP with optimized settings
+      .webp({
+        quality: 80, // Adjust quality to balance size and fidelity
+        effort: 6,   // Maximum compression effort
+      })
+      // Step 3: Strip metadata to reduce size
+      .withMetadata(false)
+      .toBuffer();
+
+    return resizedBuffer;
+  } catch (error) {
+    logger.error('Error processing image with Sharp', { error: error.message, stack: error.stack });
+    throw error;
+  }
+};
+
+
 // Controller for uploading multiple images
 export const uploadImages = async (req, res) => {
   const { eventId, socketId } = req.query; // Extract eventId and socketId from query params
@@ -136,18 +165,16 @@ export const uploadImages = async (req, res) => {
         // Construct S3 key with eventId as folder name
         const s3Key = `${eventId}/${uniqueId}-${sanitizedFilename}`;
 
-        // Resize the image (optional)
-        const resizedImageBuffer = await sharp(file.buffer)
-        .jpeg({ quality: 80 }) // Set quality for JPEG
-        .png({ compressionLevel: 9 }) // Set compression level for PNG
-        .webp({ quality: 80 }) // Set quality for WebP
-        .toBuffer();
+
+         // **Optimized Image Processing**
+         const processedImageBuffer = await processImage(file.buffer);
+
     
         // Upload image to S3 under the eventId folder
         const uploadParams = { 
           Bucket: process.env.S3_BUCKET_NAME,
           Key: s3Key,
-          Body: resizedImageBuffer,
+          Body: processedImageBuffer,
         };
         await s3Client.send(new PutObjectCommand(uploadParams));
 
@@ -162,7 +189,7 @@ export const uploadImages = async (req, res) => {
         // Index faces in AWS Rekognition
         const indexCommand = new IndexFacesCommand({
           CollectionId: collectionId,
-          Image: { Bytes: resizedImageBuffer },
+          Image: { Bytes: processedImageBuffer },
           ExternalImageId: uniqueId, // Use uniqueId for external image identification
           DetectionAttributes: ['ALL'],
         });
