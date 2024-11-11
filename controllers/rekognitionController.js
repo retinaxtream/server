@@ -86,20 +86,12 @@ const createCollection = async (collectionId) => {
 export const uploadImages = async (req, res) => {
   const { eventId, socketId } = req.query; // Extract eventId and socketId from query params
   const files = req.files;
-
-  logger.info('uploadImages function invoked', {
-    eventId,
-    socketId,
-    files: files.length,
-  });
-
   const collectionId = `event-${eventId}`; // Collection ID for Rekognition
 
   if (!files || files.length === 0) {
     logger.warn('No files uploaded', { eventId });
     return res.status(400).json({ message: 'No files uploaded' });
   }
-
 
   // Retrieve Socket.IO instance from Express app
   const io = req.app.get('socketio');
@@ -111,6 +103,7 @@ export const uploadImages = async (req, res) => {
 
   try {
     logger.info(`Starting uploadImages for EventId: ${eventId} with ${files.length} files`, { eventId });
+
     // Check if collection exists for the event (Rekognition)
     const exists = await collectionExists(collectionId);
     if (!exists) {
@@ -136,13 +129,13 @@ export const uploadImages = async (req, res) => {
         // Construct S3 key with eventId as folder name
         const s3Key = `${eventId}/${uniqueId}-${sanitizedFilename}`;
 
-        
         // Resize the image (optional)
         const resizedImageBuffer = await sharp(file.buffer)
-        .resize(1024, 1024, { fit: 'inside' })
-        .toBuffer();
+          .resize(1024, 1024, { fit: 'inside' })
+          .toBuffer();
+
         // Upload image to S3 under the eventId folder
-        const uploadParams = { 
+        const uploadParams = {
           Bucket: process.env.S3_BUCKET_NAME,
           Key: s3Key,
           Body: resizedImageBuffer,
