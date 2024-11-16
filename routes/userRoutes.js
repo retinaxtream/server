@@ -16,12 +16,13 @@ import * as GuestController from '../controllers/GuestController.js';
 import { getGuestDetailsWithImages } from '../controllers/GuestController.js';
 import { uploadImages } from '../controllers/rekognitionController.js'; // Correct import
 import { v4 as uuidv4 } from 'uuid'; // Ensure uuidv4 is imported
+import  * as singnedUploads from '../controllers/signedUpload.js'
 
-const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa");
+const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa"); 
 import * as RhzuserController from '../controllers/RhzuserController.js';
 
-const router = express.Router();
-
+const router = express.Router();           
+  
 // Configure diskStorage for upload_ai
 // const uploadAiStorage = multer.diskStorage({
 //   destination: (req, file, cb) => {
@@ -398,5 +399,23 @@ router
 router
   .route('/upload/images')
   .post(upload.array('images'), userController.uploadImage);
+
+
+
+
+
+
+
+
+
+
+// New Route: Generate Pre-Signed URLs
+router.post('/get-signed-urls', singnedUploads.getSignedUrls);
+
+// New Route: Handle Upload Completion (Optional)
+router.post('/upload-complete', singnedUploads.uploadComplete);
+
+// Route to process uploaded images
+router.post('/process-uploaded-images', singnedUploads.processUploadedImages);
 
 export default router;
