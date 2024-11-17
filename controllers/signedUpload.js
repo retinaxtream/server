@@ -6,6 +6,7 @@ import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import AppError from '../Utils/AppError.js'; // Assuming you have an AppError utility
 import pLimit from 'p-limit';
 import { streamToBuffer } from '../Utils/streamUtils.js'; // Create a utility to convert streams to buffers
+import { PutCommand as DocPutCommand, QueryCommand as DocQueryCommand } from '@aws-sdk/lib-dynamodb';
 
 
 
@@ -145,23 +146,20 @@ const dynamoDBDocClient = DynamoDBDocumentClient.from(dynamoDBClient);
 /**
  * Helper function to ensure Rekognition collection exists
  */
-const ensureCollectionExists = async (collectionId) => {
+const collectionExists = async (collectionId) => {
   try {
     const listCommand = new ListCollectionsCommand({});
+    console.log('listCommand !!!!!');
+    console.log(listCommand);
     const response = await rekognitionClient.send(listCommand);
-    if (!response.CollectionIds.includes(collectionId)) {
-      const createCommand = new CreateCollectionCommand({ CollectionId: collectionId });
-      await rekognitionClient.send(createCommand);
-      logger.info(`Created Rekognition collection: ${collectionId}`, { collectionId });
-    } else {
-      logger.info(`Rekognition collection already exists: ${collectionId}`, { collectionId });
-    }
+    console.log('response &&&&&&&&&&&&&&');
+    console.log(response);
+    return response.CollectionIds.includes(collectionId);
   } catch (error) {
-    logger.error(`Error ensuring collection exists: ${collectionId}`, { collectionId, error: error.message });
+    logger.error(`Error listing collections: ${error.message}`, { collectionId, error });
     throw error;
   }
-};
-
+}
 /**
  * Helper function to fetch image from S3 and convert to buffer
  */
@@ -188,6 +186,13 @@ const fetchImageFromS3 = async (s3Key) => {
 export const processUploadedImages = async (req, res, next) => {
   const { s3Keys, eventId, socketId } = req.body;
 
+  console.log('eventId socketId');
+  console.log(eventId, socketId);
+  console.log('s3Keys');
+  console.log(s3Keys);
+  
+  
+  
   // Input Validation
   if (!s3Keys || !Array.isArray(s3Keys) || s3Keys.length === 0) {
     logger.warn('No S3 keys provided for processing', { eventId });
@@ -206,11 +211,15 @@ export const processUploadedImages = async (req, res, next) => {
 
   try {
     logger.info(`Starting processing of ${s3Keys.length} images for eventId: ${eventId}`, { eventId });
-
+    console.log(`Starting processing of ${s3Keys.length} images for eventId: ${eventId}`, { eventId });
+  
     // Ensure Rekognition collection exists
     const collectionId = `event-${eventId}`;
-    await ensureCollectionExists(collectionId);
-
+    const exists = await collectionExists(collectionId);
+    if (!exists) {
+      logger.info(`Collection ${collectionId} does not exist. Creating new collection.`, { collectionId });
+      await createCollection(collectionId);
+    }
     // Retrieve Socket.IO instance from Express app
     const io = req.app.get('socketio');
 
@@ -222,40 +231,47 @@ export const processUploadedImages = async (req, res, next) => {
       try {
         // Fetch image from S3
         const imageBuffer = await fetchImageFromS3(s3Key);
-
-        // Index faces using Rekognition
-        const indexParams = {
+        console.log('imageBuffer -------');
+        console.log(imageBuffer);
+        
+        const indexCommand = new IndexFacesCommand({
           CollectionId: collectionId,
           Image: { Bytes: imageBuffer },
           ExternalImageId: s3Key, // Using S3 key as ExternalImageId
           DetectionAttributes: ['ALL'],
-        };
-
-        const indexCommand = new IndexFacesCommand(indexParams);
+        });
+        
         const indexResponse = await rekognitionClient.send(indexCommand);
+            // const indexResponse = await rekognitionClient.send(indexCommand);
 
         logger.info(`Indexed faces for image: ${s3Key}`, { eventId, s3Key, faceRecords: indexResponse.FaceRecords.length });
-
+        console.log(`Indexed faces for image: ${s3Key}`, { eventId, s3Key, faceRecords: indexResponse.FaceRecords.length });
+        
         // Store face metadata in DynamoDB
         for (const faceRecord of indexResponse.FaceRecords) {
           const faceId = faceRecord.Face.FaceId;
-          const boundingBox = faceRecord.Face.BoundingBox;
-          const confidence = faceRecord.Face.Confidence;
+          // const boundingBox = faceRecord.Face.BoundingBox;
+          // const confidence = faceRecord.Face.Confidence;
 
-          const putParams = {
-            TableName: process.env.EVENT_FACES_TABLE_NAME,
-            Item: {
-              EventId: eventId,
-              FaceId: faceId,
-              ImageUrl: s3Key,
-              BoundingBox: boundingBox,
-              Confidence: confidence,
-              IndexedAt: new Date().toISOString(),
-            }
-          };
+            // Store face metadata in DynamoDB
+            const putParams = {
+              TableName: process.env.EVENT_FACES_TABLE_NAME,
+              Item: {
+                EventId: eventId, // String
+                FaceId: faceId,   // String
+                ImageUrl: s3Key,  // String
+                BoundingBox: {
+                  Left: faceRecord.Face.BoundingBox.Left,
+                  Top: faceRecord.Face.BoundingBox.Top,
+                  Width: faceRecord.Face.BoundingBox.Width,
+                  Height: faceRecord.Face.BoundingBox.Height,
+                },
+                Confidence: faceRecord.Face.Confidence, // Number
+              }
+            };
 
-          await dynamoDBDocClient.send(new PutCommand(putParams));
-          logger.info(`Stored face metadata in DynamoDB: FaceId=${faceId}`, { eventId, faceId });
+            const dynamoResponse = await dynamoDBDocClient.send(new DocPutCommand(putParams));
+            logger.info(`DynamoDB PutItem successful for FaceId ${faceId}`, { eventId, faceId, dynamoResponse });
         }
 
         // Update progress
