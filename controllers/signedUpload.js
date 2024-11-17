@@ -7,13 +7,13 @@ import AppError from '../Utils/AppError.js'; // Assuming you have an AppError ut
 import pLimit from 'p-limit';
 import { streamToBuffer } from '../Utils/streamUtils.js'; // Create a utility to convert streams to buffers
 import { PutCommand as DocPutCommand, QueryCommand as DocQueryCommand } from '@aws-sdk/lib-dynamodb';
-
+import sharp from 'sharp'; // For image compression
 
 
 import AWS from 'aws-sdk';
 import { v4 as uuidv4 } from 'uuid';
 import express from 'express'; // Ensure Express is imported
-const router = express.Router(); // Initialize Express router
+
 
 // Load environment variables (ensure you have dotenv configured in your main server file)
 import dotenv from 'dotenv';
@@ -134,7 +134,10 @@ export const uploadComplete = async (req, res) => {
 
 
 
-// controllers/rekognitionController.js
+
+
+
+
 
 
 // Initialize AWS clients
@@ -146,20 +149,23 @@ const dynamoDBDocClient = DynamoDBDocumentClient.from(dynamoDBClient);
 /**
  * Helper function to ensure Rekognition collection exists
  */
-const collectionExists = async (collectionId) => {
+const ensureCollectionExists = async (collectionId) => {
   try {
     const listCommand = new ListCollectionsCommand({});
-    console.log('listCommand !!!!!');
-    console.log(listCommand);
     const response = await rekognitionClient.send(listCommand);
-    console.log('response &&&&&&&&&&&&&&');
-    console.log(response);
-    return response.CollectionIds.includes(collectionId);
+    if (!response.CollectionIds.includes(collectionId)) {
+      const createCommand = new CreateCollectionCommand({ CollectionId: collectionId });
+      await rekognitionClient.send(createCommand);
+      logger.info(`Created Rekognition collection: ${collectionId}`, { collectionId });
+    } else {
+      logger.info(`Rekognition collection already exists: ${collectionId}`, { collectionId });
+    }
   } catch (error) {
-    logger.error(`Error listing collections: ${error.message}`, { collectionId, error });
+    logger.error(`Error ensuring collection exists: ${collectionId}`, { collectionId, error: error.message });
     throw error;
   }
-}
+};
+
 /**
  * Helper function to fetch image from S3 and convert to buffer
  */
@@ -183,16 +189,26 @@ const fetchImageFromS3 = async (s3Key) => {
 /**
  * Controller to process uploaded images: index faces and store metadata
  */
+const compressImage = async (imageBuffer) => {
+  try {
+    const compressedBuffer = await sharp(imageBuffer)
+      .jpeg({ quality: 80 }) // Adjust quality as needed (1-100)
+      .toBuffer();
+    return compressedBuffer;
+  } catch (error) {
+    logger.error('Error compressing image', { error: error.message, stack: error.stack, timestamp: new Date().toISOString() });
+    throw error;
+  }
+};
+/**
+ * Controller to process uploaded images: index faces and store metadata
+ */
 export const processUploadedImages = async (req, res, next) => {
+
+
+
   const { s3Keys, eventId, socketId } = req.body;
 
-  console.log('eventId socketId');
-  console.log(eventId, socketId);
-  console.log('s3Keys');
-  console.log(s3Keys);
-  
-  
-  
   // Input Validation
   if (!s3Keys || !Array.isArray(s3Keys) || s3Keys.length === 0) {
     logger.warn('No S3 keys provided for processing', { eventId });
@@ -211,15 +227,11 @@ export const processUploadedImages = async (req, res, next) => {
 
   try {
     logger.info(`Starting processing of ${s3Keys.length} images for eventId: ${eventId}`, { eventId });
-    console.log(`Starting processing of ${s3Keys.length} images for eventId: ${eventId}`, { eventId });
-  
+
     // Ensure Rekognition collection exists
     const collectionId = `event-${eventId}`;
-    const exists = await collectionExists(collectionId);
-    if (!exists) {
-      logger.info(`Collection ${collectionId} does not exist. Creating new collection.`, { collectionId });
-      await createCollection(collectionId);
-    }
+    await ensureCollectionExists(collectionId);
+
     // Retrieve Socket.IO instance from Express app
     const io = req.app.get('socketio');
 
@@ -230,48 +242,70 @@ export const processUploadedImages = async (req, res, next) => {
     const processingPromises = s3Keys.map(s3Key => limit(async () => {
       try {
         // Fetch image from S3
-        const imageBuffer = await fetchImageFromS3(s3Key);
-        console.log('imageBuffer -------');
-        console.log(imageBuffer);
+        let imageBuffer = await fetchImageFromS3(s3Key); // Changed to 'let'
+
+        // Validate image size (15MB = 15 * 1024 * 1024 bytes)
+      // Validate image size (15MB = 15 * 1024 * 1024 bytes)
+      const maxSizeInBytes = 15 * 1024 * 1024;
+      if (imageBuffer.length > maxSizeInBytes) {
+        logger.warn(`Image size exceeds 15MB: ${s3Key}, attempting to compress.`, { eventId, s3Key, size: imageBuffer.length, timestamp: new Date().toISOString() });
         
+          // Compress the image
+          try {
+            imageBuffer = await compressImage(imageBuffer); // Reassignment is now allowed
+            if (imageBuffer.length > maxSizeInBytes) {
+              logger.warn(`Compressed image still exceeds 15MB: ${s3Key}, skipping processing.`, { eventId, s3Key, size: imageBuffer.length, timestamp: new Date().toISOString() });
+              io.to(socketId).emit('uploadError', { message: `Image ${s3Key} exceeds the 15MB size limit even after compression and was not processed.` });
+              return;
+            }
+          } catch (compressionError) {
+            logger.error(`Failed to compress image: ${s3Key}`, { eventId, s3Key, error: compressionError.message, timestamp: new Date().toISOString() });
+            io.to(socketId).emit('uploadError', { message: `Failed to compress image ${s3Key} for processing.` });
+            return;
+          }
+        }
+
+        const sanitizedExternalImageId = s3Key.replace(/\//g, '_'); // Option 1
+
+        // Index faces using Rekognition
         const indexCommand = new IndexFacesCommand({
           CollectionId: collectionId,
           Image: { Bytes: imageBuffer },
-          ExternalImageId: s3Key, // Using S3 key as ExternalImageId
+          ExternalImageId: sanitizedExternalImageId, // Using S3 key as ExternalImageId
           DetectionAttributes: ['ALL'],
         });
-        
-        const indexResponse = await rekognitionClient.send(indexCommand);
-            // const indexResponse = await rekognitionClient.send(indexCommand);
+
+        let indexResponse = await rekognitionClient.send(indexCommand);
+
+        // Check if any faces were detected
+        if (!indexResponse.FaceRecords || indexResponse.FaceRecords.length === 0) {
+          logger.info(`No faces detected in image: ${s3Key}`, { eventId, s3Key });
+          io.to(socketId).emit('uploadError', { message: `No faces detected in image ${s3Key}.` });
+          return;
+        }
 
         logger.info(`Indexed faces for image: ${s3Key}`, { eventId, s3Key, faceRecords: indexResponse.FaceRecords.length });
-        console.log(`Indexed faces for image: ${s3Key}`, { eventId, s3Key, faceRecords: indexResponse.FaceRecords.length });
-        
+
         // Store face metadata in DynamoDB
         for (const faceRecord of indexResponse.FaceRecords) {
           const faceId = faceRecord.Face.FaceId;
-          // const boundingBox = faceRecord.Face.BoundingBox;
-          // const confidence = faceRecord.Face.Confidence;
+          const boundingBox = faceRecord.Face.BoundingBox;
+          const confidence = faceRecord.Face.Confidence;
 
-            // Store face metadata in DynamoDB
-            const putParams = {
-              TableName: process.env.EVENT_FACES_TABLE_NAME,
-              Item: {
-                EventId: eventId, // String
-                FaceId: faceId,   // String
-                ImageUrl: s3Key,  // String
-                BoundingBox: {
-                  Left: faceRecord.Face.BoundingBox.Left,
-                  Top: faceRecord.Face.BoundingBox.Top,
-                  Width: faceRecord.Face.BoundingBox.Width,
-                  Height: faceRecord.Face.BoundingBox.Height,
-                },
-                Confidence: faceRecord.Face.Confidence, // Number
-              }
-            };
+          const putParams = {
+            TableName: process.env.EVENT_FACES_TABLE_NAME,
+            Item: {
+              EventId: eventId, // String
+              FaceId: faceId,   // String
+              ImageUrl: s3Key,  // String
+              BoundingBox: boundingBox, // Object
+              Confidence: confidence,   // Number
+              IndexedAt: new Date().toISOString(), // Timestamp
+            }
+          };
 
-            const dynamoResponse = await dynamoDBDocClient.send(new DocPutCommand(putParams));
-            logger.info(`DynamoDB PutItem successful for FaceId ${faceId}`, { eventId, faceId, dynamoResponse });
+          await dynamoDBDocClient.send(new PutCommand(putParams));
+          logger.info(`Stored face metadata in DynamoDB: FaceId=${faceId}`, { eventId, faceId });
         }
 
         // Update progress
@@ -281,8 +315,15 @@ export const processUploadedImages = async (req, res, next) => {
         logger.info(`Progress: ${uploadProgress}%`, { eventId, socketId });
 
       } catch (error) {
-        logger.error(`Error processing image: ${s3Key}`, { eventId, s3Key, error: error.message });
-        io.to(socketId).emit('uploadError', { message: `Failed to process image ${s3Key}` });
+  // Log error details without circular references
+  logger.error(`Error processing image: ${s3Key}`, { 
+    eventId, 
+    s3Key, 
+    message: error.message, 
+    stack: error.stack, 
+    timestamp: new Date().toISOString() 
+  });
+  io.to(socketId).emit('uploadError', { message: `Failed to process image ${s3Key}` });
       }
     }));
 
@@ -294,7 +335,13 @@ export const processUploadedImages = async (req, res, next) => {
 
     res.status(200).json({ message: 'Images processed successfully.' });
   } catch (error) {
-    logger.error('Error processing uploaded images', { eventId, error: error.message });
+    // Log error details without circular references
+    logger.error('Error processing uploaded images', { 
+      eventId, 
+      message: error.message, 
+      stack: error.stack, 
+      timestamp: new Date().toISOString() 
+    });
     next(new AppError('Failed to process uploaded images.', 500));
   }
 };
