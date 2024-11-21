@@ -904,22 +904,33 @@ const unlinkWithRetry = async (filePath, retries = 3, delayMs = 1000) => {
   }
 };
 
-/** 
- * Function to upload a single file and its thumbnail
- * @param {string} filePath   
- * @param {Storage.Bucket} bucket 
- * @param {string} originalsPath
- * @param {string} thumbnailsPath
- * @returns {Promise<Object>} - URLs of the uploaded original and thumbnail
+/**
+ * Upload a single file to cloud storage with compressed original and thumbnail.
+ *
+ * @param {string} filePath - Local path of the file to upload.
+ * @param {object} bucket - Google Cloud Storage bucket instance.
+ * @param {string} originalsPath - Destination path for original files in the bucket.
+ * @param {string} thumbnailsPath - Destination path for thumbnails in the bucket.
+ * @returns {object} - URLs of the uploaded original and thumbnail files.
  */
 const uploadSingleFile = async (filePath, bucket, originalsPath, thumbnailsPath) => {
   const photoName = path.basename(filePath);
   const originalFile = bucket.file(`${originalsPath}${photoName}`);
+  const compressedOriginalPath = `${filePath}-compressed`; // Define compressedOriginalPath here
 
   // Upload Original Image using pipeline for better stream management
   try {
+
+    await sharp(filePath)
+    .jpeg({
+      quality: 85, // Increase quality slightly
+      chromaSubsampling: '4:4:4', // Full chroma subsampling for better color
+      mozjpeg: true, // Use mozjpeg for enhanced quality
+    }) 
+    .toFile(compressedOriginalPath);
+
     await pipeline(
-      fs.createReadStream(filePath),
+      fs.createReadStream(compressedOriginalPath),
       originalFile.createWriteStream({
         metadata: {
           contentType: 'image/jpeg', // Adjust based on your file type
