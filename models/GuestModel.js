@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 const GuestSchema = new mongoose.Schema(
   {
     eventId: {
-      type: String, 
+      type: String,
       required: true,
       index: true, // For faster queries based on eventId
     },
@@ -17,10 +17,6 @@ const GuestSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    // mobile: { // Commented out mobile field
-    //   type: String,
-    //   required: true,
-    // },
     email: { // Added email field
       type: String,
       required: true,
@@ -57,9 +53,8 @@ const GuestSchema = new mongoose.Schema(
 
 // Create indexes for efficient querying
 GuestSchema.index({ eventId: 1, guestId: 1 });
-// Optionally, create an index for email if frequent lookups by email are expected
-GuestSchema.index({ email: 1 }, { unique: true });
 
 const Guest = mongoose.model('Guest', GuestSchema);
 
 export default Guest;
+  

@@ -532,14 +532,7 @@ const getPresignedUrl = async (key) => {
 ///////////////////////////FOR COMPARE GUEST FACES /////////////////////////////////////////
 export const compareGuestFaces = async (req, res, next) => {
   const { eventId } = req.query;
-  // const file = req.file;
 
-  // if (!file) {
-  //   logger.warn('No file uploaded for face search', { eventId });
-  //   return res.status(400).json({ message: 'No file uploaded' });
-  // }
-
-  // Validate required fields
   if (!eventId) {
     logger.warn('Missing required fields', { eventId });
     return res.status(400).json({
@@ -554,15 +547,13 @@ export const compareGuestFaces = async (req, res, next) => {
   try {
     // Retrieve all guests for the event
     const guests = await getGuestsByEventId(eventId);
-    logger.info({ message: 'All the guests under the eventId.', guests });
-
+    logger.info('All the guests under the eventId.', { guests });
     if (!guests || guests.length === 0) {
       logger.info('No guests found for the event', { eventId });
       return res.status(200).json({ message: 'No guests found for the event.', guestMatches: [] });
     }
 
     const collectionId = `event-${eventId}`; // Ensure consistent naming
-
     const exists = await collectionExists(collectionId);
     if (!exists) {
       logger.error(`Rekognition collection ${collectionId} does not exist. Please upload event images first.`);
@@ -580,8 +571,7 @@ export const compareGuestFaces = async (req, res, next) => {
         guestMatches.push({
           guestId: guest.guestId,
           name: guest.Name,
-          email:guest.email,
-          // mobile: guest.Mobile,
+          email: guest.email,
           matches: [], // No matches
         });
         return;
@@ -589,102 +579,78 @@ export const compareGuestFaces = async (req, res, next) => {
 
       try {
         // Fetch the guest image from S3
-        const imageUrl = guest.imageUrl;
-        const s3Url = new URL(imageUrl);
+        const s3Url = new URL(guest.imageUrl);
         const s3Key = decodeURIComponent(s3Url.pathname.substring(1)); // Remove leading '/'
-        logger.info(`Fetching image from S3: ${s3Key}`, { eventId });
-
-        const getObjectParams = {
-          Bucket: process.env.S3_BUCKET_NAME,
-          Key: s3Key,
-        };
+        const getObjectParams = { Bucket: process.env.S3_BUCKET_NAME, Key: s3Key };
         const getObjectCommand = new GetObjectCommand(getObjectParams);
         const s3Response = await s3Client.send(getObjectCommand);
         const imageBuffer = await streamToBuffer(s3Response.Body);
 
-        // Search for matching faces in EventFaces collection
+        // Search for matching faces in Rekognition
         const searchFacesByImageParams = {
           CollectionId: collectionId,
-          Image: {
-            Bytes: imageBuffer,
-          },
+          Image: { Bytes: imageBuffer },
           FaceMatchThreshold: 60, // Adjust as needed
-          MaxFaces: 50, // Adjust based on how many matches you want
+          MaxFaces: 50, // Adjust based on requirements
         };
-
         const searchFacesByImageCommand = new SearchFacesByImageCommand(searchFacesByImageParams);
         const searchResponse = await rekognitionClient.send(searchFacesByImageCommand);
-        logger.info(`Number of FaceMatches returned: ${searchResponse.FaceMatches.length}`, { eventId });
-        console.log(`{{{{{{{{ Number of FaceMatches returned: {{${searchResponse.FaceMatches.length}}${ eventId }}}}}}}}}}`);
-        
+
         const matchedFaceIds = searchResponse.FaceMatches.map(match => match.Face.FaceId);
         if (matchedFaceIds.length === 0) {
-          logger.info(`No matches found for GuestId: ${guest.guestId}`, { guestId: guest.guestId });
+          logger.info(`No matches found for GuestId: ${guest.guestId}`);
           guestMatches.push({
             guestId: guest.guestId,
             name: guest.Name,
-            email:guest.email,
-            // mobile: guest.Mobile,
-            matches: [], // No matches
+            email: guest.email,
+            matches: [],
           });
           return;
         }
 
-        // Retrieve details of matched EventFaces
+        // Retrieve matched EventFaces details
         const matchedImages = await getEventFacesByFaceIds(matchedFaceIds, eventId);
-        logger.info(`Number of matched images retrieved from DynamoDB: ${matchedImages.length}`, { eventId });
-        console.log(`{{{{{{{{{Number of matched images retrieved from DynamoDB: ${matchedImages.length}}}, ${ eventId }}}}}}}}`);
-        
-        // Generate pre-signed URLs for matched images
-        const matchedImagesWithUrls = await Promise.all(matchedImages.map(async (match) => {
+        const matchedImagesWithUrls = await Promise.all(matchedImages.map(async match => {
           const presignedUrl = await getPresignedUrl(match.imageUrl);
-          return {
-            faceId: match.faceId, // Ensure consistent property names (lowercase)
-            imageUrl: presignedUrl, // Replace with pre-signed URL
-            confidence: match.confidence,
-          };
+          return { faceId: match.faceId, imageUrl: presignedUrl, confidence: match.confidence };
         }));
 
-        // Push to guestMatches array with consistent property naming
+        // Push to guestMatches
         guestMatches.push({
           guestId: guest.guestId,
           name: guest.Name,
           email: guest.email,
-          // mobile: guest.Mobile,
-          matches: matchedImagesWithUrls, // Array of matched images with URLs
+          matches: matchedImagesWithUrls,
         });
 
-        // Prepare matched guest data
+        // Prepare data for saving/updating in MongoDB
         const matchedGuestData = {
           eventId: eventId,
           guestId: guest.guestId,
           name: guest.Name,
-          email:guest.email,
-          // mobile: guest.Mobile, 
+          email: guest.email,
           matches: matchedImagesWithUrls,
         };
 
+        // Check for existing guest
         const existingGuest = await Guest.findOne({ eventId: eventId, guestId: guest.guestId });
-        if (!existingGuest) {
-          console.log('Guest stooooooooooooooring');
-          console.log(matchedGuestData);
-          
-          // Save to MongoDB using the correct model if it doesn't already exist
-          const matchedGuest = new Guest(matchedGuestData);
-          await matchedGuest.save();
-          logger.info(`Matched guest data saved to MongoDB for GuestId: ${guest.guestId}`, { guestId: guest.guestId });
+        if (existingGuest) {
+          logger.info(`Guest data already exists for GuestId: ${guest.guestId}, updating record.`);
+          existingGuest.matches = matchedImagesWithUrls;
+          await existingGuest.save();
         } else {
-          logger.info(`Guest data already exists in MongoDB for GuestId: ${guest.guestId}, skipping save.`, { guestId: guest.guestId });
+          const newGuest = new Guest(matchedGuestData);
+          await newGuest.save();
+          logger.info(`New guest data saved for GuestId: ${guest.guestId}`);
         }
+
       } catch (error) {
-        logger.error('Error processing guest face comparison', { guestId: guest.guestId, error: error.message, stack: error.stack });
-        // Optionally, you can push partial data or continue
+        logger.error('Error processing guest face comparison', { guestId: guest.guestId, error: error.message });
         guestMatches.push({
           guestId: guest.guestId,
           name: guest.Name,
-          email:guest.email,
-          // mobile: guest.Mobile,
-          matches: [], // No matches due to error
+          email: guest.email,
+          matches: [],
         });
       }
     }));
@@ -692,18 +658,17 @@ export const compareGuestFaces = async (req, res, next) => {
     // Wait for all processing to complete
     await Promise.all(processingPromises);
 
-    // Respond with the guest matches
+    // Respond with results
     res.status(200).json({
       message: 'Face comparison completed successfully.',
-      guestMatches
+      guestMatches,
     });
 
   } catch (error) {
-    logger.error('Error in compareGuestFaces function', { eventId, error: error.message, stack: error.stack });
+    logger.error('Error in compareGuestFaces function', { error: error.message });
     res.status(500).json({ error: 'Failed to compare guest faces.' });
   }
 };
-
 
 
 
