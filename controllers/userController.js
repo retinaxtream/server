@@ -5,6 +5,7 @@ import Client from '../models/ClientModel.js';
 import { Storage } from '@google-cloud/storage';
 import User from '../models/UserModel.js';
 import nodemailer from "nodemailer";
+import mongoose from "mongoose";
 import fs from 'fs';
 import { promisify } from 'util';
 import { fileURLToPath } from 'url';
@@ -2651,4 +2652,48 @@ export const getClientCoverPhoto = async (req, res, next) => {
 
 
 
+export const userDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
 
+    let client;
+
+    // Check if `id` is a valid ObjectId
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      client = await Client.findOne({ _id: id }).populate("userId");
+    } else {
+      // If not ObjectId, try querying by `magicLink`
+      client = await Client.findOne({ magicLink: id }).populate("userId");
+    }
+
+    if (!client) {
+      return res.status(404).json({
+        status: "error",
+        message: "Client not found",
+      });
+    }
+
+    // Access the user details from populated `userId`
+    const user = client.userId;
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        message: "User associated with this client not found",
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        client,
+        user,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching user details:", error);
+    res.status(500).json({
+      status: "error",
+      message: error.message,
+    });
+  }
+};

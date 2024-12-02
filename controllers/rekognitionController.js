@@ -758,7 +758,7 @@ export const sendMatchingImagesEmails = async (req, res, next) => {
     // Collect URLs for each matched guest
     const guestUrls = matchedGuests.map(guest => ({
       guestId: guest.guestId,
-      galleryLink: `https://hapzea.com/${guest.guestId}/ai/face_recognition/guest/gallery`
+      galleryLink: `https://hapzea.com/${guest.guestId}/${eventId}/ai/face_recognition/guest/gallery`
     }));
 
     // Iterate through each matched guest and send email

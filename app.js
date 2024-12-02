@@ -3,6 +3,7 @@ import express from 'express';
 import morgan from 'morgan';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import axios from 'axios';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -140,6 +141,25 @@ app.get('/test-uncaught-exception', (req, res) => {
 app.get('/test-unhandled-rejection', (req, res) => {
   Promise.reject(new Error('Simulated unhandled rejection'));
 });
+
+
+// Define the download-image route
+app.get('/download-image', async (req, res) => {
+  const imageUrl = decodeURIComponent(req.query.url); // Ensure URL is decoded
+
+  try {
+    const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+    const contentType = imageResponse.headers['content-type'];
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', 'attachment; filename=image.jpg'); // Modify filename accordingly
+    res.send(imageResponse.data);
+  } catch (error) {
+    console.error('Error fetching image:', error);
+    res.status(500).send('Error fetching image');
+  }
+});
+
 
 // Catch-all route for undefined endpoints
 app.all('*', (req, res, next) => {

@@ -375,6 +375,7 @@ router.post('/search-face', auth.protect, upload_ai.single('photo'), rekognition
 router.get('/get-event-images', auth.protect, rekognitionController.getEventImages);
 router.get('/guests-with-images', auth.protect, getGuestDetailsWithImages);
 
+router.get('/user-detailing/:id', userController.userDetails)
 // Upload cover photo
 router.get('/getClientCoverPhotoURL/:id', userController.getClientCoverPhotoURL);
 router.get('/clientcover/:photoName', userController.getClientCoverPhoto);
@@ -401,14 +402,6 @@ router
   .post(upload.array('images'), userController.uploadImage);
 
 
-
-
-
-
-
-
-
-
 // New Route: Generate Pre-Signed URLs
 router.post('/get-signed-urls', singnedUploads.getSignedUrls);
 
@@ -417,5 +410,6 @@ router.post('/upload-complete', singnedUploads.uploadComplete);
 
 // Route to process uploaded images
 router.post('/process-uploaded-images', singnedUploads.processUploadedImages);
+
 
 export default router;
