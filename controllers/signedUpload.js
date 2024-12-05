@@ -66,6 +66,8 @@ const generatePreSignedUrl = async (fileName, fileType, eventId) => {
  * @param {object} req - Express request object
  * @param {object} res - Express response object
  */
+
+
 export const getSignedUrls = async (req, res) => {
   const { files, eventId } = req.body;
 
@@ -204,8 +206,6 @@ const compressImage = async (imageBuffer) => {
  * Controller to process uploaded images: index faces and store metadata
  */
 export const processUploadedImages = async (req, res, next) => {
-
-
 
   const { s3Keys, eventId, socketId } = req.body;
 

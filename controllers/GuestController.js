@@ -31,6 +31,23 @@ const getS3Url = (s3Key) => {
   return `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
 };
 
+const ensureCollectionExists = async (collectionId) => {
+  try {
+    const listCommand = new ListCollectionsCommand({});
+    const response = await rekognitionClient.send(listCommand);
+    if (!response.CollectionIds.includes(collectionId)) {
+      const createCommand = new CreateCollectionCommand({ CollectionId: collectionId });
+      await rekognitionClient.send(createCommand);
+      logger.info(`Created Rekognition collection: ${collectionId}`, { collectionId });
+    } else {
+      logger.info(`Rekognition collection already exists: ${collectionId}`, { collectionId });
+    }
+  } catch (error) {
+    logger.error(`Error ensuring collection exists: ${collectionId}`, { collectionId, error: error.message });
+    throw error;
+  }
+};
+
 
 export const storeGuestDetails = async (req, res, next) => {
   logger.info("Calling storeGuestDetails function");
@@ -58,6 +75,9 @@ export const storeGuestDetails = async (req, res, next) => {
   }
 
   try {
+
+    const collectionId = `event-${eventId}`;
+    await ensureCollectionExists(collectionId);
     // Generate a unique ID for the guest
     const guestId = uuidv4();
 
@@ -86,7 +106,7 @@ export const storeGuestDetails = async (req, res, next) => {
      const imageUrl = getS3Url(s3Key);
 
     // Index the face in Rekognition
-    const collectionId = `event-${eventId}`;
+    // const collectionId = `event-${eventId}`;
 
     const indexFacesParams = {
       CollectionId: collectionId,
