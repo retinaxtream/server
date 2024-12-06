@@ -11,7 +11,7 @@ import { RekognitionClient, CreateCollectionCommand, IndexFacesCommand, SearchFa
 import { DynamoDBDocumentClient, PutCommand as DocPutCommand, QueryCommand as DocQueryCommand } from '@aws-sdk/lib-dynamodb';
 import { PutCommand } from '@aws-sdk/lib-dynamodb';
 
-// Utility Libraries 
+//  Utility Libraries 
 import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
 import pLimit from 'p-limit'; // Ensure p-limit is installed
