@@ -17,9 +17,9 @@ import express from 'express'; // Ensure Express is imported
 
 // Load environment variables (ensure you have dotenv configured in your main server file)
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config(); 
 
-// Configure AWS SDK
+// Configure AWS SDK 
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID, // Ensure these env variables are set
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,

@@ -3,13 +3,15 @@
 import logger from '../Utils/logger.js'; // Import the logger
 import { CatchAsync } from '../Utils/CatchAsync.js'
 import Guest from '../models/GuestModel.js';
+import GuestRegister from '../models/GuestRegister.js';
 // AWS SDK v3 Clients and Commands
 import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { RekognitionClient, CreateCollectionCommand, IndexFacesCommand, SearchFacesCommand, ListCollectionsCommand, SearchFacesByImageCommand } from '@aws-sdk/client-rekognition';
 import { DynamoDBDocumentClient, PutCommand as DocPutCommand, QueryCommand as DocQueryCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand } from '@aws-sdk/lib-dynamodb';
 
-// Utility Libraries
+// Utility Libraries 
 import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
 import pLimit from 'p-limit'; // Ensure p-limit is installed
@@ -48,25 +50,23 @@ const ensureCollectionExists = async (collectionId) => {
   }
 };
 
-
 export const storeGuestDetails = async (req, res, next) => {
   logger.info("Calling storeGuestDetails function");
-
-  const { eventId } = req.query; // Assuming eventId is passed as a query parameter
-  const { name, email /*, mobile */ } = req.body; // Replaced 'mobile' with 'email'
+  const { eventId } = req.query;
+  const { name, email } = req.body;
   const file = req.file;
 
   // Validate required fields
-  if (!eventId || !name || !email /* || !mobile */ || !file) { // Replaced 'mobile' with 'email'
-    logger.warn('Missing required fields', { 
-      eventId, 
-      name, 
-      email /*, mobile */, 
-      filePresent: !!file 
+  if (!eventId || !name || !email || !file) {
+    logger.warn('Missing required fields', {
+      eventId,
+      name,
+      email,
+      filePresent: !!file
     });
     return res.status(400).json({
       error: {
-        message: 'Missing required fields: eventId, name, email, or image.', // Updated message
+        message: 'Missing required fields: eventId, name, email, or image.',
         storageErrors: [],
         statusCode: 400,
         status: 'fail',
@@ -74,10 +74,21 @@ export const storeGuestDetails = async (req, res, next) => {
     });
   }
 
+  let guestEntry;
+
   try {
+    // Check if the guest is already registered
+    const guestcheck = await GuestRegister.findOne({ name, email });
+    if (guestcheck) {
+      return res.status(400).json({ message: "Guest already registered" });
+    }
+
+    // Create a new guest if they do not already exist
+    guestEntry = await GuestRegister.create({ name, email });
 
     const collectionId = `event-${eventId}`;
     await ensureCollectionExists(collectionId);
+
     // Generate a unique ID for the guest
     const guestId = uuidv4();
 
@@ -97,17 +108,15 @@ export const storeGuestDetails = async (req, res, next) => {
       Bucket: process.env.S3_BUCKET_NAME,
       Key: s3Key,
       Body: resizedImageBuffer,
-      ContentType: file.mimetype, // Ensure the correct MIME type
+      ContentType: file.mimetype,
     };
     await s3Client.send(new PutObjectCommand(uploadParams));
     logger.info('Guest image uploaded to S3', { eventId, s3Key });
 
-     // Construct the full S3 URL for the uploaded image
-     const imageUrl = getS3Url(s3Key);
+    // Construct the full S3 URL for the uploaded image
+    const imageUrl = getS3Url(s3Key);
 
     // Index the face in Rekognition
-    // const collectionId = `event-${eventId}`;
-
     const indexFacesParams = {
       CollectionId: collectionId,
       Image: {
@@ -116,17 +125,15 @@ export const storeGuestDetails = async (req, res, next) => {
           Name: s3Key,
         },
       },
-      ExternalImageId: guestId, // Optional: Helps in identifying the face later
-      MaxFaces: 1, // Assuming one face per image
+      ExternalImageId: guestId,
+      MaxFaces: 1,
       QualityFilter: 'AUTO',
     };
-
 
     const indexFacesCommand = new IndexFacesCommand(indexFacesParams);
     const indexFacesResponse = await rekognitionClient.send(indexFacesCommand);
     logger.info('Face indexed in Rekognition', { guestId, indexFacesResponse });
 
-    // Extract FaceId from the response
     if (!indexFacesResponse.FaceRecords || indexFacesResponse.FaceRecords.length === 0) {
       logger.warn(`No face detected in the image for GuestId: ${guestId}`);
       return res.status(400).json({ error: 'No face detected in the uploaded image.' });
@@ -135,36 +142,40 @@ export const storeGuestDetails = async (req, res, next) => {
     const faceId = indexFacesResponse.FaceRecords[0].Face.FaceId;
     logger.info('FaceId obtained', { guestId, faceId });
 
-    // Prepare the item to be stored in DynamoDB
     const putParams = {
-      TableName: process.env.GUESTS_TABLE_NAME, // Use the correct environment variable
+      TableName: process.env.GUESTS_TABLE_NAME,
       Item: {
         EventId: eventId,
         GuestId: guestId,
         Name: name,
-        Email: email, // Added 'email'
-        // Mobile: mobile, // Commented out 'mobile'
-        ImageUrl: imageUrl, // Store the full S3 URL
+        Email: email,
+        ImageUrl: imageUrl,
         ScannedAt: new Date().toISOString(),
-        FaceId: faceId, // Store the FaceId
+        FaceId: faceId,
       },
     };
 
-    // Store guest details in DynamoDB
-    await dynamoDBDocClient.send(new DocPutCommand(putParams));
+    await dynamoDBDocClient.send(new PutCommand(putParams));
     logger.info('Guest details stored in DynamoDB', { eventId, guestId });
 
-    // Respond with success
     res.status(200).json({ message: 'Guest details stored successfully', guestId });
   } catch (error) {
-    logger.error('Error storing guest details', { 
-      eventId, 
-      error: error.message, 
-      stack: error.stack 
+    logger.error('Error storing guest details', {
+      eventId,
+      error: error.message,
+      stack: error.stack
     });
-    next(error); // Pass the error to the centralized error handler
+
+    // Rollback: Remove the guest entry if any error occurs
+    if (guestEntry) {
+      await GuestRegister.findByIdAndDelete(guestEntry._id);
+      logger.info('Rolled back guest registration', { eventId, guestId: guestEntry._id });
+    }
+
+    next(error);
   }
 };
+
 // Controller to get all guest details for an event
 export const getGuestDetails = async (req, res) => {
   const { eventId } = req.query; // Assuming eventId is passed as a query parameter

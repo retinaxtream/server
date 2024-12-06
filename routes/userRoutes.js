@@ -118,7 +118,6 @@ const uploadGuestImage = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
-    console.log('Incoming file:', file.originalname, file.mimetype);
     if (file.mimetype && file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
