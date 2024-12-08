@@ -66,6 +66,11 @@ export const signup = async (req, res, next) => {
     return next(new AppError('Please provide all required fields', 400));
   }
 
+  if (password.length < 8) {
+    logger.warn('Signup failed: Password length is less than 8 characters');
+    return next(new AppError('Password must be at least 8 characters long', 400));
+  }
+
   if (password !== passwordConfirm) {
     logger.warn('Signup failed: Passwords do not match');
     return next(new AppError('Passwords do not match', 400));
@@ -91,6 +96,7 @@ export const signup = async (req, res, next) => {
   logger.info(`New user signed up: ${email}`);
   createSendToken(newUser, 201, res);
 };
+
 
 export const logout = async (req, res) => {
   try {

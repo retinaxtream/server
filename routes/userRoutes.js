@@ -191,71 +191,71 @@ const profile = multer({ storage: storageProfile });
 const clientcover = multer({ storage: storageClient });
 
 // Validation and sanitization middleware for signup
-const validateSignup = [
-  body('businessName')
-    .notEmpty()
-    .withMessage('Please provide a business name')
-    .trim()
-    .escape(),
-  body('email')
-    .isEmail()
-    .withMessage('Please provide a valid email')
-    .normalizeEmail(),
-  body('mobile')
-    .notEmpty()
-    .withMessage('Please provide a mobile number')
-    .trim()
-    .escape(),
-  body('password')
-    .isLength({ min: 8 })
-    .withMessage('Password must be at least 8 characters long')
-    .trim()
-    .escape(),
-  body('passwordConfirm')
-    .custom((value, { req }) => {
-      if (value !== req.body.password) {
-        throw new Error('Passwords do not match');
-      }
-      return true;
-    })
-    .trim()
-    .escape(),
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        status: 'fail',
-        message: 'Invalid input',
-        errors: errors.array(),
-      });
-    }
-    next();
-  },
-];
+// const validateSignup = [
+//   body('businessName')
+//     .notEmpty()
+//     .withMessage('Please provide a business name')
+//     .trim()
+//     .escape(),
+//   body('email')
+//     .isEmail()
+//     .withMessage('Please provide a valid email')
+//     .normalizeEmail(),
+//   body('mobile')
+//     .notEmpty()
+//     .withMessage('Please provide a mobile number')
+//     .trim()
+//     .escape(),
+//   body('password')
+//     .isLength({ min: 8 })
+//     .withMessage('Password must be at least 8 characters long')
+//     .trim()
+//     .escape(),
+//   body('passwordConfirm')
+//     .custom((value, { req }) => {
+//       if (value !== req.body.password) {
+//         throw new Error('Passwords do not match');
+//       }
+//       return true;
+//     })
+//     .trim()
+//     .escape(),
+//   (req, res, next) => {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({
+//         status: 'fail',
+//         message: 'Invalid input',
+//         errors: errors.array(),
+//       });
+//     }
+//     next();
+//   },
+// ];
 
 // Validation and sanitization middleware for login
-const validateLogin = [
-  body('email')
-    .isEmail()
-    .withMessage('Please provide a valid email')
-    .normalizeEmail(),
-  body('password')
-    .notEmpty()
-    .withMessage('Please provide a password')
-    .trim()
-    .escape(),
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        status: 'fail',
-        message: 'Invalid input',
-        errors: errors.array(),
-      });
-    }
-    next();
-  },
-];
+// const validateLogin = [
+//   body('email')
+//     .isEmail()
+//     .withMessage('Please provide a valid email')
+//     .normalizeEmail(),
+//   body('password')
+//     .notEmpty()
+//     .withMessage('Please provide a password')
+//     .trim()
+//     .escape(),
+//   (req, res, next) => {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({
+//         status: 'fail',
+//         message: 'Invalid input',
+//         errors: errors.array(),
+//       });
+//     }
+//     next();
+//   },
+// ];
 
 router.post('/login', CatchAsync(authController.login));
 router.post('/signup', CatchAsync(authController.signup));
