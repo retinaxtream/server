@@ -17,7 +17,7 @@ import express from 'express'; // Ensure Express is imported
 
 // Load environment variables (ensure you have dotenv configured in your main server file)
 import dotenv from 'dotenv';
-dotenv.config(); 
+dotenv.config();
 
 // Configure AWS SDK 
 const s3 = new AWS.S3({
@@ -191,17 +191,39 @@ const fetchImageFromS3 = async (s3Key) => {
 /**
  * Controller to process uploaded images: index faces and store metadata
  */
-const compressImage = async (imageBuffer) => {
+
+const compressImage = async (imageBuffer, maxSizeInBytes = 5 * 1024 * 1024) => {
   try {
-    const compressedBuffer = await sharp(imageBuffer)
-      .jpeg({ quality: 80 }) // Adjust quality as needed (1-100)
-      .toBuffer();
-    return compressedBuffer;
+    let quality = 80; // Start with a higher quality
+    let compressedBuffer;
+
+    while (true) {
+      compressedBuffer = await sharp(imageBuffer)
+        .jpeg({ quality })
+        .toBuffer();
+      
+      if (compressedBuffer.length <= maxSizeInBytes || quality <= 10) {
+        return compressedBuffer; // Return if size is within limit or if quality is at minimum
+      }
+      quality -= 10; // Decrease quality in steps
+    }
   } catch (error) {
     logger.error('Error compressing image', { error: error.message, stack: error.stack, timestamp: new Date().toISOString() });
     throw error;
   }
 };
+
+// const compressImage = async (imageBuffer) => {
+//   try {
+//     const compressedBuffer = await sharp(imageBuffer)
+//       .jpeg({ quality: 80 })
+//       .toBuffer();
+//     return compressedBuffer;
+//   } catch (error) {
+//     logger.error('Error compressing image', { error: error.message, stack: error.stack, timestamp: new Date().toISOString() });
+//     throw error;
+//   }
+// };
 /**
  * Controller to process uploaded images: index faces and store metadata
  */
@@ -246,21 +268,23 @@ export const processUploadedImages = async (req, res, next) => {
 
         // Validate image size (15MB = 15 * 1024 * 1024 bytes)
       // Validate image size (15MB = 15 * 1024 * 1024 bytes)
-      const maxSizeInBytes = 15 * 1024 * 1024;
+      const maxSizeInBytes = 5 * 1024 * 1024;
+      // const maxSizeInBytes = 15 * 1024 * 1024;
       if (imageBuffer.length > maxSizeInBytes) {
-        logger.warn(`Image size exceeds 15MB: ${s3Key}, attempting to compress.`, { eventId, s3Key, size: imageBuffer.length, timestamp: new Date().toISOString() });
-        
+        // logger.warn(`Image size exceeds 15MB: ${s3Key}, attempting to compress.`, { eventId, s3Key, size: imageBuffer.length, timestamp: new Date().toISOString() });
+        logger.warn(`Image size exceeds 5MB for Rekognition: ${s3Key}, attempting to compress.`, { eventId, s3Key, size: imageBuffer.length, timestamp: new Date().toISOString() });
+
           // Compress the image
           try {
             imageBuffer = await compressImage(imageBuffer); // Reassignment is now allowed
             if (imageBuffer.length > maxSizeInBytes) {
-              logger.warn(`Compressed image still exceeds 15MB: ${s3Key}, skipping processing.`, { eventId, s3Key, size: imageBuffer.length, timestamp: new Date().toISOString() });
-              io.to(socketId).emit('uploadError', { message: `Image ${s3Key} exceeds the 15MB size limit even after compression and was not processed.` });
+              logger.warn(`Compressed image still exceeds 5MB: ${s3Key}, skipping processing.`, { eventId, s3Key, size: imageBuffer.length, timestamp: new Date().toISOString() });
+              io.to(socketId).emit('uploadError', { message: `Image ${s3Key} exceeds the 5MB size limit for Rekognition even after compression and was not processed.` });
               return;
             }
           } catch (compressionError) {
-            logger.error(`Failed to compress image: ${s3Key}`, { eventId, s3Key, error: compressionError.message, timestamp: new Date().toISOString() });
-            io.to(socketId).emit('uploadError', { message: `Failed to compress image ${s3Key} for processing.` });
+            logger.error(`Failed to compress image for Rekognition: ${s3Key}`, { eventId, s3Key, error: compressionError.message, timestamp: new Date().toISOString() });
+            io.to(socketId).emit('uploadError', { message: `Failed to compress image ${s3Key} for Rekognition processing.` });  
             return;
           }
         }

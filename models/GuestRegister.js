@@ -3,6 +3,11 @@ import mongoose from 'mongoose';
 // Define schema for GuestRegister
 const GuestRegisterSchema = new mongoose.Schema(
   {
+    eventId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
     name: {
       type: String,
       required: true,

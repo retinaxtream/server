@@ -78,13 +78,13 @@ export const storeGuestDetails = async (req, res, next) => {
 
   try {
     // Check if the guest is already registered
-    const guestcheck = await GuestRegister.findOne({ name, email });
+    const guestcheck = await GuestRegister.findOne({ name, email,eventId });
     if (guestcheck) {
       return res.status(400).json({ message: "Guest already registered" });
     }
 
     // Create a new guest if they do not already exist
-    guestEntry = await GuestRegister.create({ name, email });
+    guestEntry = await GuestRegister.create({ name, email,eventId });
 
     const collectionId = `event-${eventId}`;
     await ensureCollectionExists(collectionId);
