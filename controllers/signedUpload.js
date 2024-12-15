@@ -213,20 +213,7 @@ const compressImage = async (imageBuffer, maxSizeInBytes = 5 * 1024 * 1024) => {
   }
 };
 
-// const compressImage = async (imageBuffer) => {
-//   try {
-//     const compressedBuffer = await sharp(imageBuffer)
-//       .jpeg({ quality: 80 })
-//       .toBuffer();
-//     return compressedBuffer;
-//   } catch (error) {
-//     logger.error('Error compressing image', { error: error.message, stack: error.stack, timestamp: new Date().toISOString() });
-//     throw error;
-//   }
-// };
-/**
- * Controller to process uploaded images: index faces and store metadata
- */
+
 export const processUploadedImages = async (req, res, next) => {
 
   const { s3Keys, eventId, socketId } = req.body;
@@ -265,13 +252,9 @@ export const processUploadedImages = async (req, res, next) => {
       try {
         // Fetch image from S3
         let imageBuffer = await fetchImageFromS3(s3Key); // Changed to 'let'
-
-        // Validate image size (15MB = 15 * 1024 * 1024 bytes)
-      // Validate image size (15MB = 15 * 1024 * 1024 bytes)
       const maxSizeInBytes = 5 * 1024 * 1024;
-      // const maxSizeInBytes = 15 * 1024 * 1024;
+
       if (imageBuffer.length > maxSizeInBytes) {
-        // logger.warn(`Image size exceeds 15MB: ${s3Key}, attempting to compress.`, { eventId, s3Key, size: imageBuffer.length, timestamp: new Date().toISOString() });
         logger.warn(`Image size exceeds 5MB for Rekognition: ${s3Key}, attempting to compress.`, { eventId, s3Key, size: imageBuffer.length, timestamp: new Date().toISOString() });
 
           // Compress the image
