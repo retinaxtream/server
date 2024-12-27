@@ -4,6 +4,7 @@ import logger from '../Utils/logger.js'; // Import the logger
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import Guest from '../models/GuestModel.js';
 import  {sendMedia}   from '../Utils/emailSender.js'
+import mongoose from 'mongoose';
 
 import {
   IndexFacesCommand,
@@ -39,6 +40,7 @@ import {
   QueryCommand as QueryCommandLib,
   BatchGetCommand
 } from '@aws-sdk/lib-dynamodb';
+import Client from '../models/ClientModel.js';
 // import { log } from 'winston';
 
 // Initialize AWS clients
@@ -745,15 +747,24 @@ export const sendMatchingImagesEmails = async (req, res, next) => {
   try {
     // Retrieve all matched guests from MongoDB
     const matchedGuests = await Guest.find({ eventId });
+    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      throw new Error('Invalid ObjectId');
+    }
+    const Matchclient = await Client.findById(eventId);
+    console.log('Matched Guest ------------------------');
+    console.log(matchedGuests);
+    
 
-    if (!matchedGuests || matchedGuests.length === 0) {
-      logger.info('No matched guests found for event:', eventId);
-      return res.status(200).json({ message: 'No matched guests found for the event.' });
+    if (!matchedGuests || matchedGuests.length === 0 || !Matchclient) {
+      logger.info('No matched guests or No Matchclient found for event:', eventId);
+      return res.status(200).json({ message: 'No matched guests or No Matchclient found for event.' });
     }
 
     // Optional: Retrieve event name from another source if available
-    const eventName = `Event ${eventId}`; // Replace with dynamic data as needed
+    const eventName = `${Matchclient.EventName}`; // Replace with dynamic data as needed
     const companyName = 'Hapzea'; // Replace with your company name
+    const groom = Matchclient.Groom
+    const bride = Matchclient.Bride
 
     // Collect URLs for each matched guest
     const guestUrls = matchedGuests.map(guest => ({
@@ -769,8 +780,10 @@ export const sendMatchingImagesEmails = async (req, res, next) => {
           guest.email,
           guestUrls.find(url => url.guestId === guest.guestId).galleryLink,
           companyName,
-          eventName,
-          guest.name
+          eventName, 
+          guest.name,
+          groom,
+          bride 
         );
         logger.info(`Email sent to ${guest.email} for event ${eventId}`);
       } else {

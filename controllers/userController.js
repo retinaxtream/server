@@ -1798,29 +1798,86 @@ export const deleteFiles = CatchAsync(async (req, res, next) => {
   const id = req.params.id;
   const { sub_folder, imageFiles, mainFile } = req.body;
 
+  console.log('Delete request received:', {
+    id,
+    sub_folder,
+    mainFile,
+    imageFiles
+  });
+
   if (!id || !sub_folder || !imageFiles || !imageFiles.length) {
     return next(new AppError('Invalid request parameters', 400));
   }
 
   const bucketName = 'hapzea';
   const bucket = storage.bucket(bucketName);
- 
-  const deletePromises = imageFiles.map(imageFile => {
-    const filePath = `${id}/${mainFile}/${sub_folder}/${imageFile}`;
-    const file = bucket.file(filePath);
-    return file.delete().catch(error => {
-      console.error(`Error deleting file ${filePath}:`, error);
-      throw new AppError(`Error deleting file ${filePath}`, 500);
+
+  const deletePromises = imageFiles.flatMap(imageFile => {
+    // Updated paths to match actual storage structure
+    const paths = [
+      // Original image path with correct 'originals' subfolder
+      `${id}/${mainFile}/${sub_folder}/originals/${imageFile}`,
+      // Thumbnail path with correct 'thumbnails' subfolder
+      `${id}/${mainFile}/${sub_folder}/thumbnails/thumb_${imageFile}`
+    ];
+
+    console.log('Attempting to delete paths:', paths);
+
+    return paths.map(filePath => {
+      const file = bucket.file(filePath);
+      
+      return file.exists()
+        .then(([exists]) => {
+          console.log(`File ${filePath} exists: ${exists}`);
+          if (!exists) {
+            return null;
+          }
+          return file.delete()
+            .then(() => {
+              console.log(`Successfully deleted: ${filePath}`);
+              return true;
+            })
+            .catch(error => {
+              console.error(`Error deleting file ${filePath}:`, error);
+              if (!filePath.includes('thumbnails')) {
+                throw new AppError(`Error deleting file ${filePath}`, 500);
+              }
+              return null;
+            });
+        })
+        .catch(error => {
+          console.error(`Error checking existence for ${filePath}:`, error);
+          if (!filePath.includes('thumbnails')) {
+            throw new AppError(`Error with file ${filePath}`, 500);
+          }
+          return null;
+        });
     });
   });
 
   try {
-    await Promise.all(deletePromises);
+    const results = await Promise.all(deletePromises);
+    const deletedCount = results.filter(Boolean).length;
+    
+    console.log('Delete operation results:', {
+      totalAttempts: results.length,
+      successfulDeletes: deletedCount
+    });
+
+    if (deletedCount === 0) {
+      return next(new AppError('No files were found to delete', 404));
+    }
+
     res.status(200).json({
       status: 'success',
-      message: 'Images deleted successfully',
+      message: `Successfully deleted ${deletedCount} files`,
+      details: {
+        attempted: results.length,
+        successful: deletedCount
+      }
     });
   } catch (error) {
+    console.error('File deletion error:', error);
     next(error);
   }
 });
