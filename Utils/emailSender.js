@@ -106,7 +106,7 @@ const createEmailTemplate = (guestName, galleryLink, companyName, eventName, gro
         </div>
         <div class="footer">
           <p>You received this email because you are a guest of <strong>${eventName}</strong>.</p>
-          <p>If you have any questions, feel free to contact us at <a href="mailto:support@yourdomain.com">support@yourdomain.com</a>.</p>
+          <p>If you have any questions, feel free to contact us at <a href="mailto:support@yourdomain.com">tech@hapzea.com</a>.</p>
           <p>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
         </div>
       </div>
