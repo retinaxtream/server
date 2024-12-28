@@ -17,7 +17,7 @@ import { getGuestDetailsWithImages } from '../controllers/GuestController.js';
 import { uploadImages } from '../controllers/rekognitionController.js'; // Correct import
 import { v4 as uuidv4 } from 'uuid'; // Ensure uuidv4 is imported
 import  * as singnedUploads from '../controllers/signedUpload.js'
-
+import { downloadCsv } from '../controllers/csvController.js';
 const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa"); 
 import * as RhzuserController from '../controllers/RhzuserController.js';
 
@@ -410,5 +410,6 @@ router.post('/upload-complete', singnedUploads.uploadComplete);
 // Route to process uploaded images
 router.post('/process-uploaded-images', singnedUploads.processUploadedImages);
 
+router.get('/download-csv', downloadCsv);
 
 export default router;

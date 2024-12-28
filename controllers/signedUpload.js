@@ -47,7 +47,8 @@ const generatePreSignedUrl = async (fileName, fileType, eventId) => {
   const params = {
     Bucket: process.env.S3_BUCKET_NAME, // Ensure this environment variable is set
     Key: fileKey,
-    Expires: 1200, // URL expiration time in seconds (5 minutes)
+    // Expires: 1200, // URL expiration time in seconds (5 minutes)
+    Expires: 5 * 24 * 60 * 60, // 5 days in seconds
     ContentType: fileType,
     // ACL: 'public-read', // Uncomment if you want the uploaded file to be publicly readable
   };

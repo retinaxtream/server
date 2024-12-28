@@ -5,13 +5,15 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import Guest from '../models/GuestModel.js';
 import  {sendMedia}   from '../Utils/emailSender.js'
 import mongoose from 'mongoose';
-
+import { createObjectCsvWriter as createCsvWriter } from 'csv-writer';
+import fs from 'fs-extra';
+import path from 'path';
+import os from 'os';
 import {
   IndexFacesCommand,
   SearchFacesByImageCommand
 } from '@aws-sdk/client-rekognition';
 import { PutCommand as DocPutCommand, QueryCommand as DocQueryCommand } from '@aws-sdk/lib-dynamodb';
-
 import {
   S3Client,
   PutObjectCommand,
@@ -428,7 +430,7 @@ const getGuestsByEventId = async (eventId) => {
       eventId: item.EventId,
       faceId: item.FaceId,
       email:item.Email,
-      // Mobile: item.Mobile,
+      mobile: item.Mobile,
       Name: item.Name,
       imageUrl: item.ImageUrl,
     }));
@@ -574,6 +576,7 @@ export const compareGuestFaces = async (req, res, next) => {
           guestId: guest.guestId,
           name: guest.Name,
           email: guest.email,
+          mobile: guest.mobile,
           matches: [], // No matches
         });
         return;
@@ -604,7 +607,8 @@ export const compareGuestFaces = async (req, res, next) => {
           guestMatches.push({
             guestId: guest.guestId,
             name: guest.Name,
-            email: guest.email,
+            email: guest.email, 
+            mobile: guest.mobile,
             matches: [],
           });
           return;
@@ -622,6 +626,7 @@ export const compareGuestFaces = async (req, res, next) => {
           guestId: guest.guestId,
           name: guest.Name,
           email: guest.email,
+          mobile: guest.mobile,
           matches: matchedImagesWithUrls,
         });
 
@@ -631,6 +636,7 @@ export const compareGuestFaces = async (req, res, next) => {
           guestId: guest.guestId,
           name: guest.Name,
           email: guest.email,
+          mobile: guest.mobile,
           matches: matchedImagesWithUrls,
         };
 
@@ -652,6 +658,7 @@ export const compareGuestFaces = async (req, res, next) => {
           guestId: guest.guestId,
           name: guest.Name,
           email: guest.email,
+          mobile: guest.mobile,
           matches: [],
         });
       }
@@ -734,9 +741,51 @@ export const deleteAllCollections = async (req, res, next) => {
 };
 
 
+
+// Function to generate CSV
+const generateCsv = async (matchedGuests, eventId) => {
+  const tmpDir = os.tmpdir(); // Get the temporary directory path
+  const filePath = path.join(tmpDir, `${eventId}_guests.csv`); // Create the file path
+
+  const csvWriter = createCsvWriter({
+    path: filePath, // Use the temporary directory path
+    header: [
+      // { id: 'eventId', title: 'Event ID' },
+      // { id: 'guestId', title: 'Guest ID' },
+      { id: 'name', title: 'Name' },
+      { id: 'email', title: 'Email' },
+      { id: 'mobile', title: 'Mobile' },
+      { id: 's3Url', title: 'S3 URL' },
+      { id: 'createdAt', title: 'Created At' },
+    ],
+  });
+
+  await csvWriter.writeRecords(matchedGuests);
+  return filePath; // Return the path to the generated CSV file
+};
+
+// Function to upload CSV to S3
+const uploadCsvToS3 = async (filePath, eventId) => {
+  const s3Key = `${eventId}/guests/${path.basename(filePath)}`;
+  const fileStream = fs.createReadStream(filePath);
+
+  const uploadParams = {
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key: s3Key,
+    Body: fileStream,
+    ContentType: 'text/csv',
+  };
+
+  await s3Client.send(new PutObjectCommand(uploadParams));
+  console.log(`CSV file uploaded to S3: ${s3Key}`);
+  await fs.unlink(filePath); // Remove the temporary file after upload
+};
+
+
+// Example usage in your sendMatchingImagesEmails function
 export const sendMatchingImagesEmails = async (req, res, next) => {
   const { eventId } = req.body;
-  
+
   // Validate input
   if (!eventId) {
     return res.status(400).json({
@@ -753,18 +802,17 @@ export const sendMatchingImagesEmails = async (req, res, next) => {
     const Matchclient = await Client.findById(eventId);
     console.log('Matched Guest ------------------------');
     console.log(matchedGuests);
-    
 
     if (!matchedGuests || matchedGuests.length === 0 || !Matchclient) {
-      logger.info('No matched guests or No Matchclient found for event:', eventId);
+      console.info('No matched guests or No Matchclient found for event:', eventId);
       return res.status(200).json({ message: 'No matched guests or No Matchclient found for event.' });
     }
 
     // Optional: Retrieve event name from another source if available
     const eventName = `${Matchclient.EventName}`; // Replace with dynamic data as needed
     const companyName = 'Hapzea'; // Replace with your company name
-    const groom = Matchclient.Groom
-    const bride = Matchclient.Bride
+    const groom = Matchclient.Groom;
+    const bride = Matchclient.Bride;
 
     // Collect URLs for each matched guest
     const guestUrls = matchedGuests.map(guest => ({
@@ -775,28 +823,101 @@ export const sendMatchingImagesEmails = async (req, res, next) => {
     // Iterate through each matched guest and send email
     for (const guest of matchedGuests) {
       if (guest.matches && guest.matches.length > 0) {
+        const galleryLink = guestUrls.find(url => url.guestId === guest.guestId).galleryLink;
+
+        // Save the URL to the guest document
+        guest.s3Url = galleryLink;
+        await guest.save();
+
         // Use the existing sendMedia function
         await sendMedia(
           guest.email,
-          guestUrls.find(url => url.guestId === guest.guestId).galleryLink,
+          galleryLink,
           companyName,
-          eventName, 
+          eventName,
           guest.name,
           groom,
-          bride 
+          bride
         );
-        logger.info(`Email sent to ${guest.email} for event ${eventId}`);
+        console.info(`Email sent to ${guest.email} for event ${eventId}`);
       } else {
-        logger.info(`No matches found for guest: ${guest.name}, skipping email.`);
+        console.info(`No matches found for guest: ${guest.name}, skipping email.`);
       }
     }
 
+    // Generate and upload CSV after sending emails
+    const csvFilePath = await generateCsv(matchedGuests, eventId);
+    await uploadCsvToS3(csvFilePath, eventId);
+
     res.status(200).json({ message: 'Emails sent successfully to all matched guests.' });
   } catch (error) {
-    logger.error('Error sending matching images emails:', { error: error.message, stack: error.stack });
+    console.error('Error sending matching images emails:', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Failed to send emails.' });
   }
 };
+
+// export const sendMatchingImagesEmails = async (req, res, next) => {
+//   const { eventId } = req.body;
+  
+//   // Validate input
+//   if (!eventId) {
+//     return res.status(400).json({
+//       error: 'Missing required field: eventId.',
+//     });
+//   }
+
+//   try {
+//     // Retrieve all matched guests from MongoDB
+//     const matchedGuests = await Guest.find({ eventId });
+//     if (!mongoose.Types.ObjectId.isValid(eventId)) {
+//       throw new Error('Invalid ObjectId');
+//     }
+//     const Matchclient = await Client.findById(eventId);
+//     console.log('Matched Guest ------------------------');
+//     console.log(matchedGuests);
+    
+//     if (!matchedGuests || matchedGuests.length === 0 || !Matchclient) {
+//       logger.info('No matched guests or No Matchclient found for event:', eventId);
+//       return res.status(200).json({ message: 'No matched guests or No Matchclient found for event.' });
+//     }
+
+//     // Optional: Retrieve event name from another source if available
+//     const eventName = `${Matchclient.EventName}`; // Replace with dynamic data as needed
+//     const companyName = 'Hapzea'; // Replace with your company name
+//     const groom = Matchclient.Groom
+//     const bride = Matchclient.Bride
+
+//     // Collect URLs for each matched guest
+//     const guestUrls = matchedGuests.map(guest => ({
+//       guestId: guest.guestId,
+//       galleryLink: `https://hapzea.com/${guest.guestId}/${eventId}/ai/face_recognition/guest/gallery`
+//     }));
+
+//     // Iterate through each matched guest and send email
+//     for (const guest of matchedGuests) {
+//       if (guest.matches && guest.matches.length > 0) {
+//         // Use the existing sendMedia function
+//         await sendMedia(
+//           guest.email,
+//           guestUrls.find(url => url.guestId === guest.guestId).galleryLink,
+//           companyName,
+//           eventName, 
+//           guest.name,
+//           groom,
+//           bride 
+//         );
+//         logger.info(`Email sent to ${guest.email} for event ${eventId}`);
+//       } else {
+//         logger.info(`No matches found for guest: ${guest.name}, skipping email.`);
+//       }
+//     }
+
+//     res.status(200).json({ message: 'Emails sent successfully to all matched guests.' });
+//   } catch (error) {
+//     logger.error('Error sending matching images emails:', { error: error.message, stack: error.stack });
+//     res.status(500).json({ error: 'Failed to send emails.' });
+//   }
+// };
 
 
 export const getMatchedImages = async (req, res, next) => {

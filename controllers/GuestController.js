@@ -53,15 +53,19 @@ const ensureCollectionExists = async (collectionId) => {
 export const storeGuestDetails = async (req, res, next) => {
   logger.info("Calling storeGuestDetails function");
   const { eventId } = req.query;
-  const { name, email } = req.body;
+  const { name, email, mobile } = req.body;
+  console.log('llllllllllllllllllllllllll');
+  console.log(name, email, mobile );
+  
   const file = req.file;
 
   // Validate required fields
-  if (!eventId || !name || !email || !file) {
+  if (!eventId || !name || !email || !mobile || !file) {
     logger.warn('Missing required fields', {
       eventId,
       name,
       email,
+      mobile,
       filePresent: !!file
     });
     return res.status(400).json({
@@ -78,13 +82,13 @@ export const storeGuestDetails = async (req, res, next) => {
 
   try {
     // Check if the guest is already registered
-    const guestcheck = await GuestRegister.findOne({ name, email,eventId });
+    const guestcheck = await GuestRegister.findOne({ name, email,eventId, mobile });
     if (guestcheck) {
       return res.status(400).json({ message: "Guest already registered" });
     }
 
     // Create a new guest if they do not already exist
-    guestEntry = await GuestRegister.create({ name, email,eventId });
+    guestEntry = await GuestRegister.create({ name, email,eventId, mobile });
 
     const collectionId = `event-${eventId}`;
     await ensureCollectionExists(collectionId);
@@ -148,6 +152,7 @@ export const storeGuestDetails = async (req, res, next) => {
         EventId: eventId,
         GuestId: guestId,
         Name: name,
+        Mobile: mobile,
         Email: email,
         ImageUrl: imageUrl,
         ScannedAt: new Date().toISOString(),
@@ -190,7 +195,7 @@ export const getGuestDetails = async (req, res) => {
     // Define parameters for DynamoDB Query using DynamoDBDocumentClient
     const queryParams = {
       TableName: process.env.GUESTS_TABLE_NAME, // Ensure this environment variable is set
-      IndexName: 'EventIdIndex', // Name of the GSI
+      IndexName: 'EventIdIndex', // Name of the GSI 
       KeyConditionExpression: 'EventId = :eventId',
       ExpressionAttributeValues: {
         ':eventId': eventId, // Directly pass the value without specifying type

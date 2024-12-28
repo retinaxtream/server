@@ -1,4 +1,3 @@
-// models/MatchedGuest.js
 import mongoose from 'mongoose';
 
 const GuestSchema = new mongoose.Schema(
@@ -18,11 +17,21 @@ const GuestSchema = new mongoose.Schema(
       required: true,
     },
     email: { // Added email field
-      type: String,
+      type: String, 
       required: true,
       lowercase: true, // Converts email to lowercase before saving
       trim: true, // Removes whitespace from both ends
       match: [/\S+@\S+\.\S+/, 'is invalid'], // Basic email format validation
+    },
+    mobile: { // Added mobile number field
+      type: String,
+      required: true,
+      trim: true, // Removes whitespace from both ends
+      match: [/^[0-9]{10}$/, 'is invalid'], // Basic mobile number format validation (10 digits)
+    },
+    s3Url: { // Added S3 URL field
+      type: String,
+      trim: true, // Removes whitespace from both ends
     },
     matches: [
       {
@@ -57,4 +66,3 @@ GuestSchema.index({ eventId: 1, guestId: 1 });
 const Guest = mongoose.model('Guest', GuestSchema);
 
 export default Guest;
-  
