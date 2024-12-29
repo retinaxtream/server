@@ -20,6 +20,11 @@ const createEmailTemplate = (guestName, galleryLink, companyName, eventName, gro
       <p style="margin: 10px 0;">With love,</p>
       <p style="margin: 10px 0; font-weight: bold;">${groom} and ${bride}</p>
     `;
+  }else{
+    greetingSection = `
+    <p style="margin: 10px 0;">Dear ${guestName},</p>
+    <p style="margin: 10px 0;">Thank you for joining and making our family get-together a wonderful and memorable occasion.</p>
+  `;
   }
 
   return `
