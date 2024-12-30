@@ -348,6 +348,7 @@ router.post(
   rekognitionController.sendMatchingImagesEmails // Controller function to send emails
 ); // End of routes
 
+
 router.delete(
   '/empty-event-faces',
   auth.protect, 

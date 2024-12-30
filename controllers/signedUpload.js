@@ -97,7 +97,7 @@ export const getSignedUrls = async (req, res) => {
         return { url, key };
       })
     );
-
+ 
     res.json({ signedUrls });
   } catch (error) {
     console.error('Error generating pre-signed URLs:', error);

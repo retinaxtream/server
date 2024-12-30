@@ -846,8 +846,8 @@ export const sendMatchingImagesEmails = async (req, res, next) => {
     }
 
     // Generate and upload CSV after sending emails
-    const csvFilePath = await generateCsv(matchedGuests, eventId);
-    await uploadCsvToS3(csvFilePath, eventId);
+    // const csvFilePath = await generateCsv(matchedGuests, eventId);
+    // await uploadCsvToS3(csvFilePath, eventId);
 
     res.status(200).json({ message: 'Emails sent successfully to all matched guests.' });
   } catch (error) {

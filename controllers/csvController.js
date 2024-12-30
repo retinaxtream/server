@@ -27,8 +27,6 @@ export const downloadCsv = async (req, res) => {
     const csvWriter = createCsvWriter({
       path: filePath, // Use the temporary directory path
       header: [
-        { id: 'eventId', title: 'Event ID' },
-        { id: 'guestId', title: 'Guest ID' },
         { id: 'name', title: 'Name' },
         { id: 'email', title: 'Email' },
         { id: 'mobile', title: 'Mobile' },
