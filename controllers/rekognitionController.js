@@ -783,9 +783,82 @@ const uploadCsvToS3 = async (filePath, eventId) => {
 
 
 // Example usage in your sendMatchingImagesEmails function
+// export const sendMatchingImagesEmails = async (req, res, next) => {
+//   const { eventId } = req.body;
+
+//   // Validate input
+//   if (!eventId) {
+//     return res.status(400).json({
+//       error: 'Missing required field: eventId.',
+//     });
+//   }
+
+//   try {
+//     // Retrieve all matched guests from MongoDB
+//     const matchedGuests = await Guest.find({ eventId });
+//     if (!mongoose.Types.ObjectId.isValid(eventId)) {
+//       throw new Error('Invalid ObjectId');
+//     }
+//     const Matchclient = await Client.findById(eventId);
+//     console.log('Matched Guest ------------------------');
+//     console.log(matchedGuests);
+
+//     if (!matchedGuests || matchedGuests.length === 0 || !Matchclient) {
+//       console.info('No matched guests or No Matchclient found for event:', eventId);
+//       return res.status(200).json({ message: 'No matched guests or No Matchclient found for event.' });
+//     }
+
+//     // Optional: Retrieve event name from another source if available
+//     const eventName = `${Matchclient.EventName}`; // Replace with dynamic data as needed
+//     const companyName = 'Hapzea'; // Replace with your company name
+//     const groom = Matchclient.Groom;
+//     const bride = Matchclient.Bride;
+
+//     // Collect URLs for each matched guest
+//     const guestUrls = matchedGuests.map(guest => ({
+//       guestId: guest.guestId,
+//       galleryLink: `https://hapzea.com/${guest.guestId}/${eventId}/ai/face_recognition/guest/gallery`
+//     }));
+
+//     // Iterate through each matched guest and send email
+//     for (const guest of matchedGuests) {
+//       if (guest.matches && guest.matches.length > 0) {
+//         const galleryLink = guestUrls.find(url => url.guestId === guest.guestId).galleryLink;
+
+//         // Save the URL to the guest document
+//         guest.s3Url = galleryLink;
+//         await guest.save();
+
+//         // Use the existing sendMedia function
+//         await sendMedia(
+//           guest.email,
+//           galleryLink,
+//           companyName,
+//           eventName,
+//           guest.name,
+//           groom,
+//           bride
+//         );
+//         console.info(`Email sent to ${guest.email} for event ${eventId}`);
+//       } else {
+//         console.info(`No matches found for guest: ${guest.name}, skipping email.`);
+//       }
+//     }
+
+//     // Generate and upload CSV after sending emails
+//     // const csvFilePath = await generateCsv(matchedGuests, eventId);
+//     // await uploadCsvToS3(csvFilePath, eventId);
+
+//     res.status(200).json({ message: 'Emails sent successfully to all matched guests.' });
+//   } catch (error) {
+//     console.error('Error sending matching images emails:', { error: error.message, stack: error.stack });
+//     res.status(500).json({ error: 'Failed to send emails.' });
+//   }
+// };
+
 export const sendMatchingImagesEmails = async (req, res, next) => {
   const { eventId } = req.body;
-
+ 
   // Validate input
   if (!eventId) {
     return res.status(400).json({
@@ -794,8 +867,22 @@ export const sendMatchingImagesEmails = async (req, res, next) => {
   }
 
   try {
-    // Retrieve all matched guests from MongoDB
-    const matchedGuests = await Guest.find({ eventId });
+    // Define the date range for today
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+
+    // Retrieve all matched guests from MongoDB created today
+    const matchedGuests = await Guest.find({
+      eventId,
+      createdAt: {
+        $gte: start,
+        $lte: end
+      }
+    });
+
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       throw new Error('Invalid ObjectId');
     }
@@ -855,6 +942,7 @@ export const sendMatchingImagesEmails = async (req, res, next) => {
     res.status(500).json({ error: 'Failed to send emails.' });
   }
 };
+
 
 // export const sendMatchingImagesEmails = async (req, res, next) => {
 //   const { eventId } = req.body;
