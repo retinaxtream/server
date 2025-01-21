@@ -22,49 +22,6 @@ const logtail = new Logtail("5FHQ4tHsSCTJTyY71B1kLYoa");
 import * as RhzuserController from '../controllers/RhzuserController.js';
 
 const router = express.Router();           
-  
-// Configure diskStorage for upload_ai
-// const uploadAiStorage = multer.diskStorage({
-//   destination: (req, file, cb) => {
-//     cb(null, os.tmpdir()); // Use OS temporary directory
-//   },
-//   filename: (req, file, cb) => {
-//     const uniqueSuffix = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
-//     cb(null, uniqueSuffix);
-//   },
-// });
-
-// const upload_ai = multer({
-//   storage: uploadAiStorage, // Use the correct key
-//   limits: { fileSize: 50 * 1024 * 1024 }, // Limit each file to 50MB
-//   fileFilter: (req, file, cb) => {
-//     if (file.mimetype.startsWith('image/')) {
-//       cb(null, true);
-//     } else {
-//       cb(new Error('Invalid file type. Only images are allowed.'));
-//     }
-//   },
-// });
-
-
-// const memoryStorage = multer.memoryStorage();
-// const upload_ai = multer({ storage: memoryStorage });
-
-// const upload_ai = multer({
-//   storage: memoryStorage,
-//   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB per file
-//   fileFilter: (req, file, cb) => {
-//     if (file.mimetype.startsWith('image/')) {
-//       cb(null, true);
-//     } else {
-//       cb(new Error('Invalid file type. Only images are allowed.'));
-//     }
-//   },
-// });
-
-
-
-
 
 const uploadAiStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -88,31 +45,6 @@ const upload_ai = multer({
   },
 });
 
-
-// Configure diskStorage for uploadGuestImage
-// const uploadGuestImage = multer({
-//   storage: multer.diskStorage({
-//     destination: (req, file, cb) => {
-//       cb(null, os.tmpdir()); // Use OS temporary directory
-//     },
-//     filename: (req, file, cb) => {
-//       const uniqueSuffix = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
-//       cb(null, uniqueSuffix);
-//     },
-//   }),
-//   limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size to 5MB
-//   fileFilter: (req, file, cb) => {
-//     console.log('Incoming file:', file.originalname, file.mimetype);
-//     if (file.mimetype.startsWith('image/')) {
-//       cb(null, true);
-//     } else {
-//       cb(new Error('Invalid file type. Only images are allowed.'));
-//     }
-//   },
-// });
-
-// Replace the existing uploadGuestImage configuration with memoryStorage
-// routes/userRoute.js
 
 const uploadGuestImage = multer({
   storage: multer.memoryStorage(),
@@ -190,73 +122,6 @@ const free = multer({ storage: storageTwo });
 const profile = multer({ storage: storageProfile });
 const clientcover = multer({ storage: storageClient });
 
-// Validation and sanitization middleware for signup
-// const validateSignup = [
-//   body('businessName')
-//     .notEmpty()
-//     .withMessage('Please provide a business name')
-//     .trim()
-//     .escape(),
-//   body('email')
-//     .isEmail()
-//     .withMessage('Please provide a valid email')
-//     .normalizeEmail(),
-//   body('mobile')
-//     .notEmpty()
-//     .withMessage('Please provide a mobile number')
-//     .trim()
-//     .escape(),
-//   body('password')
-//     .isLength({ min: 8 })
-//     .withMessage('Password must be at least 8 characters long')
-//     .trim()
-//     .escape(),
-//   body('passwordConfirm')
-//     .custom((value, { req }) => {
-//       if (value !== req.body.password) {
-//         throw new Error('Passwords do not match');
-//       }
-//       return true;
-//     })
-//     .trim()
-//     .escape(),
-//   (req, res, next) => {
-//     const errors = validationResult(req);
-//     if (!errors.isEmpty()) {
-//       return res.status(400).json({
-//         status: 'fail',
-//         message: 'Invalid input',
-//         errors: errors.array(),
-//       });
-//     }
-//     next();
-//   },
-// ];
-
-// Validation and sanitization middleware for login
-// const validateLogin = [
-//   body('email')
-//     .isEmail()
-//     .withMessage('Please provide a valid email')
-//     .normalizeEmail(),
-//   body('password')
-//     .notEmpty()
-//     .withMessage('Please provide a password')
-//     .trim()
-//     .escape(),
-//   (req, res, next) => {
-//     const errors = validationResult(req);
-//     if (!errors.isEmpty()) {
-//       return res.status(400).json({
-//         status: 'fail',
-//         message: 'Invalid input',
-//         errors: errors.array(),
-//       });
-//     }
-//     next();
-//   },
-// ];
-
 router.post('/login', CatchAsync(authController.login));
 router.post('/signup', CatchAsync(authController.signup));
 
@@ -299,27 +164,11 @@ router.post("/googlesignInDesktop", authController.googleAuthDesk);
 router.post('/updatePhotoSubmission/:id', userController.updatePhotoSubmission);
 router.post('/uploadClientCoverPhoto', auth.protect, clientcover.single('photos'), userController.uploadClientCoverPhoto);
 router.get('/getClientCoverPhoto', auth.protect, userController.getClientCoverPhoto);
- 
-// Example route for uploading multiple images for face indexing in an event
-// router.post(
-//   '/upload-images',
-//   upload_ai.array('images'),
-//   (req, res, next) => {
-//     req.socketId = req.query.socketId;
-//     req.eventId = req.query.eventId;
-//     console.log("Received files:", req.files); 
-//     next();
-//   },
-//   uploadImages
-// );
-
 router.post('/upload-images', upload_ai.array('images'), (req, res, next) => {
   req.socketId = req.query.socketId;
   req.eventId = req.query.eventId;
   next();
 }, rekognitionController.uploadImages);
-
-
 
 router.post(
   '/register-guest',
