@@ -1981,7 +1981,7 @@ const sendAlbum = async (email, magic_url, company_name, event_name) => {
       service: "gmail",
       auth: {
         user: "retina@hapzea.com",
-        pass: "nkhz kfjz nvri tkny", // Provide the correct password
+        pass: process.env.EMAIL_PASS, // Provide the correct password
       },
     });
 
@@ -2094,7 +2094,7 @@ const sendMedia = async (email, magic_url, company_name, event_name) => {
       service: "gmail",
       auth: {
         user: "retina@hapzea.com",
-        pass: "nkhz kfjz nvri tkny", // Provide the correct password
+        pass: process.env.EMAIL_PASS, // Provide the correct password
       },
     });
 

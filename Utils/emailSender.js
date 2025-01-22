@@ -130,8 +130,8 @@ export const sendMedia = async (email, magic_url, company_name, event_name, gues
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: process.env.EMAIL_USER, // e.g., "retina@hapzea.com"
-        pass: process.env.EMAIL_PASS, // e.g., "nkhz kfjz nvri tkny"
+        user: process.env.EMAIL_USER, 
+        pass: process.env.EMAIL_PASS, 
       },
     });
 
