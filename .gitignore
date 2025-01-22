@@ -4,3 +4,4 @@ node_modules
 ./credentials.json
 config.env
 .\controllers\delete.js
+"credentials.json" 
