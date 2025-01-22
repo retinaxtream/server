@@ -4,4 +4,7 @@ node_modules
 ./credentials.json
 config.env
 .\controllers\delete.js
+<<<<<<< HEAD
 "credentials.json" 
+=======
+>>>>>>> 9d49a37146099451700849bbe7e4512d97885340
